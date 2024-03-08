@@ -1,8 +1,7 @@
-// database/database.module.ts
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../users/entities/user.entity' // Import your entity
+import { UserEntity} from '../users/entities/user.entity'
+import {RegisterEntity} from "../register/entities/register.entity"; // Import your entity
 
 @Module({
     imports: [
@@ -12,7 +11,8 @@ import { User } from '../users/entities/user.entity' // Import your entity
             port: 27017,
             database: 'tennis_app',
             entities: [
-                User, // Add other entities here if needed
+                UserEntity,
+                RegisterEntity,// Add other entities here if needed
             ],
             synchronize: true,
             useNewUrlParser: true,
