@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserEntity} from '../users/entities/user.entity'
+import {Module} from '@nestjs/common';
+import {TypeOrmModule} from '@nestjs/typeorm';
+import {UserEntity} from '../users/entities/user.entity'
 import {RegisterEntity} from "../register/entities/register.entity"; // Import your entity
 
 @Module({
@@ -21,4 +21,5 @@ import {RegisterEntity} from "../register/entities/register.entity"; // Import y
     ],
     exports: [TypeOrmModule],
 })
-export class DatabaseModule {}
+export class DatabaseModule {
+}

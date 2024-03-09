@@ -1,13 +1,20 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import {Entity, Column, PrimaryGeneratedColumn, ObjectIdColumn, ObjectId} from 'typeorm';
 
 @Entity()
 export class RegisterEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+    @ObjectIdColumn()
+    id: ObjectId;
 
     @Column()
     user: string;
 
     @Column()
     pwd: string;
+
+    @Column()
+    created_at: Date;
+
+    @Column({default: 'user'})
+    roles: string
+
 }

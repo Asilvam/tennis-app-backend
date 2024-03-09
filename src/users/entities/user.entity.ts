@@ -14,5 +14,9 @@ export class UserEntity {
     @Column()
     email: string;
 
+    @Column()
+    created_at: Date;
+
+
     // Other properties and methods can be defined as needed
 }
