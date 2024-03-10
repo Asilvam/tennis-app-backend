@@ -1,4 +1,5 @@
-import {Entity, Column, PrimaryGeneratedColumn, ObjectIdColumn, ObjectId} from 'typeorm';
+import { Entity, Column, CreateDateColumn, ObjectIdColumn } from 'typeorm';
+import { ObjectId } from 'mongodb';
 
 @Entity()
 export class RegisterEntity {
@@ -11,10 +12,7 @@ export class RegisterEntity {
     @Column()
     pwd: string;
 
-    @Column()
+    @CreateDateColumn({ type: 'timestamp' })
     created_at: Date;
-
-    @Column({default: 'user'})
-    roles: string
 
 }

@@ -21,8 +21,6 @@ export class RegisterService {
     }
 
     async create(createRegisterDto: any, hashedPassword: string) {
-        // console.log(createRegisterDto);
-        // console.log(hashedPassword);
         const registerEntity = {...createRegisterDto, pwd: hashedPassword};
         const response = await this.registrationRepository.save(registerEntity);
         if (response) {
