@@ -26,7 +26,7 @@ export class AuthController {
       throw new HttpException('Invalid password', HttpStatus.UNAUTHORIZED);
     }
     // Generate JWT token
-    const accessToken = this.jwtService.generateToken({ username: register.user });
+    const accessToken = this.jwtService.generateToken({ username: register.namePlayer });
     if (accessToken) {
         return { message: 'Login successful', accessToken: accessToken};
     }

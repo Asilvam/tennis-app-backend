@@ -7,12 +7,24 @@ export class RegisterEntity {
     id: ObjectId;
 
     @Column()
-    user: string;
+    namePlayer: string;
+
+    @Column()
+    email: string;
+
+    @Column()
+    celular: string;
 
     @Column()
     pwd: string;
 
     @CreateDateColumn({ type: 'timestamp' })
     created_at: Date;
+
+    @Column({ default: true})
+    statePlayer: boolean;
+
+    @Column({ default: 'user'})
+    role: string;
 
 }

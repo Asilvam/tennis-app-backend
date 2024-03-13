@@ -5,6 +5,7 @@ import {InjectRepository} from "@nestjs/typeorm";
 import {RegisterEntity} from "./entities/register.entity";
 import {Repository} from "typeorm";
 import * as bcrypt from 'bcrypt';
+import {AwsSesService} from "../aws-ses/aws-ses.service";
 
 
 @Injectable()
@@ -12,6 +13,7 @@ export class RegisterService {
     constructor(
         @InjectRepository(RegisterEntity)
         private registrationRepository: Repository<RegisterEntity>,
+        private readonly awsSesService: AwsSesService
     ) {
     }
 
@@ -21,17 +23,28 @@ export class RegisterService {
     }
 
     async create(createRegisterDto: any, hashedPassword: string) {
-        const registerEntity = {...createRegisterDto, pwd: hashedPassword};
+        const registerEntity = {
+            ...createRegisterDto,
+            pwd: hashedPassword,
+            "statePlayer": true,
+            "role": "user"
+        };
         const response = await this.registrationRepository.save(registerEntity);
         if (response) {
+            this.awsSesService.verifyEmailIdentity(createRegisterDto.email);
             return {status: 200, data: response};
         } else {
             return {status: 'error', message: 'Failed to create registration'};
         }
     }
 
-    findAll() {
-        return `This action returns all register`;
+    async findAll() {
+        return await this.registrationRepository.find();
+    }
+
+    async findAllNamePlayers(): Promise<string[]> {
+        const registers = await this.registrationRepository.find({where: {statePlayer: true}});
+        return registers.map(register => register.namePlayer);
     }
 
     findOne(id: number) {

@@ -5,14 +5,20 @@ import {UpdateRegisterDto} from './dto/update-register.dto';
 
 @Controller('register')
 export class RegisterController {
-    constructor(private readonly registerService: RegisterService) {
-    }
+    constructor(
+        private readonly registerService: RegisterService,)
+    {}
 
     @Post()
     async create(@Body() createRegisterDto: any) {
         const hashedPassword = await this.registerService.hashPassword(createRegisterDto.pwd);
         const result = await this.registerService.create(createRegisterDto, hashedPassword);
         return {status: result.status, data: result.data};
+    }
+
+    @Get('names')
+    findAllNAmes() {
+        return this.registerService.findAllNamePlayers();
     }
 
     @Get()

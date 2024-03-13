@@ -1,7 +1,8 @@
 import {Module} from '@nestjs/common';
 import {TypeOrmModule} from '@nestjs/typeorm';
-import {UserEntity} from '../users/entities/user.entity'
-import {RegisterEntity} from "../register/entities/register.entity"; // Import your entity
+import {RegisterEntity} from "../register/entities/register.entity";
+import {Court} from "../court/entities/court.entity";
+import {Turn} from "../turn/entities/turn.entity"; // Import your entity
 
 @Module({
     imports: [
@@ -11,7 +12,8 @@ import {RegisterEntity} from "../register/entities/register.entity"; // Import y
             port: 27017,
             database: 'tennis_app',
             entities: [
-                UserEntity,
+                Court,
+                Turn,
                 RegisterEntity,// Add other entities here if needed
             ],
             synchronize: true,
