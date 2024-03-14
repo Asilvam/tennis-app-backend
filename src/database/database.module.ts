@@ -2,15 +2,15 @@ import {Module} from '@nestjs/common';
 import {TypeOrmModule} from '@nestjs/typeorm';
 import {RegisterEntity} from "../register/entities/register.entity";
 import {Court} from "../court/entities/court.entity";
-import {Turn} from "../turn/entities/turn.entity"; // Import your entity
+import {Turn} from "../turn/entities/turn.entity";
 
 @Module({
     imports: [
         TypeOrmModule.forRoot({
             type: 'mongodb',
-            host: 'localhost',
-            port: 27017,
-            database: 'tennis_app',
+            url: 'mongodb+srv://admin:admin@cluster0.jim6x.mongodb.net/Tennis?retryWrites=true&w=majority&appName=Cluster0',
+            // url: process.env.MONGODB_URL,
+            database: 'Tennis',
             entities: [
                 Court,
                 Turn,

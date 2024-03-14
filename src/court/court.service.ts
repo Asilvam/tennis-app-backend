@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import {Injectable, Logger} from '@nestjs/common';
 import { CreateCourtDto } from './dto/create-court.dto';
 import { UpdateCourtDto } from './dto/update-court.dto';
 import {InjectRepository} from "@nestjs/typeorm";
@@ -7,6 +7,7 @@ import {Court} from "./entities/court.entity";
 
 @Injectable()
 export class CourtService {
+  logger = new Logger(CourtService.name);
   constructor(
       @InjectRepository(Court)
       private courtRepository: Repository<Court>,
@@ -18,7 +19,7 @@ export class CourtService {
 
   async findAllCourts() {
     const courts = await this.courtRepository.find({where: {state: true}});
-    console.log(courts);
+    this.logger.log(courts.map(court => court.description));
     return courts.map(court => court.description);
   }
 

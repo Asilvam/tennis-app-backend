@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import {Injectable, Logger} from '@nestjs/common';
 import {CreateRegisterDto} from './dto/create-register.dto';
 import {UpdateRegisterDto} from './dto/update-register.dto';
 import {InjectRepository} from "@nestjs/typeorm";
@@ -10,6 +10,7 @@ import {AwsSesService} from "../aws-ses/aws-ses.service";
 
 @Injectable()
 export class RegisterService {
+    logger = new Logger(RegisterService.name);
     constructor(
         @InjectRepository(RegisterEntity)
         private registrationRepository: Repository<RegisterEntity>,
@@ -44,6 +45,7 @@ export class RegisterService {
 
     async findAllNamePlayers(): Promise<string[]> {
         const registers = await this.registrationRepository.find({where: {statePlayer: true}});
+        this.logger.log(registers.map(register => register.namePlayer));
         return registers.map(register => register.namePlayer);
     }
 

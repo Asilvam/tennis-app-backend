@@ -18,7 +18,7 @@ export class EmailController {
     }
 
     @Post('sendVerification')
-    async sendVerfication(@Body() { email }: { email: string }) {
+    async sendVerification(@Body() { email }: { email: string }) {
         try {
             const result = await this.awsSesService.verifyEmailIdentity(email);
             return result;
