@@ -12,8 +12,15 @@ export class CourtReserveService {
   ) {}
 
   async getAllCourtReserves(): Promise<CourtReserve[]> {
-    return this.courtReserveRepository.find();
+    try {
+      const courtReserves = await this.courtReserveRepository.find();
+      return courtReserves
+    } catch (error) {
+      console.error('Error retrieving court reserves:', error);
+      throw error; // Optionally re-throw the error to propagate it
+    }
   }
+
 
   async reserveCourt(courtReserveData: CourtReserve): Promise<CourtReserve> {
     return this.courtReserveRepository.save(courtReserveData);

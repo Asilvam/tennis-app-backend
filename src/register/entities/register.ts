@@ -2,7 +2,7 @@ import { Entity, Column, CreateDateColumn, ObjectIdColumn } from 'typeorm';
 import { ObjectId } from 'mongodb';
 
 @Entity()
-export class RegisterEntity {
+export class Register {
     @ObjectIdColumn()
     id: ObjectId;
 

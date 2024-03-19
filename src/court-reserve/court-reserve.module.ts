@@ -1,5 +1,3 @@
-// src/court-reserve/court-reserve.module.ts
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CourtReserveController } from './court-reserve.controller';

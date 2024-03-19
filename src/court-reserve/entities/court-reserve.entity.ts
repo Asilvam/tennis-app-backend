@@ -1,4 +1,4 @@
-import {Entity, Column, PrimaryGeneratedColumn, ObjectIdColumn} from 'typeorm';
+import {Entity, Column, PrimaryGeneratedColumn, ObjectIdColumn, CreateDateColumn} from 'typeorm';
 import {ObjectId} from "mongodb";
 
 @Entity()
@@ -7,7 +7,7 @@ export class CourtReserve {
     id: ObjectId;
 
     @Column()
-    courtNumber: number;
+    court: string;
 
     @Column()
     player1: string;
@@ -19,8 +19,8 @@ export class CourtReserve {
     dateToPlay: Date;
 
     @Column()
-    Turn: number;
+    turn: string;
 
-    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-    reservedAt: Date;
+    @CreateDateColumn({ type: 'timestamp' })
+    created_at: Date;
 }

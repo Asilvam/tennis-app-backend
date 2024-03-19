@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import {InjectRepository} from "@nestjs/typeorm";
-import {RegisterEntity} from "../register/entities/register.entity";
+import {Register} from "../register/entities/register";
 import {Repository} from "typeorm";
 import * as bcrypt from 'bcrypt';
 import { FindOneOptions } from 'typeorm';
@@ -11,12 +11,12 @@ import { FindOneOptions } from 'typeorm';
 export class AuthService {
 
   constructor(
-      @InjectRepository(RegisterEntity)
-      private readonly registerRepository: Repository<RegisterEntity>,
+      @InjectRepository(Register)
+      private readonly registerRepository: Repository<Register>,
   ) {}
 
-  async findRegisterByUsername(username: string): Promise<RegisterEntity> {
-    const response = await this.registerRepository.findOne({ where: { user: username } } as FindOneOptions<RegisterEntity>);
+  async findRegisterByUsername(username: string): Promise<Register> {
+    const response = await this.registerRepository.findOne({ where: { user: username } } as FindOneOptions<Register>);
     return response;
   }
 

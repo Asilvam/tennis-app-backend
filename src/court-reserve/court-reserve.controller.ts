@@ -1,5 +1,3 @@
-// src/court-reserve/court-reserve.controller.ts
-
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import {CourtReserve} from "./entities/court-reserve.entity";

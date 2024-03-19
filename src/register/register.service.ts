@@ -2,7 +2,7 @@ import {Injectable, Logger} from '@nestjs/common';
 import {CreateRegisterDto} from './dto/create-register.dto';
 import {UpdateRegisterDto} from './dto/update-register.dto';
 import {InjectRepository} from "@nestjs/typeorm";
-import {RegisterEntity} from "./entities/register.entity";
+import {Register} from "./entities/register";
 import {Repository} from "typeorm";
 import * as bcrypt from 'bcrypt';
 import {AwsSesService} from "../aws-ses/aws-ses.service";
@@ -12,8 +12,8 @@ import {AwsSesService} from "../aws-ses/aws-ses.service";
 export class RegisterService {
     logger = new Logger(RegisterService.name);
     constructor(
-        @InjectRepository(RegisterEntity)
-        private registrationRepository: Repository<RegisterEntity>,
+        @InjectRepository(Register)
+        private registrationRepository: Repository<Register>,
         private readonly awsSesService: AwsSesService
     ) {
     }

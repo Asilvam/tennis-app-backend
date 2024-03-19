@@ -1,4 +1,3 @@
-// aws-ses.service.ts
 import {Injectable} from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as aws from 'aws-sdk';
