@@ -1,4 +1,4 @@
-import {Entity, Column, PrimaryGeneratedColumn, ObjectIdColumn, CreateDateColumn} from 'typeorm';
+import {Entity, Column, ObjectIdColumn, CreateDateColumn} from 'typeorm';
 import {ObjectId} from "mongodb";
 
 @Entity()
