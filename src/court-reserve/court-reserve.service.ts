@@ -1,7 +1,7 @@
 import {Injectable, Logger} from '@nestjs/common';
 import {InjectRepository} from '@nestjs/typeorm';
 import {CourtReserve} from "./entities/court-reserve.entity";
-import {getRepository, Repository} from "typeorm";
+import {Repository} from "typeorm";
 
 @Injectable()
 export class CourtReserveService {
@@ -17,12 +17,7 @@ export class CourtReserveService {
         try {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            return await this.courtReserveRepository.find({
-                where: {
-                    state: true,
-                    dateToPlay: today,
-                },
-            });
+            return await this.courtReserveRepository.find();
 
         } catch (error) {
             this.logger.error('Error retrieving court reserves:', error);
