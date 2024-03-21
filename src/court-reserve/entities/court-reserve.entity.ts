@@ -15,11 +15,14 @@ export class CourtReserve {
     @Column()
     player2: string;
 
-    @Column()
+    @Column({ type:'date'})
     dateToPlay: Date;
 
     @Column()
     turn: string;
+
+    @Column({ default: true})
+    state: boolean;
 
     @CreateDateColumn({ type: 'timestamp' })
     created_at: Date;
