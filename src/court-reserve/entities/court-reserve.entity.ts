@@ -1,29 +1,29 @@
-import {Entity, Column, ObjectIdColumn, CreateDateColumn} from 'typeorm';
-import {ObjectId} from "mongodb";
+import { Entity, Column, ObjectIdColumn, CreateDateColumn } from 'typeorm';
+import { ObjectId } from 'mongodb';
 
 @Entity()
 export class CourtReserve {
-    @ObjectIdColumn()
-    id: ObjectId;
+  @ObjectIdColumn()
+  id: ObjectId;
 
-    @Column()
-    court: string;
+  @Column()
+  court: string;
 
-    @Column()
-    player1: string;
+  @Column()
+  player1: string;
 
-    @Column()
-    player2: string;
+  @Column()
+  player2: string;
 
-    @Column({ type:'date'})
-    dateToPlay: Date;
+  @Column({ type: 'date' })
+  dateToPlay: Date;
 
-    @Column()
-    turn: string;
+  @Column()
+  turn: string;
 
-    @Column({ default: true})
-    state: boolean;
+  @Column({ default: true })
+  state: boolean;
 
-    @CreateDateColumn({ type: 'timestamp' })
-    created_at: Date;
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at: Date;
 }

@@ -1,26 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
-import {InjectRepository} from "@nestjs/typeorm";
-import {Register} from "../register/entities/register";
-import {Repository} from "typeorm";
+import { InjectRepository } from '@nestjs/typeorm';
+import { Register } from '../register/entities/register';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { FindOneOptions } from 'typeorm';
 
 @Injectable()
 export class AuthService {
-
   constructor(
-      @InjectRepository(Register)
-      private readonly registerRepository: Repository<Register>,
+    @InjectRepository(Register)
+    private readonly registerRepository: Repository<Register>,
   ) {}
 
   async findRegisterByUsername(username: string): Promise<Register> {
-    const response = await this.registerRepository.findOne({ where: { user: username } } as FindOneOptions<Register>);
+    const response = await this.registerRepository.findOne({
+      where: { user: username },
+    } as FindOneOptions<Register>);
     return response;
   }
 
-  async comparePasswords(plainTextPassword: string, hashedPassword: string): Promise<boolean> {
+  async comparePasswords(
+    plainTextPassword: string,
+    hashedPassword: string,
+  ): Promise<boolean> {
     return await bcrypt.compare(plainTextPassword, hashedPassword);
   }
 

@@ -1,18 +1,22 @@
-import {Column, Entity, ObjectIdColumn, PrimaryGeneratedColumn} from "typeorm";
-import {ObjectId} from "mongodb";
+import {
+  Column,
+  Entity,
+  ObjectIdColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { ObjectId } from 'mongodb';
 
 @Entity()
 export class Court {
-    @ObjectIdColumn()
-    id: ObjectId;
+  @ObjectIdColumn()
+  id: ObjectId;
 
-    @Column()
-    courtNumber: number;
+  @Column()
+  courtNumber: number;
 
-    @Column()
-    state: boolean;
+  @Column()
+  state: boolean;
 
-    @Column()
-    description: string;
-
+  @Column()
+  description: string;
 }

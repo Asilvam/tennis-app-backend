@@ -1,17 +1,15 @@
-import {Injectable, Logger} from '@nestjs/common';
-import { CreateTurnDto } from './dto/create-turn.dto';
+import { Injectable, Logger } from '@nestjs/common';
 import { UpdateTurnDto } from './dto/update-turn.dto';
-import {InjectRepository} from "@nestjs/typeorm";
-import {CourtReserve} from "../court-reserve/entities/court-reserve.entity";
-import {Repository} from "typeorm";
-import {Turn} from "./entities/turn.entity";
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Turn } from './entities/turn.entity';
 
 @Injectable()
 export class TurnService {
   logger = new Logger(TurnService.name);
   constructor(
-      @InjectRepository(Turn)
-      private turnRepository: Repository<Turn>,
+    @InjectRepository(Turn)
+    private turnRepository: Repository<Turn>,
   ) {}
 
   async create(createTurnDto: any) {
@@ -23,9 +21,9 @@ export class TurnService {
   }
 
   async findAllTurns() {
-    const turns = await this.turnRepository.find({where: {state: true}});
-    this.logger.log(turns.map(turn => turn.description));
-    return turns.map(turn => turn.description);
+    const turns = await this.turnRepository.find({ where: { state: true } });
+    this.logger.log(turns.map((turn) => turn.description));
+    return turns.map((turn) => turn.description);
   }
 
   findOne(id: number) {
