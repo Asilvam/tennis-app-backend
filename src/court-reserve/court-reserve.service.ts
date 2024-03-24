@@ -45,7 +45,7 @@ export class CourtReserveService {
     const { court, turn, dateToPlay } = courtReserve;
     const auxDateToPlay = moment(dateToPlay).format('YYYY-MM-DD');
     const courtReserveData: CourtReserve[] = await this.getAllCourtReserves();
-    if (courtReserveData.length > 0) {
+    if (courtReserveData) {
       const isExisting = courtReserveData.some((item) => {
         const auxItemDateToPlay = moment(item.dateToPlay).format('YYYY-MM-DD');
         return (
