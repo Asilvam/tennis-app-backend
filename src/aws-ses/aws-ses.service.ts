@@ -1,52 +1,57 @@
-import { Injectable } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
-import * as aws from 'aws-sdk';
-import { SentMessageInfo } from 'nodemailer';
-import { VerifyEmailIdentityCommand } from '@aws-sdk/client-ses';
-import { SESClient } from '@aws-sdk/client-ses';
+import { Injectable, Logger } from '@nestjs/common';
+import { SESClient, VerifyEmailIdentityCommand } from '@aws-sdk/client-ses';
+import { SendEmailCommand, SendEmailCommandInput } from '@aws-sdk/client-ses';
+import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
 
 @Injectable()
 export class AwsSesService {
-  private transporter: nodemailer.Transporter;
+  private sesClient: SESClient;
+
+  logger = new Logger(AwsSesService.name);
 
   constructor() {
-    this.transporter = nodemailer.createTransport({
-      SES: new aws.SES({ apiVersion: '2010-12-01', region: 'us-east-1' }),
+    this.sesClient = new SESClient({
+      region: 'us-east-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+      requestHandler: new NodeHttpHandler(),
     });
   }
 
-  async sendEmail(
-    to: string,
-    subject: string,
-    body: any,
-  ): Promise<SentMessageInfo> {
-    const options: nodemailer.SendMailOptions = {
-      from: 'clubtenisquintero1978@gmail.com',
-      to,
-      subject,
-      text: body.toString(), // Convert body to string
+  async sendEmail(to: string, subject: string, body: any): Promise<any> {
+    const params: SendEmailCommandInput = {
+      Source: 'clubtenisquintero1978@gmail.com',
+      Destination: {
+        ToAddresses: [to],
+      },
+      Message: {
+        Subject: { Data: subject },
+        Body: { Text: { Data: body.toString() } },
+      },
     };
+
     try {
-      const info = await this.transporter.sendMail(options);
-      console.log('Email sent:', info.messageId);
-      return info;
+      const command = new SendEmailCommand(params);
+      const result = await this.sesClient.send(command);
+      this.logger.log('Email sent:', result.MessageId);
+      return result.MessageId;
     } catch (error) {
-      console.error('Error sending email:', error);
+      this.logger.error('Error sending email:', error);
       throw error;
     }
   }
 
   async verifyEmailIdentity(email: string) {
-    const REGION = 'us-east-1';
-    const sesClient = new SESClient({ region: REGION });
     try {
       const params = {
         EmailAddress: email,
       };
       const command = new VerifyEmailIdentityCommand(params);
-      await sesClient.send(command);
+      await this.sesClient.send(command);
     } catch (error) {
-      console.error('Error verifying email identity:', error);
+      this.logger.error('Error verifying email identity:', error);
       throw error;
     }
   }
