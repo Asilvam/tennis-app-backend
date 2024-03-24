@@ -15,8 +15,8 @@ export class CourtReserve {
   @Column()
   player2: string;
 
-  @Column({ type: 'date' })
-  dateToPlay: Date;
+  @Column()
+  dateToPlay: string;
 
   @Column()
   turn: string;
