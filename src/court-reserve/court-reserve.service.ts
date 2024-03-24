@@ -15,14 +15,12 @@ export class CourtReserveService {
 
   async getAllCourtReserves(): Promise<CourtReserve[]> {
     const today = moment().startOf('day').format('YYYY-MM-DD');
-    // const auxToday = new Date(today);
     try {
       const courtReserveData = await this.courtReserveRepository.find({
         order: {
           created_at: 'ASC',
         },
       });
-      this.logger.log('Court reserves:', courtReserveData);
       if (courtReserveData.length > 0) {
         const courtReserves = courtReserveData.filter(
           (item) => (item.dateToPlay) >= today,
