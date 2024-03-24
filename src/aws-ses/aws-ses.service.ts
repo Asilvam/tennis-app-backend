@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SESClient, VerifyEmailIdentityCommand } from '@aws-sdk/client-ses';
 import { SendEmailCommand, SendEmailCommandInput } from '@aws-sdk/client-ses';
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
+import * as process from "process";
 
 @Injectable()
 export class AwsSesService {
@@ -11,7 +12,7 @@ export class AwsSesService {
 
   constructor() {
     this.sesClient = new SESClient({
-      region: 'us-east-1',
+      region: process.env.AWS_REGION,
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
