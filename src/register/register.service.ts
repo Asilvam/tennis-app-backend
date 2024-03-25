@@ -21,6 +21,17 @@ export class RegisterService {
     return await bcrypt.hash(password, saltRounds);
   }
 
+  async validatePlayerEmail(email: string): Promise<boolean> {
+    const player: Register | undefined = await this.registrationRepository.findOne({ where: { email } });
+    return !!player;
+  }
+
+  async validatePlayerName(namePlayer: string): Promise<boolean> {
+    const player: Register | undefined = await this.registrationRepository.findOne({ where: { namePlayer } });
+    return !!player;
+  }
+
+
   async create(createRegisterDto: any, hashedPassword: string) {
     const registerEntity = {
       ...createRegisterDto,

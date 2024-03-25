@@ -20,6 +20,14 @@ export class RegisterController {
     const hashedPassword = await this.registerService.hashPassword(
       createRegisterDto.pwd,
     );
+    const emailPlayer = await this.registerService.validatePlayerEmail(createRegisterDto.email);
+    const namePlayer = await this.registerService.validatePlayerName(createRegisterDto.namePlayer);
+    if (emailPlayer) {
+      return { status: 400, message: 'Email already registered' };
+    }
+    if (namePlayer) {
+      return { status: 400, message: 'Name Player already registered' };
+    }
     const result = await this.registerService.create(
       createRegisterDto,
       hashedPassword,
