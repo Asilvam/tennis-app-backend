@@ -23,7 +23,7 @@ export class CourtReserveService {
       });
       if (courtReserveData.length > 0) {
         const courtReserves = courtReserveData.filter(
-          (item) => (item.dateToPlay) >= today,
+          (item) => item.dateToPlay >= today,
         );
         if (courtReserves) {
           this.logger.log('Court reserves:', courtReserves);
@@ -35,6 +35,24 @@ export class CourtReserveService {
     } catch (error) {
       this.logger.error('Error retrieving court reserves:', error);
       throw error; // Optionally re-throw the error to propagate it
+    }
+  }
+
+  async validatePlayers(courtReserve: CourtReserve): Promise<boolean> {
+    const { player1, player2 } = courtReserve;
+    const courtReserveData: CourtReserve[] = await this.getAllCourtReserves();
+    if (courtReserveData) {
+      const isExisting = courtReserveData.some((item) => {
+        return (
+          item.player1 === player1 ||
+          item.player2 === player2 ||
+          item.player1 === player2 ||
+          item.player2 === player1
+        );
+      });
+      if (isExisting) {
+        return false; // Players already have a reservation
+      }
     }
   }
 
@@ -65,6 +83,10 @@ export class CourtReserveService {
       const validationReserve =
         await this.validateCourtReserve(courtReserveData);
       if (!validationReserve) {
+        return null;
+      }
+      const validationPlayers = await this.validatePlayers(courtReserveData);
+      if (!validationPlayers) {
         return null;
       }
       const reserveCourt = {
