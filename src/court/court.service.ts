@@ -18,7 +18,10 @@ export class CourtService {
   }
 
   async findAllCourts() {
-    const courts = await this.courtRepository.find({ where: { state: true } });
+    const courts = await this.courtRepository.find({
+      where: { state: true },
+      order: { description: 'ASC' },
+    });
     this.logger.log(courts.map((court) => court.description));
     return courts.map((court) => court.description);
   }

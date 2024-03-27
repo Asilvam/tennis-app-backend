@@ -1,4 +1,3 @@
-// your.controller.ts or your.service.ts
 import { Controller, Post, Body } from '@nestjs/common';
 import { AwsSesService } from '../aws-ses/aws-ses.service';
 

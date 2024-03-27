@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CourtReserve } from './entities/court-reserve.entity';
 import { Repository } from 'typeorm';
 import * as moment from 'moment';
+import { CourtReserveResponse } from './interfaces/court-reserve.interface';
 
 @Injectable()
 export class CourtReserveService {
@@ -18,7 +19,9 @@ export class CourtReserveService {
     try {
       const courtReserveData = await this.courtReserveRepository.find({
         order: {
-          created_at: 'ASC',
+          dateToPlay: 'ASC',
+          turn: 'ASC',
+          court: 'ASC',
         },
       });
       if (courtReserveData.length > 0) {
@@ -26,7 +29,7 @@ export class CourtReserveService {
           (item) => item.dateToPlay >= today,
         );
         if (courtReserves) {
-          this.logger.log('Court reserves:', courtReserves);
+          // this.logger.log('Court reserves:', courtReserves);
           return courtReserves;
         } else {
           return null;
@@ -39,25 +42,34 @@ export class CourtReserveService {
   }
 
   async validatePlayers(courtReserve: CourtReserve): Promise<boolean> {
+    this.logger.log('Validating players:', { courtReserve });
     const { player1, player2 } = courtReserve;
     const courtReserveData: CourtReserve[] = await this.getAllCourtReserves();
     if (courtReserveData) {
       const isExisting = courtReserveData.some((item) => {
+        const { player1: p1, player2: p2 } = item;
+        const trimmedPlayer1 = player1.trim();
+        const trimmedPlayer2 = player2.trim();
+        const trimmedP1 = p1.trim();
+        const trimmedP2 = p2.trim();
+
         return (
-          item.player1 === player1 ||
-          item.player2 === player2 ||
-          item.player1 === player2 ||
-          item.player2 === player1
+          trimmedP1 === trimmedPlayer1 ||
+          trimmedP2 === trimmedPlayer2 ||
+          trimmedP1 === trimmedPlayer2 ||
+          trimmedP2 === trimmedPlayer1
         );
       });
+      this.logger.log('validatePlayers Is existing:', isExisting);
       if (isExisting) {
         return false; // Players already have a reservation
       }
     }
+    return true; // Players are valid
   }
 
   async validateCourtReserve(courtReserve: CourtReserve): Promise<boolean> {
-    console.log('Validating court reserve:', courtReserve);
+    this.logger.log('Validating court reserve:', { courtReserve });
     const { court, turn, dateToPlay } = courtReserve;
     const auxDateToPlay = moment(dateToPlay).format('YYYY-MM-DD');
     const courtReserveData: CourtReserve[] = await this.getAllCourtReserves();
@@ -70,7 +82,7 @@ export class CourtReserveService {
           auxItemDateToPlay === auxDateToPlay
         );
       });
-      console.log('Is existing:', isExisting);
+      this.logger.log('validateCourtReserve Is existing:', isExisting);
       if (isExisting) {
         return false; // Court reservation already exists
       }
@@ -78,16 +90,24 @@ export class CourtReserveService {
     return true; // Court reservation is valid
   }
 
-  async reserveCourt(courtReserveData: CourtReserve): Promise<CourtReserve> {
+  async reserveCourt(
+    courtReserveData: CourtReserve,
+  ): Promise<CourtReserveResponse> {
     try {
       const validationReserve =
         await this.validateCourtReserve(courtReserveData);
       if (!validationReserve) {
-        return null;
+        return {
+          statusCode: 400,
+          message: 'Court reservation already exists',
+        };
       }
       const validationPlayers = await this.validatePlayers(courtReserveData);
       if (!validationPlayers) {
-        return null;
+        return {
+          statusCode: 400,
+          message: 'Players already have a reservation',
+        };
       }
       const reserveCourt = {
         ...courtReserveData,
@@ -95,7 +115,10 @@ export class CourtReserveService {
       };
       const response = await this.courtReserveRepository.save(reserveCourt);
       if (response) {
-        return response;
+        return {
+          statusCode: 200,
+          message: 'Court reserved successfully',
+        };
       }
     } catch (error) {
       this.logger.error('Error reserving court:', error);

@@ -55,6 +55,7 @@ export class RegisterService {
   async findAllNamePlayers(): Promise<string[]> {
     const registers = await this.registrationRepository.find({
       where: { statePlayer: true },
+      order: { namePlayer: 'ASC' },
     });
     this.logger.log(registers.map((register) => register.namePlayer));
     return registers.map((register) => register.namePlayer);
