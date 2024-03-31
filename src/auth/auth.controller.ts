@@ -3,15 +3,13 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  // Patch,
   Param,
   Delete,
-  HttpException,
-  HttpStatus,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+// import { CreateAuthDto } from './dto/create-auth.dto';
+// import { UpdateAuthDto } from './dto/update-auth.dto';
 import { JwtService } from '../jwt/jwt.service';
 
 @Controller('auth')
@@ -29,18 +27,24 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: any) {
     const register = await this.authService.findRegisterByUsername(
-      loginDto.user,
+      loginDto.username,
     );
     if (!register) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      return {
+        statusCode: 400,
+        message: 'User not found',
+      };
     }
 
     const isPasswordValid = await this.authService.comparePasswords(
-      loginDto.pwd,
+      loginDto.password,
       register.pwd,
     );
     if (!isPasswordValid) {
-      throw new HttpException('Invalid password', HttpStatus.UNAUTHORIZED);
+      return {
+        statusCode: 401,
+        message: 'access denied',
+      };
     }
     // Generate JWT token
     const accessToken = this.jwtService.generateToken({
@@ -61,10 +65,10 @@ export class AuthController {
     return this.authService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
+  //   return this.authService.update(+id, updateAuthDto);
+  // }
 
   @Delete(':id')
   remove(@Param('id') id: string) {

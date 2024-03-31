@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+// import { CreateAuthDto } from './dto/create-auth.dto';
+// import { UpdateAuthDto } from './dto/update-auth.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Register } from '../register/entities/register';
 import { Repository } from 'typeorm';
@@ -16,7 +16,7 @@ export class AuthService {
 
   async findRegisterByUsername(username: string): Promise<Register> {
     const response = await this.registerRepository.findOne({
-      where: { user: username },
+      where: { email: username },
     } as FindOneOptions<Register>);
     return response;
   }
@@ -41,9 +41,9 @@ export class AuthService {
     return `This action returns a #${id} auth`;
   }
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
+  // update(id: number, updateAuthDto: UpdateAuthDto) {
+  //   return `This action updates a #${id} auth`;
+  // }
 
   remove(id: number) {
     return `This action removes a #${id} auth`;

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CourtReserve } from './entities/court-reserve.entity';
 import { Repository } from 'typeorm';
-import * as moment from 'moment';
+import moment from 'moment';
 import { CourtReserveResponse } from './interfaces/court-reserve.interface';
 
 @Injectable()
@@ -52,7 +52,6 @@ export class CourtReserveService {
         const trimmedPlayer2 = player2.trim();
         const trimmedP1 = p1.trim();
         const trimmedP2 = p2.trim();
-
         return (
           trimmedP1 === trimmedPlayer1 ||
           trimmedP2 === trimmedPlayer2 ||
