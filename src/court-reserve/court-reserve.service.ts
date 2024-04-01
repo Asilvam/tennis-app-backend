@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CourtReserve } from './entities/court-reserve.entity';
 import { Repository } from 'typeorm';
-import moment from 'moment';
+import * as moment from 'moment';
 import { CourtReserveResponse } from './interfaces/court-reserve.interface';
 
 @Injectable()

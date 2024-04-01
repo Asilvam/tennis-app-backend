@@ -13,7 +13,9 @@ export class CourtReserveController {
   }
 
   @Post()
-  async reserveCourt(@Body() courtReserve: CourtReserve,): Promise<CourtReserveResponse> {
+  async reserveCourt(
+    @Body() courtReserve: CourtReserve,
+  ): Promise<CourtReserveResponse> {
     return this.courtReserveService.reserveCourt(courtReserve);
   }
 }
