@@ -52,7 +52,6 @@ export class CourtReserveService {
         const trimmedPlayer2 = player2.trim();
         const trimmedP1 = p1.trim();
         const trimmedP2 = p2.trim();
-
         return (
           trimmedP1 === trimmedPlayer1 ||
           trimmedP2 === trimmedPlayer2 ||

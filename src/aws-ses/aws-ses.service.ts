@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SESClient, VerifyEmailIdentityCommand } from '@aws-sdk/client-ses';
 import { SendEmailCommand, SendEmailCommandInput } from '@aws-sdk/client-ses';
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
-import * as process from "process";
+import * as process from 'process';
 
 @Injectable()
 export class AwsSesService {
@@ -32,7 +32,6 @@ export class AwsSesService {
         Body: { Text: { Data: body.toString() } },
       },
     };
-
     try {
       const command = new SendEmailCommand(params);
       const result = await this.sesClient.send(command);
