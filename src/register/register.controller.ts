@@ -8,24 +8,25 @@ import {
   Delete,
 } from '@nestjs/common';
 import { RegisterService } from './register.service';
-import { CreateRegisterDto } from './dto/create-register.dto';
 import { UpdateRegisterDto } from './dto/update-register.dto';
+import { CreateRegisterDto } from './dto/create-register.dto';
 
 @Controller('register')
 export class RegisterController {
   constructor(private readonly registerService: RegisterService) {}
 
   @Post()
-  async create(@Body() createRegisterDto: any) {
-    const hashedPassword = await this.registerService.hashPassword(
-      createRegisterDto.pwd,
-    );
-    const emailPlayer = await this.registerService.validatePlayerEmail(createRegisterDto.email);
-    const namePlayer = await this.registerService.validatePlayerName(createRegisterDto.namePlayer);
-    if (emailPlayer) {
+  async create(@Body() createRegisterDto: CreateRegisterDto) {
+    const { pwd, email, namePlayer } = createRegisterDto;
+    const hashedPassword = await this.registerService.hashPassword(pwd);
+    const emailPlayerExist =
+      await this.registerService.validatePlayerEmail(email);
+    const namePlayerExist =
+      await this.registerService.validatePlayerName(namePlayer);
+    if (emailPlayerExist) {
       return { status: 400, message: 'Email already registered' };
     }
-    if (namePlayer) {
+    if (namePlayerExist) {
       return { status: 400, message: 'Name Player already registered' };
     }
     const result = await this.registerService.create(
@@ -48,6 +49,12 @@ export class RegisterController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.registerService.findOne(+id);
+  }
+
+  @Post('player')
+  findOneEmail(@Body() player: string) {
+    console.log(player);
+    return this.registerService.findOneEmail(player);
   }
 
   @Patch(':id')

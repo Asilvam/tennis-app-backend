@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CreateRegisterDto } from './dto/create-register.dto';
 import { UpdateRegisterDto } from './dto/update-register.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Register } from './entities/register';
@@ -22,15 +21,16 @@ export class RegisterService {
   }
 
   async validatePlayerEmail(email: string): Promise<boolean> {
-    const player: Register | undefined = await this.registrationRepository.findOne({ where: { email } });
+    const player: Register | undefined =
+      await this.registrationRepository.findOne({ where: { email } });
     return !!player;
   }
 
   async validatePlayerName(namePlayer: string): Promise<boolean> {
-    const player: Register | undefined = await this.registrationRepository.findOne({ where: { namePlayer } });
+    const player: Register | undefined =
+      await this.registrationRepository.findOne({ where: { namePlayer } });
     return !!player;
   }
-
 
   async create(createRegisterDto: any, hashedPassword: string) {
     const registerEntity = {
@@ -59,6 +59,25 @@ export class RegisterService {
     });
     this.logger.log(registers.map((register) => register.namePlayer));
     return registers.map((register) => register.namePlayer);
+  }
+
+  async findOneEmail(player: string): Promise<any> {
+    try {
+      // this.logger.log(player);
+      const response = await this.registrationRepository.find({
+        where: { namePlayer: player },
+      });
+      // this.logger.log('Response:', response);
+      if (!response) {
+        return { status: 404 };
+      }
+      const email = response[0].email;
+      // this.logger.log('Email:', email);
+      return email;
+    } catch (error) {
+      this.logger.error('Error:', error.message);
+      return { status: 500 };
+    }
   }
 
   findOne(id: number) {

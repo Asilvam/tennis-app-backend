@@ -4,6 +4,8 @@ import { CourtReserve } from './entities/court-reserve.entity';
 import { Repository } from 'typeorm';
 import * as moment from 'moment';
 import { CourtReserveResponse } from './interfaces/court-reserve.interface';
+import { RegisterService } from '../register/register.service';
+import { AwsSesService } from '../aws-ses/aws-ses.service';
 
 @Injectable()
 export class CourtReserveService {
@@ -12,6 +14,8 @@ export class CourtReserveService {
   constructor(
     @InjectRepository(CourtReserve)
     private courtReserveRepository: Repository<CourtReserve>,
+    private registerService: RegisterService,
+    private readonly awsSesService: AwsSesService,
   ) {}
 
   async getAllCourtReserves(): Promise<CourtReserve[]> {
@@ -89,6 +93,30 @@ export class CourtReserveService {
     return true; // Court reservation is valid
   }
 
+  async searchEmail(player: string): Promise<string> {
+    const email = await this.registerService.findOneEmail(player);
+    if (email) {
+      return email; // Return email
+    }
+    return null; // Return null
+  }
+
+  async sendEmailReserve(courtReserve: CourtReserve) {
+    // this.logger.log('Sending email:', { courtReserve });
+    const email1: any = await this.searchEmail(courtReserve.player1);
+    const email2: any = await this.searchEmail(courtReserve.player2);
+    this.awsSesService.sendEmail(
+      email1,
+      'Court reservation',
+      `You have a reservation to play with ${courtReserve.player2} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,
+    );
+    this.awsSesService.sendEmail(
+      email2,
+      'Court reservation',
+      `You have a reservation to play with ${courtReserve.player1} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,
+    );
+  }
+
   async reserveCourt(
     courtReserveData: CourtReserve,
   ): Promise<CourtReserveResponse> {
@@ -114,6 +142,7 @@ export class CourtReserveService {
       };
       const response = await this.courtReserveRepository.save(reserveCourt);
       if (response) {
+        this.sendEmailReserve(reserveCourt);
         return {
           statusCode: 200,
           message: 'Court reserved successfully',

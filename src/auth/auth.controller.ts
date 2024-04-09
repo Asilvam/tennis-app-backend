@@ -49,6 +49,8 @@ export class AuthController {
     // Generate JWT token
     const accessToken = this.jwtService.generateToken({
       username: register.namePlayer,
+      email: register.email,
+      role: register.role,
     });
     if (accessToken) {
       return { message: 'Login successful', accessToken: accessToken };
