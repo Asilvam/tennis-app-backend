@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import * as moment from 'moment';
 import { CourtReserveResponse } from './interfaces/court-reserve.interface';
 import { RegisterService } from '../register/register.service';
-import { AwsSesService } from '../aws-ses/aws-ses.service';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class CourtReserveService {
@@ -15,7 +15,7 @@ export class CourtReserveService {
     @InjectRepository(CourtReserve)
     private courtReserveRepository: Repository<CourtReserve>,
     private registerService: RegisterService,
-    private readonly awsSesService: AwsSesService,
+    private readonly emailService: EmailService,
   ) {}
 
   async getAllCourtReserves(): Promise<CourtReserve[]> {
@@ -105,12 +105,12 @@ export class CourtReserveService {
     // this.logger.log('Sending email:', { courtReserve });
     const email1: any = await this.searchEmail(courtReserve.player1);
     const email2: any = await this.searchEmail(courtReserve.player2);
-    this.awsSesService.sendEmail(
+    await this.emailService.sendEmail(
       email1,
       'Court reservation',
       `You have a reservation to play with ${courtReserve.player2} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,
     );
-    this.awsSesService.sendEmail(
+    await this.emailService.sendEmail(
       email2,
       'Court reservation',
       `You have a reservation to play with ${courtReserve.player1} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,

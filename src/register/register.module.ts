@@ -3,11 +3,11 @@ import { RegisterService } from './register.service';
 import { RegisterController } from './register.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Register } from './entities/register';
-import { AwsSesService } from '../aws-ses/aws-ses.service';
+import { EmailService } from '../email/email.service';
 
 @Module({
   controllers: [RegisterController],
-  providers: [RegisterService, AwsSesService],
+  providers: [RegisterService, EmailService],
   imports: [TypeOrmModule.forFeature([Register])],
 })
 export class RegisterModule {}

@@ -2,7 +2,6 @@ import {
   Column,
   Entity,
   ObjectIdColumn,
-  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ObjectId } from 'mongodb';
 

@@ -1,30 +1,17 @@
-import { Controller, Post, Body } from '@nestjs/common';
-import { AwsSesService } from '../aws-ses/aws-ses.service';
+import { Controller, Post, Body, Logger } from '@nestjs/common';
+import { EmailService } from './email.service';
 
 @Controller('email')
 export class EmailController {
-  constructor(private readonly awsSesService: AwsSesService) {}
-
+  logger = new Logger(EmailController.name);
+  constructor(private readonly emailService: EmailService) {}
   @Post('send')
   async sendEmail(
-    @Body() emailDto: { to: string; subject: string; body: string },
-  ) {
-    const { to, subject, body } = emailDto;
-    try {
-      const result = await this.awsSesService.sendEmail(to, subject, body);
-      return { messageId: result.messageId };
-    } catch (error) {
-      return { error: error.message };
-    }
+    @Body('to') to: string,
+    @Body('subject') subject: string,
+    @Body('body') body: string,
+  ): Promise<string> {
+    return this.emailService.sendEmail(to, subject, body);
   }
 
-  @Post('sendVerification')
-  async sendVerification(@Body() { email }: { email: string }) {
-    try {
-      const result = await this.awsSesService.verifyEmailIdentity(email);
-      return result;
-    } catch (error) {
-      return { error: error.message };
-    }
-  }
 }

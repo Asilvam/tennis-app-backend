@@ -31,6 +31,7 @@ export class TurnService {
   }
 
   update(id: number, updateTurnDto: UpdateTurnDto) {
+    this.logger.log(updateTurnDto);
     return `This action updates a #${id} turn`;
   }
 

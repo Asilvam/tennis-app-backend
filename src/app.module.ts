@@ -6,10 +6,10 @@ import { RegisterModule } from './register/register.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtService } from './jwt/jwt.service';
 import { CourtReserveModule } from './court-reserve/court-reserve.module';
-import { AwsSesService } from './aws-ses/aws-ses.service';
 import { EmailController } from './email/email.controller';
 import { TurnModule } from './turn/turn.module';
 import { CourtModule } from './court/court.module';
+import { EmailService } from './email/email.service';
 
 @Module({
   imports: [
@@ -21,6 +21,7 @@ import { CourtModule } from './court/court.module';
     CourtModule,
   ],
   controllers: [AppController, EmailController],
-  providers: [AppService, JwtService, AwsSesService],
+  providers: [AppService, JwtService, EmailService],
+  exports: [EmailService],
 })
 export class AppModule {}

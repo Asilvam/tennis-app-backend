@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Register } from './entities/register';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { AwsSesService } from '../aws-ses/aws-ses.service';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class RegisterService {
@@ -12,7 +12,7 @@ export class RegisterService {
   constructor(
     @InjectRepository(Register)
     private registrationRepository: Repository<Register>,
-    private readonly awsSesService: AwsSesService,
+    private readonly emailService: EmailService,
   ) {}
 
   async hashPassword(password: string): Promise<string> {
@@ -41,7 +41,7 @@ export class RegisterService {
     };
     const response = await this.registrationRepository.save(registerEntity);
     if (response) {
-      this.awsSesService.verifyEmailIdentity(createRegisterDto.email);
+      // this.emailService.verifyEmailIdentity(createRegisterDto.email);
       return { status: 200, data: response };
     } else {
       return { status: 'error', message: 'Failed to create registration' };
