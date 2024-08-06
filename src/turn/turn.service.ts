@@ -22,7 +22,7 @@ export class TurnService {
 
   async findAllTurns() {
     const turns = await this.turnRepository.find({ where: { state: true } });
-    this.logger.log(turns.map((turn) => turn.description));
+    // this.logger.log(turns.map((turn) => turn.description));
     return turns.map((turn) => turn.description);
   }
 

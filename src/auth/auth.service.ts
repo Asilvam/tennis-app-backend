@@ -1,31 +1,40 @@
-import { Injectable } from '@nestjs/common';
-// import { CreateAuthDto } from './dto/create-auth.dto';
-// import { UpdateAuthDto } from './dto/update-auth.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Register } from '../register/entities/register';
-import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import { FindOneOptions } from 'typeorm';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { RegisterService } from '../register/register.service';
+import { LoginDto } from './dto/login.dto';
+import * as bcryptjs from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
+  logger = new Logger(AuthService.name);
   constructor(
-    @InjectRepository(Register)
-    private readonly registerRepository: Repository<Register>,
+    private readonly registerService: RegisterService,
+    private readonly jwtService: JwtService,
   ) {}
 
-  async findRegisterByUsername(username: string): Promise<Register> {
-    const response = await this.registerRepository.findOne({
-      where: { email: username },
-    } as FindOneOptions<Register>);
-    return response;
+  async findRegisterByUsername(email: string) {
+    const user = await this.registerService.findOneEmail(email);
+    this.logger.verbose(user);
+    return user;
   }
 
-  async comparePasswords(
-    plainTextPassword: string,
-    hashedPassword: string,
-  ): Promise<boolean> {
-    return await bcrypt.compare(plainTextPassword, hashedPassword);
+  async login({ email, password }: LoginDto) {
+    // this.logger.log(email);
+    const user = await this.registerService.validatePlayerEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('email is wrong');
+    }
+    // this.logger.log({ user });
+    const isPasswordValid = await bcryptjs.compare(password, user.pwd);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('password is wrong');
+    }
+    const payload = { email: user.email, role: user.role };
+    const token = await this.jwtService.signAsync(payload);
+    return {
+      token,
+      email,
+    };
   }
 
   validate(createAuthDto: any) {

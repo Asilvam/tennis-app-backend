@@ -22,7 +22,7 @@ export class CourtService {
       where: { state: true },
       order: { description: 'ASC' },
     });
-    this.logger.log(courts.map((court) => court.description));
+    // this.logger.log(courts.map((court) => court.description));
     return courts.map((court) => court.description);
   }
 

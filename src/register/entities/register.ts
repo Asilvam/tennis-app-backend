@@ -1,5 +1,12 @@
-import { Entity, Column, CreateDateColumn, ObjectIdColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  CreateDateColumn,
+  ObjectIdColumn,
+  DeleteDateColumn,
+} from 'typeorm';
 import { ObjectId } from 'mongodb';
+import { Role } from '../../common/enums/rol.enum';
 
 @Entity()
 export class Register {
@@ -9,13 +16,13 @@ export class Register {
   @Column()
   namePlayer: string;
 
-  @Column()
+  @Column({ unique: true, nullable: false })
   email: string;
 
   @Column()
-  celular: string;
+  cellular: string;
 
-  @Column()
+  @Column({ nullable: false, select: false })
   pwd: string;
 
   @CreateDateColumn({ type: 'timestamp' })
@@ -24,6 +31,9 @@ export class Register {
   @Column({ default: true })
   statePlayer: boolean;
 
-  @Column({ default: 'user' })
-  role: string;
+  @Column({ type: 'enum', default: Role.USER, enum: Role })
+  role: Role;
+
+  @DeleteDateColumn()
+  deletedAt: Date;
 }

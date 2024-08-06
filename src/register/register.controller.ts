@@ -16,24 +16,8 @@ export class RegisterController {
   constructor(private readonly registerService: RegisterService) {}
 
   @Post()
-  async create(@Body() createRegisterDto: CreateRegisterDto) {
-    const { pwd, email, namePlayer } = createRegisterDto;
-    const hashedPassword = await this.registerService.hashPassword(pwd);
-    const emailPlayerExist =
-      await this.registerService.validatePlayerEmail(email);
-    const namePlayerExist =
-      await this.registerService.validatePlayerName(namePlayer);
-    if (emailPlayerExist) {
-      return { status: 400, message: 'Email already registered' };
-    }
-    if (namePlayerExist) {
-      return { status: 400, message: 'Name Player already registered' };
-    }
-    const result = await this.registerService.create(
-      createRegisterDto,
-      hashedPassword,
-    );
-    return { status: result.status, data: result.data };
+  register(@Body() registerDto: CreateRegisterDto) {
+    return this.registerService.create(registerDto);
   }
 
   @Get('names')

@@ -20,6 +20,9 @@ export class CourtReserveService {
 
   async getAllCourtReserves(): Promise<CourtReserve[]> {
     const today = moment().startOf('day').format('YYYY-MM-DD');
+    const currentHour = moment().format('HH:mm'); // Current time in HH:mm format
+    this.logger.log(`Today is ${today}`);
+    this.logger.log(`Current hour is ${currentHour}`);
     try {
       const courtReserveData = await this.courtReserveRepository.find({
         order: {
@@ -30,10 +33,11 @@ export class CourtReserveService {
       });
       if (courtReserveData.length > 0) {
         const courtReserves = courtReserveData.filter(
-          (item) => item.dateToPlay >= today,
+          (item) =>
+            item.dateToPlay >= today && item.turn.split('-')[1] >= currentHour,
         );
         if (courtReserves) {
-          // this.logger.log('Court reserves:', courtReserves);
+          this.logger.log('Court reserves:', courtReserves);
           return courtReserves;
         } else {
           return null;

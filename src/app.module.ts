@@ -4,12 +4,12 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { RegisterModule } from './register/register.module';
 import { AuthModule } from './auth/auth.module';
-import { JwtService } from './jwt/jwt.service';
 import { CourtReserveModule } from './court-reserve/court-reserve.module';
 import { EmailController } from './email/email.controller';
 import { TurnModule } from './turn/turn.module';
 import { CourtModule } from './court/court.module';
 import { EmailService } from './email/email.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -19,9 +19,12 @@ import { EmailService } from './email/email.service';
     CourtReserveModule,
     TurnModule,
     CourtModule,
+    ConfigModule.forRoot({
+      isGlobal: true, // Makes ConfigModule available globally
+    }),
   ],
   controllers: [AppController, EmailController],
-  providers: [AppService, JwtService, EmailService],
+  providers: [AppService, EmailService],
   exports: [EmailService],
 })
 export class AppModule {}

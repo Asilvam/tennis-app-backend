@@ -9,5 +9,6 @@ import { EmailService } from '../email/email.service';
   controllers: [RegisterController],
   providers: [RegisterService, EmailService],
   imports: [TypeOrmModule.forFeature([Register])],
+  exports: [RegisterService],
 })
 export class RegisterModule {}

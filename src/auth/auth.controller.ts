@@ -1,23 +1,10 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  // Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Delete } from '@nestjs/common';
+import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
-// import { CreateAuthDto } from './dto/create-auth.dto';
-// import { UpdateAuthDto } from './dto/update-auth.dto';
-import { JwtService } from '../jwt/jwt.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly jwtService: JwtService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post()
   create(@Body() createAuthDto: any) {
@@ -25,36 +12,11 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(@Body() loginDto: any) {
-    const register = await this.authService.findRegisterByUsername(
-      loginDto.username,
-    );
-    if (!register) {
-      return {
-        statusCode: 400,
-        message: 'User not found',
-      };
-    }
-
-    const isPasswordValid = await this.authService.comparePasswords(
-      loginDto.password,
-      register.pwd,
-    );
-    if (!isPasswordValid) {
-      return {
-        statusCode: 401,
-        message: 'access denied',
-      };
-    }
-    // Generate JWT token
-    const accessToken = this.jwtService.generateToken({
-      username: register.namePlayer,
-      email: register.email,
-      role: register.role,
-    });
-    if (accessToken) {
-      return { message: 'Login successful', accessToken: accessToken };
-    }
+  login(
+    @Body()
+    loginDto: LoginDto,
+  ) {
+    return this.authService.login(loginDto);
   }
 
   @Get()
