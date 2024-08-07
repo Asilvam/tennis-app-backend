@@ -18,9 +18,9 @@ export class AuthService {
     return user;
   }
 
-  async login({ email, password }: LoginDto) {
+  async login({ username, password }: LoginDto) {
     // this.logger.log(email);
-    const user = await this.registerService.validatePlayerEmail(email);
+    const user = await this.registerService.validatePlayerEmail(username);
     if (!user) {
       throw new UnauthorizedException('email is wrong');
     }
@@ -33,7 +33,7 @@ export class AuthService {
     const token = await this.jwtService.signAsync(payload);
     return {
       token,
-      email,
+      username,
     };
   }
 
