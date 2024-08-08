@@ -1,12 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
-import { config } from 'dotenv';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 const logger = new Logger('MAIN');
 
 async function bootstrap() {
-  config();
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(
     new ValidationPipe({
@@ -22,6 +21,15 @@ async function bootstrap() {
     credentials: true,
   });
 
+  const config = new DocumentBuilder()
+    .setTitle('Tennis App')
+    .setDescription('The tennis API description')
+    .setVersion('1.0')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
+
   app.use('/healthz', (req, res) => {
     const message = 'healthz OK';
     logger.log(message);
@@ -29,4 +37,5 @@ async function bootstrap() {
   });
   await app.listen(process.env.PORT || 3500);
 }
+
 bootstrap();

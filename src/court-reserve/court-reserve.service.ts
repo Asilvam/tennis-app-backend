@@ -36,7 +36,7 @@ export class CourtReserveService {
           (item) =>
             item.dateToPlay >= today && item.turn.split('-')[1] >= currentHour,
         );
-        if (courtReserves) {
+        if (courtReserves.length > 0) {
           this.logger.log('Court reserves:', courtReserves);
           return courtReserves;
         } else {
