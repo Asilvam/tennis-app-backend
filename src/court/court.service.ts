@@ -1,11 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCourtDto } from './dto/create-court.dto';
 import { UpdateCourtDto } from './dto/update-court.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Court } from './entities/court.entity';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class CourtService {
-  create(createCourtDto: CreateCourtDto) {
-    return 'This action adds a new court';
+  constructor(@InjectModel(Court.name) private readonly courtModel: Model<Court>) {}
+
+  async create(createCourtDto: CreateCourtDto): Promise<Court> {
+    const createdCourt = new this.courtModel(createCourtDto);
+    return await createdCourt.save();
+  }
+
+  async findAllCourts(): Promise<string[]> {
+    const courts = await this.courtModel.find({ state: true }).sort({ description: 'asc' }).exec();
+
+    // this.logger.log(courts.map((court) => court.description)); // Uncomment if you have a logger
+    return courts.map((court) => court.description);
   }
 
   findAll() {

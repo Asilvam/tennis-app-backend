@@ -1,6 +1,5 @@
 import { Logger, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { RegisterSchema } from '../register/entities/register.entity';
 
 @Module({
   imports: [

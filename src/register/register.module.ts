@@ -8,5 +8,6 @@ import { Register, RegisterSchema } from './entities/register.entity';
   imports: [MongooseModule.forFeature([{ name: Register.name, schema: RegisterSchema }])],
   controllers: [RegisterController],
   providers: [RegisterService],
+  exports: [RegisterService],
 })
 export class RegisterModule {}

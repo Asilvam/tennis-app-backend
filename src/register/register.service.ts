@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
@@ -82,5 +82,11 @@ export class RegisterService {
       .exec(); // Execute the query
 
     return registers.map((register) => register.namePlayer);
+  }
+
+  async validatePlayerEmail(email: string): Promise<Register | undefined> {
+    const register: Register | undefined = await this.registerModel.findOne({ email: email }).exec();
+    this.logger.log('register', { register });
+    return register;
   }
 }

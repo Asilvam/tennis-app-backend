@@ -25,4 +25,9 @@ export class RegisterController {
   register(@Body() registerDto: CreateRegisterDto) {
     return this.registerService.create(registerDto);
   }
+
+  @Get('names')
+  findAllNAmes() {
+    return this.registerService.findAllNamePlayers();
+  }
 }

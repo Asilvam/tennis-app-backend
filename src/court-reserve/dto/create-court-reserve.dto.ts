@@ -22,5 +22,5 @@ export class CreateCourtReserveDto {
   turn: string;
 
   @IsBoolean()
-  state?: boolean = true;
+  state: boolean;
 }
