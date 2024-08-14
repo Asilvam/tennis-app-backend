@@ -2,22 +2,16 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { RegisterModule } from '../register/register.module';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtService } from "@nestjs/jwt";
+import { MongooseModule } from '@nestjs/mongoose';
+import { RefreshToken, RefreshTokenSchema } from './entities/refresh-token.entity';
 
 @Module({
   imports: [
     RegisterModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('SECRET_KEY'),
-        signOptions: { expiresIn: '15m' },
-      }),
-    }),
+    MongooseModule.forFeature([{ name: RefreshToken.name, schema: RefreshTokenSchema }]),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, JwtService],
 })
 export class AuthModule {}
