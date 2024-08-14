@@ -21,7 +21,7 @@ export class RegisterService {
   }
 
   async findAll(): Promise<Register[]> {
-    this.logger.verbose('Finding all registers');
+    this.logger.log('Finding all registers');
     try {
       const registers = await this.registerModel.find().exec();
       return registers;
@@ -32,11 +32,7 @@ export class RegisterService {
   }
 
   async create(registerDto: CreateRegisterDto) {
-    const user: Register | null = await this.registerModel
-      .findOne({
-        email: registerDto.email,
-      })
-      .exec(); // exec() is used to return a promise
+    const user: Register | null = await this.registerModel.findOne({ email: registerDto.email }).exec(); // exec() is used to return a promise
     if (user) {
       throw new BadRequestException('User already exists');
     }
@@ -44,15 +40,9 @@ export class RegisterService {
     const registerEntity = {
       ...registerDto,
       pwd: hashedPassword,
-      role: Role.USER,
-      statePlayer: true,
     };
     const newRegister = new this.registerModel(registerEntity);
     return newRegister.save();
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} register`;
   }
 
   remove(id: number) {
@@ -75,18 +65,32 @@ export class RegisterService {
   }
 
   async findAllNamePlayers(): Promise<string[]> {
+    this.logger.log('find all name players');
     const registers = await this.registerModel
       .find({ statePlayer: true }) // Filter where statePlayer is true
       .sort({ namePlayer: 'asc' }) // Sort by namePlayer in ascending order
       .select('namePlayer') // Select only the namePlayer field
       .exec(); // Execute the query
-
+    if (!registers) {
+      this.logger.log('not found registers');
+    } else {
+      this.logger.log(`return  ${registers.length}  registers`);
+    }
     return registers.map((register) => register.namePlayer);
   }
 
   async validatePlayerEmail(email: string): Promise<Register | undefined> {
-    const register: Register | undefined = await this.registerModel.findOne({ email: email }).exec();
-    this.logger.log('register', { register });
+    const register: Register | undefined = await this.registerModel
+      .findOne({ email: email, statePlayer: true })
+      .select('namePlayer email pwd role')
+      .exec();
+    if (!register) {
+      this.logger.log('register', { register });
+    }
     return register;
+  }
+
+  findOneByEmail(email: string) {
+    return this.registerModel.findOne({ email });
   }
 }

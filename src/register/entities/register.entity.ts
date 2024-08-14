@@ -12,7 +12,7 @@ export class Register {
   @Prop({ unique: true, required: true })
   email: string;
 
-  @Prop({ required: true })
+  @Prop({ unique: true, required: true })
   cellular: string;
 
   @Prop({ required: true, select: false })

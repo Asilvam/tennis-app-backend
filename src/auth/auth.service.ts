@@ -13,25 +13,6 @@ export class AuthService {
     private readonly registerService: RegisterService,
     private readonly jwtService: JwtService,
   ) {}
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
-  }
-
-  findAll() {
-    return `This action returns all auth`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
-
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
-  }
 
   async login({ username, password }: LoginDto) {
     // this.logger.log(email);
@@ -50,5 +31,9 @@ export class AuthService {
       token,
       username,
     };
+  }
+
+  async profile({ email, role }: { email: string; role: string }) {
+    return this.registerService.findOneByEmail(email);
   }
 }
