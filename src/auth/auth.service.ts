@@ -1,6 +1,4 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterService } from '../register/register.service';
 import { JwtService } from '@nestjs/jwt';
@@ -15,12 +13,11 @@ export class AuthService {
   ) {}
 
   async login({ username, password }: LoginDto) {
-    // this.logger.log(email);
+    this.logger.log('Try login');
     const user = await this.registerService.validatePlayerEmail(username);
     if (!user) {
       throw new UnauthorizedException('email is wrong');
     }
-    // this.logger.log({ user });
     const isPasswordValid = await bcryptjs.compare(password, user.pwd);
     if (!isPasswordValid) {
       throw new UnauthorizedException('password is wrong');
@@ -35,5 +32,20 @@ export class AuthService {
 
   async profile({ email, role }: { email: string; role: string }) {
     return this.registerService.findOneByEmail(email);
+  }
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("Try refresh token");
+    try {
+      const payload = await this.jwtService.decode(refreshToken);
+      const newAccessToken = await this.jwtService.signAsync({ email: payload.email, role: payload.role });
+
+      return {
+        token: newAccessToken,
+        username: payload.email
+      };
+    } catch (err) {
+      throw new UnauthorizedException("refresh token is wrong");
+    }
   }
 }

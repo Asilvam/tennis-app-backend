@@ -1,12 +1,11 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { Auth } from "./decorators/auth.decorator";
 import { Role } from "../common/enums/rol.enum";
 import { ActiveUser } from "../common/decorators/active-user.decorator";
 import { UserActiveInterface } from "../common/interfaces/user-active.interface";
+import { TokenDto } from "./dto/token.dto";
 
 @Controller('auth')
 export class AuthController {
@@ -20,7 +19,11 @@ export class AuthController {
   @Get('profile')
   @Auth(Role.USER)
   profile(@ActiveUser() user: UserActiveInterface) {
-    console.log(user)
     return this.authService.profile(user);
+  }
+
+  @Post('refresh')
+  refresh(@Body() dto: TokenDto) {
+    return this.authService.refreshToken(dto.token);
   }
 }
