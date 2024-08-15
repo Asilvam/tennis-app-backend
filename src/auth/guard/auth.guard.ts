@@ -1,10 +1,12 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Request, response } from "express";
+import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  logger = new Logger(AuthGuard.name);
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly authService: AuthService,
@@ -12,6 +14,7 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse<Response>();
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
@@ -32,23 +35,27 @@ export class AuthGuard implements CanActivate {
             secret: process.env.REFRESH_SECRET_KEY,
           });
           if (refreshed) {
-            const newPayload = { email: payload.email, role: payload.role };
-            const accessToken = await this.jwtService.signAsync(newPayload, {
-              secret: process.env.SECRET_KEY,
-              expiresIn: '15m',
-            });
-            const refreshToken = await this.jwtService.signAsync(newPayload, {
-              secret: process.env.REFRESH_SECRET_KEY,
-              expiresIn: '7d',
-            });
-            await this.authService.generateRefreshToken2DB(refreshToken, newPayload.email);
-            // response.setHeader('Authorization', `Bearer ${accessToken}`);
-            request.user = await this.jwtService.verifyAsync(accessToken, {
-              secret: process.env.SECRET_KEY,
-            });
-            return true; // Allow access if token is refreshed
-          } else {
-            throw new UnauthorizedException('Failed to refresh token');
+            try {
+              const newPayload = { email: payload.email, role: payload.role };
+              const accessToken = await this.jwtService.signAsync(newPayload, {
+                secret: process.env.SECRET_KEY,
+                expiresIn: '15m',
+              });
+              const refreshToken = await this.jwtService.signAsync(newPayload, {
+                secret: process.env.REFRESH_SECRET_KEY,
+                expiresIn: '7d',
+              });
+              await this.authService.generateRefreshToken2DB(refreshToken, newPayload.email);
+              // response.setHeader('Authorization', `Bearer ${accessToken}`);
+              request.user = await this.jwtService.verifyAsync(accessToken, {
+                secret: process.env.SECRET_KEY,
+              });
+              response.setHeader('Authorization', `Bearer ${accessToken}`);
+              return true; // Allow access if token is refreshed
+            } catch (error) {
+              this.logger.error(error);
+              throw new UnauthorizedException('Failed to refresh token');
+            }
           }
         } else {
           throw new UnauthorizedException('Invalid or expired token');
