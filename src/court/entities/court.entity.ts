@@ -10,7 +10,10 @@ export class Court extends Document {
   state: boolean;
 
   @Prop({ required: true })
-  description: string;
+  courtName: string;
+
+  @Prop()
+  courtScheduleTurn?: string[];
 }
 
 export const CourtSchema = SchemaFactory.createForClass(Court);

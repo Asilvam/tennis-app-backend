@@ -4,10 +4,19 @@ import { CourtController } from './court.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RegisterModule } from '../register/register.module';
 import { Court, CourtSchema } from './entities/court.entity';
+import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../auth/auth.service';
+import { RefreshToken, RefreshTokenSchema } from '../auth/entities/refresh-token.entity';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Court.name, schema: CourtSchema }]), RegisterModule],
+  imports: [
+    MongooseModule.forFeature([
+      { name: Court.name, schema: CourtSchema },
+      { name: RefreshToken.name, schema: RefreshTokenSchema },
+    ]),
+    RegisterModule,
+  ],
   controllers: [CourtController],
-  providers: [CourtService],
+  providers: [CourtService, AuthService, JwtService],
 })
 export class CourtModule {}

@@ -3,7 +3,6 @@ import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Register } from './entities/register.entity';
-import { Role } from '../common/enums/rol.enum';
 import { CreateRegisterDto } from './dto/create-register.dto';
 
 @Injectable()
@@ -32,7 +31,7 @@ export class RegisterService {
   }
 
   async create(registerDto: CreateRegisterDto) {
-    const user: Register | null = await this.registerModel.findOne({ email: registerDto.email }).exec(); // exec() is used to return a promise
+    const user: Register | null = await this.registerModel.findOne({ email: registerDto.email }).exec();
     if (user) {
       throw new BadRequestException('User already exists');
     }
@@ -52,11 +51,9 @@ export class RegisterService {
   async findOneEmail(player: string): Promise<string | object | null> {
     try {
       const response: Register = await this.registerModel.findOne({ namePlayer: player }).exec();
-
       if (!response) {
         return { status: 404 };
       }
-
       return { email: response.email }; // Return the email in an object
     } catch (error) {
       this.logger.error('Error:', error.message);

@@ -16,7 +16,6 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse<Response>();
     const token = this.extractTokenFromHeader(request);
-
     if (!token) {
       throw new UnauthorizedException();
     }
@@ -39,14 +38,13 @@ export class AuthGuard implements CanActivate {
               const newPayload = { email: payload.email, role: payload.role };
               const accessToken = await this.jwtService.signAsync(newPayload, {
                 secret: process.env.SECRET_KEY,
-                expiresIn: '15m',
+                expiresIn: process.env.TOKEN_EXPIRE_TIME,
               });
               const refreshToken = await this.jwtService.signAsync(newPayload, {
                 secret: process.env.REFRESH_SECRET_KEY,
-                expiresIn: '7d',
+                expiresIn: process.env.REFRESH_TOKEN_EXPIRE_TIME,
               });
               await this.authService.generateRefreshToken2DB(refreshToken, newPayload.email);
-              // response.setHeader('Authorization', `Bearer ${accessToken}`);
               request.user = await this.jwtService.verifyAsync(accessToken, {
                 secret: process.env.SECRET_KEY,
               });
@@ -61,6 +59,9 @@ export class AuthGuard implements CanActivate {
           throw new UnauthorizedException('Invalid or expired token');
         }
       } else {
+        console.log('Token:', token); // Muestra el token completo
+        console.log('Decoded Token:', this.jwtService.decode(token)); // Muestra el payload sin verificar
+        console.error('Verification Error:', error.message);
         this.logger.error(error.message);
       }
     }

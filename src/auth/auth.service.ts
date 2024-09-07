@@ -17,7 +17,6 @@ export class AuthService {
   ) {}
 
   async login({ username, password }: LoginDto) {
-    this.logger.log('Try login');
     const user = await this.registerService.validatePlayerEmail(username);
     if (!user) {
       throw new UnauthorizedException('email is wrong');
@@ -26,19 +25,16 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('password is wrong');
     }
-    const payload = { email: user.email, role: user.role };
+    const payload = {
+      email: user.email,
+      role: user.role,
+    };
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: process.env.SECRET_KEY,
-      expiresIn: '15m',
+      expiresIn: process.env.TOKEN_EXPIRE_TIME,
     });
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.REFRESH_SECRET_KEY,
-      expiresIn: '7d',
-    });
-    await this.generateRefreshToken2DB(refreshToken, username);
     return {
       accessToken,
-      refreshToken,
       username,
     };
   }
@@ -53,7 +49,7 @@ export class AuthService {
       const payload = await this.jwtService.decode(refreshToken);
       const newAccessToken = await this.jwtService.signAsync(
         { email: payload.email, role: payload.role },
-        { secret: process.env.SECRET_KEY, expiresIn: '15m' },
+        { secret: process.env.SECRET_KEY, expiresIn: process.env.TOKEN_EXPIRE_TIME },
       );
       return {
         token: newAccessToken,
@@ -65,12 +61,14 @@ export class AuthService {
   }
 
   async generateRefreshToken2DB(refreshToken: string, username: string): Promise<void> {
+    const expireTime = process.env.REFRESH_TOKEN_EXPIRE_TIME; // "30d"
+    const numbersOnly = parseInt(expireTime.replace(/\D/g, ''), 10);
     try {
       await this.refreshTokenModel.deleteMany({ username });
       await this.refreshTokenModel.create({
         token: refreshToken,
         username,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        expiresAt: new Date(Date.now() + numbersOnly * 24 * 60 * 60 * 1000),
       });
       this.logger.log('Refresh Token to DB');
     } catch (err) {
@@ -78,15 +76,23 @@ export class AuthService {
     }
   }
 
-  async takeRefreshTokenFromDB(username: string){
+  async takeRefreshTokenFromDB(username: string) {
     try {
-      const refreshToken = await this.refreshTokenModel
-        .findOne({ username })
-        .select('token');
-
+      const refreshToken = await this.refreshTokenModel.findOne({ username }).select('token');
       return refreshToken ? refreshToken.token : null;
     } catch (err) {
       throw new UnauthorizedException('refresh token from DB is wrong');
+    }
+  }
+
+  async validateToken({ token }): Promise<any> {
+    try {
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.SECRET_KEY,
+      });
+      return payload;
+    } catch (err) {
+      throw new UnauthorizedException('Token is wrong');
     }
   }
 }

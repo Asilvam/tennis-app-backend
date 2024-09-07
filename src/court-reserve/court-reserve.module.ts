@@ -4,10 +4,11 @@ import { CourtReserveService } from './court-reserve.service';
 import { CourtReserveController } from './court-reserve.controller';
 import { CourtReserve, CourtReserveSchema } from './entities/court-reserve.entity';
 import { RegisterModule } from '../register/register.module';
+import { EmailService } from '../email/email.service';
 
 @Module({
   imports: [MongooseModule.forFeature([{ name: CourtReserve.name, schema: CourtReserveSchema }]), RegisterModule],
-  providers: [CourtReserveService],
+  providers: [CourtReserveService, EmailService],
   controllers: [CourtReserveController],
 })
 export class CourtReserveModule {}

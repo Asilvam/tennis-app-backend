@@ -1,15 +1,19 @@
-import { IsBoolean, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateCourtDto {
   @IsNumber()
   @IsNotEmpty()
   courtNumber: number;
 
+  @IsOptional()
   @IsBoolean()
-  @IsNotEmpty()
-  state: boolean;
+  state?: boolean;
 
   @IsString()
   @IsNotEmpty()
-  description: string;
+  courtName: string;
+
+  @IsOptional()
+  @IsArray()
+  courtScheduleTurns?: string[];
 }

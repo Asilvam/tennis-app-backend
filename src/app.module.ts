@@ -6,10 +6,9 @@ import { CourtModule } from './court/court.module';
 import { CourtReserveModule } from './court-reserve/court-reserve.module';
 import { RegisterModule } from './register/register.module';
 import { TurnModule } from './turn/turn.module';
-import { EmailController } from './email/email.controller';
-import { EmailService } from './email/email.service';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -22,8 +21,9 @@ import { ConfigModule } from '@nestjs/config';
     ConfigModule.forRoot({
       isGlobal: true, // Makes ConfigModule available globally
     }),
+    EmailModule,
   ],
-  controllers: [AppController, EmailController],
-  providers: [AppService, EmailService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateCourtDto } from './dto/create-court.dto';
 import { UpdateCourtDto } from './dto/update-court.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -7,6 +7,7 @@ import { Model } from 'mongoose';
 
 @Injectable()
 export class CourtService {
+  logger = new Logger('CourtService');
   constructor(@InjectModel(Court.name) private readonly courtModel: Model<Court>) {}
 
   async create(createCourtDto: CreateCourtDto): Promise<Court> {
@@ -16,9 +17,7 @@ export class CourtService {
 
   async findAllCourts(): Promise<string[]> {
     const courts = await this.courtModel.find({ state: true }).sort({ description: 'asc' }).exec();
-
-    // this.logger.log(courts.map((court) => court.description)); // Uncomment if you have a logger
-    return courts.map((court) => court.description);
+    return courts.map((court) => court.courtName);
   }
 
   findAll() {
@@ -26,7 +25,7 @@ export class CourtService {
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} court`;
+    return `This action returns entro aca a #${id} court`;
   }
 
   update(id: number, updateCourtDto: UpdateCourtDto) {

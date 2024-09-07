@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 export class CreateCourtReserveDto {
   @IsNotEmpty()
@@ -21,6 +21,7 @@ export class CreateCourtReserveDto {
   @IsString()
   turn: string;
 
+  @IsOptional()
   @IsBoolean()
-  state: boolean;
+  state?: boolean;
 }

@@ -17,11 +17,6 @@ export class CourtReserveController {
     return this.courtReserveService.getAllCourtReserves();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.courtReserveService.findOne(+id);
-  }
-
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateCourtReserveDto: UpdateCourtReserveDto) {
     return this.courtReserveService.update(+id, updateCourtReserveDto);
@@ -31,11 +26,7 @@ export class CourtReserveController {
   remove(@Param('id') id: string) {
     return this.courtReserveService.remove(+id);
   }
-  // @Get()
-  // async getAllCourtReserves(): Promise<CourtReserve[]> {
-  //   return this.courtReserveService.getAllCourtReserves();
-  // }
-  //
+
   // @Post()
   // async reserveCourt(@Body() courtReserve: CourtReserve): Promise<CourtReserveResponse> {
   //   return this.courtReserveService.reserveCourt(courtReserve);
