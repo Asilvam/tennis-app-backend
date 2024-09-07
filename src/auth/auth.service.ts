@@ -3,7 +3,6 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterService } from '../register/register.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcryptjs from 'bcryptjs';
-import { RefreshToken } from './entities/refresh-token.entity';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 
@@ -13,7 +12,6 @@ export class AuthService {
   constructor(
     private readonly registerService: RegisterService,
     private readonly jwtService: JwtService,
-    @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshToken>,
   ) {}
 
   async login({ username, password }: LoginDto) {
@@ -57,31 +55,6 @@ export class AuthService {
       };
     } catch (err) {
       throw new UnauthorizedException('refresh token is wrong');
-    }
-  }
-
-  async generateRefreshToken2DB(refreshToken: string, username: string): Promise<void> {
-    const expireTime = process.env.REFRESH_TOKEN_EXPIRE_TIME; // "30d"
-    const numbersOnly = parseInt(expireTime.replace(/\D/g, ''), 10);
-    try {
-      await this.refreshTokenModel.deleteMany({ username });
-      await this.refreshTokenModel.create({
-        token: refreshToken,
-        username,
-        expiresAt: new Date(Date.now() + numbersOnly * 24 * 60 * 60 * 1000),
-      });
-      this.logger.log('Refresh Token to DB');
-    } catch (err) {
-      throw new UnauthorizedException('refresh token 2 DB is wrong');
-    }
-  }
-
-  async takeRefreshTokenFromDB(username: string) {
-    try {
-      const refreshToken = await this.refreshTokenModel.findOne({ username }).select('token');
-      return refreshToken ? refreshToken.token : null;
-    } catch (err) {
-      throw new UnauthorizedException('refresh token from DB is wrong');
     }
   }
 

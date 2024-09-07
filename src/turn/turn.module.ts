@@ -6,7 +6,6 @@ import { JwtService } from '@nestjs/jwt';
 import { RegisterService } from '../register/register.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Register, RegisterSchema } from '../register/entities/register.entity';
-import { RefreshToken, RefreshTokenSchema } from '../auth/entities/refresh-token.entity';
 import { Turn, TurnSchema } from './entities/turn.entity';
 
 @Module({
@@ -14,7 +13,6 @@ import { Turn, TurnSchema } from './entities/turn.entity';
     MongooseModule.forFeature([
       { name: Turn.name, schema: TurnSchema },
       { name: Register.name, schema: RegisterSchema },
-      { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
   ],
   controllers: [TurnController],

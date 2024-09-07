@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { Role } from '../../common/enums/rol.enum';
 
 export type RegisterDocument = Register & Document;
 
@@ -21,8 +20,8 @@ export class Register {
   @Prop({ default: true })
   statePlayer: boolean;
 
-  @Prop({ type: String, enum: Role, default: Role.USER })
-  role: Role;
+  @Prop({ type: String, enum: ['admin', 'user'], default: 'user' })
+  role: string;
 }
 
 export const RegisterSchema = SchemaFactory.createForClass(Register);

@@ -6,13 +6,11 @@ import { RegisterModule } from '../register/register.module';
 import { Court, CourtSchema } from './entities/court.entity';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
-import { RefreshToken, RefreshTokenSchema } from '../auth/entities/refresh-token.entity';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Court.name, schema: CourtSchema },
-      { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
     RegisterModule,
   ],

@@ -26,9 +26,4 @@ export class CourtReserveController {
   remove(@Param('id') id: string) {
     return this.courtReserveService.remove(+id);
   }
-
-  // @Post()
-  // async reserveCourt(@Body() courtReserve: CourtReserve): Promise<CourtReserveResponse> {
-  //   return this.courtReserveService.reserveCourt(courtReserve);
-  // }
 }
