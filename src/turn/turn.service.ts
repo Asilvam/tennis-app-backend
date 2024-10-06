@@ -19,13 +19,17 @@ export class TurnService {
     return newTurn.save();
   }
 
-  findAll() {
-    return `This action returns all turn`;
+  async findAll() {
+    return this.turnModel.find({ state: true });
   }
 
   async findAllTurns() {
-    const turns = await this.turnModel.find({ state: true });
-    return turns.map((turn) => turn.schedule);
+    const turns = await this.turnModel.find({ state: true }).sort({ turnNumber: 1 });
+    return turns.map((turn) => ({
+      time: turn.schedule,
+      isPayed: turn.isPayed,
+      available: turn.state,
+    }));
   }
 
   findOne(id: number) {

@@ -1,10 +1,24 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 export type CourtReserveDocument = CourtReserve & Document;
 
 @Schema({ collection: 'court_reserve', timestamps: true })
 export class CourtReserve {
+  @Prop({
+    required: true,
+    default: () => uuidv4().replace(/-/g, '').substring(0, 6),
+    unique: true,
+  })
+  idCourtReserve: string;
+
+  @Prop({
+    required: true,
+    default: () => uuidv4().replace(/-/g, '').substring(0, 4),
+  })
+  passCourtReserve: string;
+
   @Prop({ required: true })
   court: string;
 
@@ -14,6 +28,12 @@ export class CourtReserve {
   @Prop({ required: true })
   player2: string;
 
+  @Prop({ required: false })
+  player3?: string;
+
+  @Prop({ required: false })
+  player4?: string;
+
   @Prop({ required: true })
   dateToPlay: string;
 
@@ -22,6 +42,21 @@ export class CourtReserve {
 
   @Prop({ default: true })
   state: boolean;
+
+  @Prop({ default: false })
+  isPaidNight: boolean;
+
+  @Prop({ default: false })
+  isDouble: boolean;
+
+  @Prop({ default: false })
+  isVisit: boolean;
+
+  @Prop({ required: false })
+  visitName?: string;
+
+  @Prop({ default: false })
+  isForRanking: boolean;
 }
 
 export const CourtReserveSchema = SchemaFactory.createForClass(CourtReserve);

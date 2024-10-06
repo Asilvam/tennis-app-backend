@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateCourtReserveDto {
   @IsNotEmpty()
@@ -24,4 +24,32 @@ export class CreateCourtReserveDto {
   @IsOptional()
   @IsBoolean()
   state?: boolean;
+
+  @IsOptional()
+  @IsString()
+  player3?: string;
+
+  @IsOptional()
+  @IsString()
+  player4?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPaidNight?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isDouble?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isVisit?: boolean;
+
+  @IsOptional()
+  @IsString()
+  visitName?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isForRanking?: boolean;
 }

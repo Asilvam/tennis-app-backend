@@ -7,6 +7,7 @@ import { Model } from 'mongoose';
 import { DateTime } from 'luxon';
 import { EmailService } from '../email/email.service';
 import { RegisterService } from '../register/register.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class CourtReserveService {
@@ -17,6 +18,7 @@ export class CourtReserveService {
     private readonly courtReserveModel: Model<CourtReserve>,
     private readonly registerService: RegisterService,
     private readonly emailService: EmailService,
+    private configService: ConfigService,
   ) {}
 
   async create(createCourtReserveDto: CreateCourtReserveDto) {
@@ -84,6 +86,40 @@ export class CourtReserveService {
     return `This action removes a #${id} courtReserve`;
   }
 
+  async getAllCourtAvailable(selectedDate: string) {
+    const activeReserves = await this.courtReserveModel.find({ dateToPlay: selectedDate }).exec();
+    const courtNumbers = this.configService.get('NUMBER_COURTS');
+    const AllSlotsAvailable = [
+      { time: '08:15-10:00', available: true, isPayed: false },
+      { time: '10:15-12:00', available: true, isPayed: false },
+      { time: '12:15-14:00', available: true, isPayed: false },
+      { time: '14:15-16:00', available: true, isPayed: false },
+      { time: '16:15-18:00', available: true, isPayed: false },
+      { time: '18:15-20:00', available: true, isPayed: false },
+      { time: '20:15-22:00', available: true, isPayed: true },
+      { time: '22:15-00:00', available: true, isPayed: true },
+    ];
+    const generateCourtAvailability = () => {
+      return Array.from({ length: courtNumbers }, (_, i) => ({
+        id: i + 1,
+        name: `Court ${i + 1}`,
+        timeSlots: AllSlotsAvailable.map((slot) => ({ ...slot })), // Clone the available slots
+      }));
+    };
+    const availability = generateCourtAvailability();
+    availability.forEach((court) => {
+      if (activeReserves.length > 0) {
+        activeReserves.forEach((reserve) => {
+          if (court.name === reserve.court) {
+            const timeSlot = court.timeSlots.find((slot) => slot.time === reserve.turn);
+            if (timeSlot) timeSlot.available = false;
+          }
+        });
+      }
+    });
+    return availability;
+  }
+
   async getAllCourtReserves(): Promise<CourtReserve[] | null> {
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
@@ -99,6 +135,7 @@ export class CourtReserveService {
           court: 'asc',
         })
         .exec();
+
       if (courtReserves.length > 0) {
         const filteredReserves = courtReserves.filter((reserve) => {
           const [start, end] = reserve.turn.split('-');
@@ -139,11 +176,13 @@ export class CourtReserveService {
     const emailData1 = {
       to: email1.email,
       subject: 'Court tennis reservation',
+      // eslint-disable-next-line max-len
       text: `You have a reservation to play with ${courtReserve.player2} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,
     };
     const emailData2 = {
       to: email2.email,
       subject: 'Court tennis reservation',
+      // eslint-disable-next-line max-len
       text: `You have a reservation to play with ${courtReserve.player1} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,
     };
     await this.emailService.sendEmail(emailData1);

@@ -3,19 +3,24 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterService } from '../register/register.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcryptjs from 'bcryptjs';
-import { Model } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   logger = new Logger(AuthService.name);
+  secretKey = this.configService.get('SECRET_KEY');
+  expiresIn = this.configService.get('TOKEN_EXPIRE_TIME');
+
   constructor(
     private readonly registerService: RegisterService,
     private readonly jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   async login({ username, password }: LoginDto) {
     const user = await this.registerService.validatePlayerEmail(username);
+    const { namePlayer, role } = user;
+    // this.logger.log(user);
     if (!user) {
       throw new UnauthorizedException('email is wrong');
     }
@@ -28,12 +33,14 @@ export class AuthService {
       role: user.role,
     };
     const accessToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.SECRET_KEY,
-      expiresIn: process.env.TOKEN_EXPIRE_TIME,
+      secret: this.secretKey,
+      expiresIn: this.expiresIn,
     });
     return {
       accessToken,
       username,
+      namePlayer,
+      role,
     };
   }
 
@@ -47,7 +54,7 @@ export class AuthService {
       const payload = await this.jwtService.decode(refreshToken);
       const newAccessToken = await this.jwtService.signAsync(
         { email: payload.email, role: payload.role },
-        { secret: process.env.SECRET_KEY, expiresIn: process.env.TOKEN_EXPIRE_TIME },
+        { secret: this.secretKey, expiresIn: this.expiresIn },
       );
       return {
         token: newAccessToken,
@@ -61,7 +68,7 @@ export class AuthService {
   async validateToken({ token }): Promise<any> {
     try {
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.SECRET_KEY,
+        secret: this.secretKey,
       });
       return payload;
     } catch (err) {

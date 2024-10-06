@@ -9,6 +9,7 @@ import { TurnModule } from './turn/turn.module';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
 import { EmailModule } from './email/email.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { EmailModule } from './email/email.module';
       isGlobal: true, // Makes ConfigModule available globally
     }),
     EmailModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
