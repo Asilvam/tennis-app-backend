@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as webpush from 'web-push';
+import * as process from "node:process";
 
 @Injectable()
 export class NotificationService {
@@ -8,7 +9,7 @@ export class NotificationService {
 
   constructor() {
     webpush.setVapidDetails(
-      'mailto:youremail@example.com',
+      `mailto:${process.env.MAIL_USER}`,
       process.env.VAPID_PUBLIC_KEY,
       process.env.VAPID_PRIVATE_KEY,
     );
@@ -23,7 +24,7 @@ export class NotificationService {
   async sendNotification(payload: any) {
     const notificationPayload = {
       title: payload.title,
-      body: payload.body,
+      body: payload.message,
     };
 
     const sendPromises = this.subscriptions.map((sub) => {
