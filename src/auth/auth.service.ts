@@ -75,4 +75,15 @@ export class AuthService {
       throw new UnauthorizedException('Token is wrong');
     }
   }
+
+  async verifyEmailToken(token: string) {
+    const user = await this.registerService.findByVerificationToken(token);
+    if (!user) {
+      return null;
+    }
+    user.emailVerified = true;
+    user.verificationToken = null;
+    await user.save();
+    return user;
+  }
 }
