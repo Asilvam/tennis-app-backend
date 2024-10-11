@@ -9,9 +9,9 @@ export class CreateCourtReserveDto {
   @IsString()
   player1: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  player2: string;
+  player2?: string;
 
   @IsNotEmpty()
   @IsDateString()

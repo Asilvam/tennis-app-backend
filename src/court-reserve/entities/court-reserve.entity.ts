@@ -25,8 +25,8 @@ export class CourtReserve {
   @Prop({ required: true })
   player1: string;
 
-  @Prop({ required: true })
-  player2: string;
+  @Prop({ required: false })
+  player2?: string;
 
   @Prop({ required: false })
   player3?: string;
