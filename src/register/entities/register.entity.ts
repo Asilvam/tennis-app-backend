@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 
 export type RegisterDocument = Register & Document;
 
@@ -19,6 +20,12 @@ export class Register {
 
   @Prop({ default: true })
   statePlayer: boolean;
+
+  @Prop({ default: false })
+  emailVerified: boolean;
+
+  @Prop({ default: () => uuidv4().replace(/-/g, '').substring(0, 10) })
+  verificationToken: string;
 
   @Prop({ type: String, enum: ['admin', 'user'], default: 'user' })
   role: string;

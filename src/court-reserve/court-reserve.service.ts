@@ -21,56 +21,90 @@ export class CourtReserveService {
     private configService: ConfigService,
   ) {}
 
-  async create(createCourtReserveDto: CreateCourtReserveDto) {
-    const { player1, player2, court, turn, dateToPlay } = createCourtReserveDto;
-    const activeReserves = await this.getAllCourtReserves();
-    if (activeReserves) {
-      const haveReserve = activeReserves.filter(
-        (reserve) =>
-          reserve.player1 === player1 ||
-          reserve.player2 === player2 ||
-          reserve.player1 === player2 ||
-          reserve.player2 === player1,
-      );
-      if (haveReserve.length > 0) {
-        throw new BadRequestException('You already have a reserve');
-      }
-      if (createCourtReserveDto.player1 === createCourtReserveDto.player2) {
-        throw new BadRequestException('You cannot reserve for yourself');
-      }
-      if (createCourtReserveDto.player1 === '') {
-        throw new BadRequestException('You must enter a player 1');
-      }
-      if (createCourtReserveDto.player2 === '') {
-        throw new BadRequestException('You must enter a player 2');
-      }
-      if (createCourtReserveDto.player1 === createCourtReserveDto.player2) {
-        throw new BadRequestException('You cannot reserve for yourself');
-      }
-      if (createCourtReserveDto.player1 === '') {
-        throw new BadRequestException('You must enter a player 1');
-      }
-      if (createCourtReserveDto.player2 === '') {
-        throw new BadRequestException('You must enter a player 2');
-      }
-      if (createCourtReserveDto.player1 === createCourtReserveDto.player2) {
-        throw new BadRequestException('You cannot reserve for yourself');
-      }
-      if (createCourtReserveDto.player1 === '') {
-        throw new BadRequestException('You must enter a player 1');
-      }
-      const isCourtReserve = activeReserves.find((courtReserve) => {
-        if (courtReserve.court === court && courtReserve.turn === turn && courtReserve.dateToPlay === dateToPlay) {
-          return true;
-        }
-      });
-      if (isCourtReserve) {
-        throw new BadRequestException('This court is already reserved for this time');
+  playerHasActiveReserve = (player: string, activeReserves: any[]) => {
+    return activeReserves.some(
+      (reserve) =>
+        reserve.player1 === player ||
+        reserve.player2 === player ||
+        reserve.player3 === player ||
+        reserve.player4 === player,
+    );
+  };
+
+  validateDateTurn = async (dateToPlay: string, court: number, turn: string): Promise<boolean> => {
+    const timezone = 'America/Santiago'; // Chile timezone
+    const currentTimeFull = DateTime.now().setZone(timezone); // Current time in the specified timezone
+    const currentTime = currentTimeFull.toFormat('HH:mm'); // Format as HH:mm
+    const playDate = DateTime.fromFormat(dateToPlay, 'yyyy-MM-dd');
+    const today = DateTime.now().startOf('day');
+    if (playDate < today) {
+      return false;
+    }
+    // Use .hasSame() to compare only the date part
+    if (playDate.hasSame(today, 'day')) {
+      this.logger.log(currentTime);
+      const [turnStart, turnEnd] = turn.split('-'); // Split turn into start and end times
+      const turnStartTime = DateTime.fromFormat(turnStart, 'HH:mm', { zone: timezone });
+      const turnEndTime = DateTime.fromFormat(turnEnd, 'HH:mm', { zone: timezone });
+      if (currentTimeFull > turnEndTime) {
+        this.logger.log('Current time is after the turn.');
+        return false;
       }
     }
-    const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
-    await this.sendEmailReserve(createCourtReserveDto);
-    return await newCourtReserve.save();
+    const getDateTurn = await this.getAllCourtAvailable(dateToPlay);
+    if (!getDateTurn) return false;
+    const selectedCourt = getDateTurn.find((item) => item.id === court);
+    if (!selectedCourt) return false;
+    const timeSlot = selectedCourt.timeSlots.find((slot) => slot.time === turn);
+    return timeSlot ? timeSlot.available : false;
+  };
+
+  async create(createCourtReserveDto: CreateCourtReserveDto) {
+    const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
+    const courtNumber = court.match(/\d+/);
+    const validateDateTurn = await this.validateDateTurn(dateToPlay, parseInt(courtNumber[0]), turn);
+    this.logger.log('validateDateTurn--> ', validateDateTurn);
+    if (validateDateTurn) {
+      const activeReserves = await this.getAllCourtReserves();
+
+      if (activeReserves) {
+        let playersToCheck: string[] = [];
+        // 1. If `isVisit` is true, only check `player1`
+        if (isVisit) {
+          playersToCheck = [player1];
+        }
+        // 2. If `isDouble` is true, check `player1`, `player3`, and `player4`
+        else if (isDouble) {
+          playersToCheck = [player1, player3, player4];
+        }
+        // 3. Regular case: check `player1` and `player2`
+        else {
+          playersToCheck = [player1, player2];
+        }
+        // Check if any of the players have active reservations
+        for (const player of playersToCheck) {
+          if (player && this.playerHasActiveReserve(player, activeReserves)) {
+            this.logger.log(`Player ${player} already has a reserve`);
+            throw new BadRequestException(`Player ${player} already has a reserve`);
+          }
+        }
+        // Check if the court is already reserved for the same time slot
+        const isCourtReserve = activeReserves.find(
+          (courtReserve) =>
+            courtReserve.court === court && courtReserve.turn === turn && courtReserve.dateToPlay === dateToPlay,
+        );
+        if (isCourtReserve) {
+          throw new BadRequestException('This court is already reserved for this time');
+        }
+      }
+      // Create the new court reservation
+      const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
+      const response = await newCourtReserve.save();
+      await this.sendEmailReserve(createCourtReserveDto);
+      return response;
+    } else {
+      throw new BadRequestException('Invalid input');
+    }
   }
 
   async findAll() {
@@ -135,7 +169,6 @@ export class CourtReserveService {
           court: 'asc',
         })
         .exec();
-
       if (courtReserves.length > 0) {
         const filteredReserves = courtReserves.filter((reserve) => {
           const [start, end] = reserve.turn.split('-');
@@ -153,7 +186,6 @@ export class CourtReserveService {
           const isFutureDate = reservationDate > today;
           return (isToday && isWithinTimeRange && isActive) || (isFutureDate && isActive);
         });
-
         return filteredReserves.length > 0 ? filteredReserves : null;
       } else {
         this.logger.log('No court reserves found');
@@ -172,20 +204,32 @@ export class CourtReserveService {
 
   async sendEmailReserve(courtReserve: CreateCourtReserveDto) {
     const email1 = await this.findOneEmail(courtReserve.player1);
-    const email2 = await this.findOneEmail(courtReserve.player2);
+    let email2: string | null = null;
+    let email3: string | null = null;
+    let email4: string | null = null;
+
+    if (!courtReserve.isVisit) {
+      email2 = await this.findOneEmail(courtReserve.player2);
+    }
+    if (courtReserve.isDouble) {
+      email3 = await this.findOneEmail(courtReserve.player3);
+      email4 = await this.findOneEmail(courtReserve.player4);
+    }
+
     const emailData1 = {
       to: email1.email,
-      subject: 'Court tennis reservation',
-      // eslint-disable-next-line max-len
-      text: `You have a reservation to play with ${courtReserve.player2} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,
-    };
-    const emailData2 = {
-      to: email2.email,
-      subject: 'Court tennis reservation',
-      // eslint-disable-next-line max-len
-      text: `You have a reservation to play with ${courtReserve.player1} on ${courtReserve.dateToPlay} at ${courtReserve.turn} in court ${courtReserve.court}`,
+      subject: 'Court Tennis Reservation',
+      html: `
+    <p><strong>Court Reservation Details:</strong></p>
+    <p>You have a reservation to play <strong>vs ${courtReserve.player2 || 'a visit player'}</strong> on 
+    <strong>${courtReserve.dateToPlay}</strong> at <strong>${courtReserve.turn}</strong> 
+    in  <strong>${courtReserve.court}</strong>.</p>
+    <br>
+    <p>We look forward to seeing you on the court!</p>
+    <p>Best regards,</p>
+    <p>Your Tennis Club</p>
+  `,
     };
     await this.emailService.sendEmail(emailData1);
-    await this.emailService.sendEmail(emailData2);
   }
 }

@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Register } from './entities/register.entity';
 import { CreateRegisterDto } from './dto/create-register.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class RegisterService {
@@ -12,6 +13,7 @@ export class RegisterService {
   constructor(
     @InjectModel('Register')
     private readonly registerModel: Model<Register>,
+    private readonly emailService: EmailService,
   ) {}
 
   async hashPassword(password: string): Promise<string> {
@@ -40,8 +42,15 @@ export class RegisterService {
       ...registerDto,
       pwd: hashedPassword,
     };
+    this.logger.log('Creating new register', registerEntity);
     const newRegister = new this.registerModel(registerEntity);
-    return newRegister.save();
+    this.logger.log('Creating new register', newRegister);
+    const response = await newRegister.save();
+    if (response) {
+      const verificationLink = `${registerDto.urlEmail}/verify-email?token=${newRegister.verificationToken}`;
+      await this.emailService.sendVerificationEmail(registerDto.email, verificationLink);
+    }
+    return response;
   }
 
   remove(id: number) {
@@ -89,5 +98,9 @@ export class RegisterService {
 
   findOneByEmail(email: string) {
     return this.registerModel.findOne({ email });
+  }
+
+  async findByVerificationToken(token: string) {
+    return this.registerModel.findOne({ verificationToken: token });
   }
 }

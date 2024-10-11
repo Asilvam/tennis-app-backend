@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Logger } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('court-reserve')
 export class CourtReserveController {
+  logger = new Logger('CourtReserveController');
   constructor(private readonly courtReserveService: CourtReserveService) {}
 
   @Post()

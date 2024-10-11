@@ -7,6 +7,7 @@ import { RegisterService } from '../register/register.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Register, RegisterSchema } from '../register/entities/register.entity';
 import { Turn, TurnSchema } from './entities/turn.entity';
+import { EmailService } from '../email/email.service';
 
 @Module({
   imports: [
@@ -16,6 +17,6 @@ import { Turn, TurnSchema } from './entities/turn.entity';
     ]),
   ],
   controllers: [TurnController],
-  providers: [TurnService, AuthService, JwtService, RegisterService],
+  providers: [TurnService, AuthService, JwtService, RegisterService, EmailService],
 })
 export class TurnModule {}
