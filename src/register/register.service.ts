@@ -1,10 +1,17 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException
+} from "@nestjs/common";
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Register } from './entities/register.entity';
 import { CreateRegisterDto } from './dto/create-register.dto';
 import { EmailService } from '../email/email.service';
+import { UpdateRegisterDto } from "./dto/update-register.dto";
 
 @Injectable()
 export class RegisterService {
@@ -22,9 +29,8 @@ export class RegisterService {
   }
 
   async findAll(): Promise<Register[]> {
-    this.logger.log('Finding all registers');
     try {
-      const registers = await this.registerModel.find().exec();
+      const registers = await this.registerModel.find().sort({ namePlayer: 1 }).exec();
       return registers;
     } catch (error) {
       this.logger.error('Failed to find all registers', error.stack);
@@ -42,9 +48,7 @@ export class RegisterService {
       ...registerDto,
       pwd: hashedPassword,
     };
-    this.logger.log('Creating new register', registerEntity);
     const newRegister = new this.registerModel(registerEntity);
-    this.logger.log('Creating new register', newRegister);
     const response = await newRegister.save();
     if (response) {
       const verificationLink = `${registerDto.urlEmail}/verify-email?token=${newRegister.verificationToken}`;
@@ -102,5 +106,17 @@ export class RegisterService {
 
   async findByVerificationToken(token: string) {
     return this.registerModel.findOne({ verificationToken: token });
+  }
+
+  async updateByEmail(email: string, updateRegisterDto: UpdateRegisterDto): Promise<Register> {
+    const updatedRegister = await this.registerModel
+      .findOneAndUpdate({ email: email }, updateRegisterDto, { new: true })
+      .exec();
+
+    if (!updatedRegister) {
+      throw new NotFoundException(`Register with email ${email} not found`);
+    }
+
+    return updatedRegister;
   }
 }

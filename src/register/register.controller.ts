@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Delete, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Logger, Patch } from '@nestjs/common';
 import { RegisterService } from './register.service';
 import { CreateRegisterDto } from './dto/create-register.dto';
+import { UpdateRegisterDto } from './dto/update-register.dto';
 
 @Controller('register')
 export class RegisterController {
@@ -19,12 +20,17 @@ export class RegisterController {
 
   @Post()
   register(@Body() registerDto: CreateRegisterDto) {
-    this.logger.log(`registerDto: ${JSON.stringify(registerDto)}`);
     return this.registerService.create(registerDto);
   }
 
   @Get('names')
   findAllNAmes() {
     return this.registerService.findAllNamePlayers();
+  }
+
+  @Patch(':id')
+  update(@Param('email') email: string, @Body() updateRegisterDto: UpdateRegisterDto) {
+    this.logger.log(`Updating register with id: ${email}`);
+    return this.registerService.updateByEmail(email, updateRegisterDto);
   }
 }

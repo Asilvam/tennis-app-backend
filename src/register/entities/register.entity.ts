@@ -9,6 +9,12 @@ export class Register {
   @Prop({ required: true })
   namePlayer: string;
 
+  @Prop({ type: String, enum: ['A', 'B', 'C', 'D'], default: 'A' })
+  category: string;
+
+  @Prop({ required: true, default: 0 })
+  points: number;
+
   @Prop({ unique: true, required: true })
   email: string;
 
@@ -20,6 +26,9 @@ export class Register {
 
   @Prop({ default: true })
   statePlayer: boolean;
+
+  @Prop({ default: true })
+  updatePayment: boolean;
 
   @Prop({ default: false })
   emailVerified: boolean;
