@@ -16,8 +16,8 @@ export class CreateRegisterDto {
   @IsString()
   category: string;
 
-  @IsNumber()
-  points: number;
+  @IsString()
+  points: string;
 
   @Transform(({ value }) => value.trim())
   @IsString()

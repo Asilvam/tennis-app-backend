@@ -31,6 +31,7 @@ export class RegisterController {
   @Patch(':email')
   update(@Param('email') email: string, @Body() updateRegisterDto: UpdateRegisterDto) {
     this.logger.log(`Updating register with id: ${email}`);
+    this.logger.log(`Updating register with data: ${JSON.stringify(updateRegisterDto)}`);
     return this.registerService.updateByEmail(email, updateRegisterDto);
   }
 }
