@@ -28,7 +28,7 @@ export class RegisterController {
     return this.registerService.findAllNamePlayers();
   }
 
-  @Patch(':id')
+  @Patch(':email')
   update(@Param('email') email: string, @Body() updateRegisterDto: UpdateRegisterDto) {
     this.logger.log(`Updating register with id: ${email}`);
     return this.registerService.updateByEmail(email, updateRegisterDto);
