@@ -28,6 +28,15 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('password is wrong');
     }
+
+    if(!user.statePlayer){
+      throw new UnauthorizedException('user blocked');
+    }
+
+    if(!user.updatePayment){
+      throw new UnauthorizedException('user blocked for no payment');
+    }
+
     const payload = {
       email: user.email,
       role: user.role,
