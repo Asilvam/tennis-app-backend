@@ -211,21 +211,21 @@ export class CourtReserveService {
     <p><strong>Court Reservation Details:</strong></p>
     <p>You have a reservation to play ${
       courtReserve.isDouble
-        ? `<strong>vs ${courtReserve.player2 || 'a visiting player'} and ${courtReserve.player4 || 'Player 4'}</strong> 
-           with your partner <strong>${courtReserve.player3 || 'Player 3'}</strong>`
-        : `<strong>vs ${courtReserve.player2 || 'a visiting player'}</strong>`
-    } on <strong>${courtReserve.dateToPlay}</strong> at <strong>${courtReserve.turn}</strong> 
-    in <strong>${courtReserve.court}</strong>.</p>
-    ${courtReserve.isPaidNight ? '<p><strong>Remember that this turn is paid.</strong></p>' : ''}
-    <br>
-    <p>Please update your ranking after the match.</p>
-     <p>Your court reservation ID is <strong>${courtReserve.idCourtReserve}</strong> 
+        ? `<strong>against ${courtReserve.player3} and ${courtReserve.player4}</strong> 
+           with your partner <strong>${courtReserve.player2}</strong>`
+        : `<strong> ${courtReserve.player1} against ${courtReserve.player2 || courtReserve.visitName}</strong>`
+    } on <strong>${courtReserve.dateToPlay}</strong> from <strong>${courtReserve.turn}</strong> 
+    on <strong>${courtReserve.court}</strong>.</p>
+    ${courtReserve.isPaidNight ? '<p><strong>Please note that this time slot is paid.</strong></p>' : ''}
+    <p>Don't forget to update your ranking after the match.</p>
+    <p>Your court reservation ID is <strong>${courtReserve.idCourtReserve}</strong> 
     and your reservation pass is <strong>${courtReserve.passCourtReserve}</strong>.</p>
     <p>We look forward to seeing you on the court!</p>
     <p>Best regards,</p>
     <p>Your Tennis Club</p>
   `,
     });
+
     const sendEmailIfNeeded = async (player: string | null) => {
       if (player) {
         const email = await this.findOneEmail(player);
