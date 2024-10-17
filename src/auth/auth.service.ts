@@ -29,11 +29,11 @@ export class AuthService {
       throw new UnauthorizedException('password is wrong');
     }
 
-    if(!user.statePlayer){
+    if (!user.statePlayer) {
       throw new UnauthorizedException('user blocked');
     }
 
-    if(!user.updatePayment){
+    if (!user.updatePayment) {
       throw new UnauthorizedException('user blocked for no payment');
     }
 
