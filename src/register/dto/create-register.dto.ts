@@ -13,11 +13,13 @@ export class CreateRegisterDto {
   @IsString()
   cellular: string;
 
+  @IsOptional()
   @IsString()
-  category: string;
+  category?: string;
 
+  @IsOptional()
   @IsString()
-  points: string;
+  points?: string;
 
   @Transform(({ value }) => value.trim())
   @IsString()
