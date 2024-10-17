@@ -1,13 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as webpush from 'web-push';
-import * as process from "node:process";
+import * as process from 'node:process';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Subscription } from './entities/notification-subscription';
 
 @Injectable()
 export class NotificationService {
   private subscriptions: any[] = [];
+  logger = new Logger('NotificationService');
 
-  constructor() {
+  constructor(
+    @InjectModel('Subscription')
+    private readonly subscriptionModel: Model<Subscription>,
+  ) {
     webpush.setVapidDetails(
       `mailto:${process.env.MAIL_USER}`,
       process.env.VAPID_PUBLIC_KEY,
@@ -16,15 +23,15 @@ export class NotificationService {
   }
 
   saveSubscription(subscription: any) {
-    // Aquí puedes almacenar la suscripción en una base de datos.
-    this.subscriptions.push(subscription);
-    return { message: 'Subscription saved.' };
+    const newSubscription = new this.subscriptionModel(subscription);
+    return newSubscription.save();
   }
 
   async sendNotification(payload: any) {
+    this.logger.log('Sending notification...');
     const notificationPayload = {
       title: payload.title,
-      body: payload.message,
+      body: payload.body,
     };
 
     const sendPromises = this.subscriptions.map((sub) => {
@@ -41,6 +48,7 @@ export class NotificationService {
   }
 
   async sendToAll(payload: any) {
+    this.logger.log('Sending notification to all...');
     const notificationPayload = {
       title: payload.title || 'Default Title',
       body: payload.body || 'Default Body',

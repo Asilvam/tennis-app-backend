@@ -3,15 +3,15 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
-  NotFoundException
-} from "@nestjs/common";
+  NotFoundException,
+} from '@nestjs/common';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Register } from './entities/register.entity';
 import { CreateRegisterDto } from './dto/create-register.dto';
 import { EmailService } from '../email/email.service';
-import { UpdateRegisterDto } from "./dto/update-register.dto";
+import { UpdateRegisterDto } from './dto/update-register.dto';
 
 @Injectable()
 export class RegisterService {

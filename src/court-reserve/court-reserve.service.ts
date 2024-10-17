@@ -100,7 +100,8 @@ export class CourtReserveService {
       // Create the new court reservation
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
-      await this.sendEmailReserve(createCourtReserveDto);
+      await this.sendEmailReserve(response);
+      this.logger.log(response);
       return response;
     } else {
       throw new BadRequestException('Invalid input');
@@ -202,34 +203,45 @@ export class CourtReserveService {
     return response;
   }
 
-  async sendEmailReserve(courtReserve: CreateCourtReserveDto) {
-    const email1 = await this.findOneEmail(courtReserve.player1);
-    let email2: string | null = null;
-    let email3: string | null = null;
-    let email4: string | null = null;
-
-    if (!courtReserve.isVisit) {
-      email2 = await this.findOneEmail(courtReserve.player2);
-    }
-    if (courtReserve.isDouble) {
-      email3 = await this.findOneEmail(courtReserve.player3);
-      email4 = await this.findOneEmail(courtReserve.player4);
-    }
-
-    const emailData1 = {
-      to: email1.email,
+  async sendEmailReserve(courtReserve: CourtReserve) {
+    const getEmailData = (email: { email: string }, courtReserve: CourtReserve) => ({
+      to: email.email,
       subject: 'Court Tennis Reservation',
       html: `
     <p><strong>Court Reservation Details:</strong></p>
-    <p>You have a reservation to play <strong>vs ${courtReserve.player2 || 'a visit player'}</strong> on 
-    <strong>${courtReserve.dateToPlay}</strong> at <strong>${courtReserve.turn}</strong> 
-    in  <strong>${courtReserve.court}</strong>.</p>
+    <p>You have a reservation to play ${
+      courtReserve.isDouble
+        ? `<strong>vs ${courtReserve.player2 || 'a visiting player'} and ${courtReserve.player4 || 'Player 4'}</strong> 
+           with your partner <strong>${courtReserve.player3 || 'Player 3'}</strong>`
+        : `<strong>vs ${courtReserve.player2 || 'a visiting player'}</strong>`
+    } on <strong>${courtReserve.dateToPlay}</strong> at <strong>${courtReserve.turn}</strong> 
+    in <strong>${courtReserve.court}</strong>.</p>
+    ${courtReserve.isPaidNight ? '<p><strong>Remember that this turn is paid.</strong></p>' : ''}
     <br>
+    <p>Please update your ranking after the match.</p>
+     <p>Your court reservation ID is <strong>${courtReserve.idCourtReserve}</strong> 
+    and your reservation pass is <strong>${courtReserve.passCourtReserve}</strong>.</p>
     <p>We look forward to seeing you on the court!</p>
     <p>Best regards,</p>
     <p>Your Tennis Club</p>
   `,
+    });
+    const sendEmailIfNeeded = async (player: string | null) => {
+      if (player) {
+        const email = await this.findOneEmail(player);
+        if (email) {
+          await this.emailService.sendEmail(getEmailData(email, courtReserve));
+        }
+      }
     };
-    await this.emailService.sendEmail(emailData1);
+    const email1 = await this.findOneEmail(courtReserve.player1);
+    await this.emailService.sendEmail(getEmailData(email1, courtReserve));
+    if (!courtReserve.isVisit) {
+      await sendEmailIfNeeded(courtReserve.player2);
+    }
+    if (courtReserve.isDouble) {
+      await sendEmailIfNeeded(courtReserve.player3);
+      await sendEmailIfNeeded(courtReserve.player4);
+    }
   }
 }

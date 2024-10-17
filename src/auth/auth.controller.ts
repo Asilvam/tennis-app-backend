@@ -3,7 +3,6 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { TokenDto } from './dto/token.dto';
 import { Response } from 'express';
-import * as process from 'node:process';
 
 @Controller('auth')
 export class AuthController {
@@ -72,9 +71,6 @@ export class AuthController {
           <div class="container">
               <h1>Email Verified Successfully!</h1>
               <p>Your email has been successfully verified. You can now log in with your account.</p>
-              <a href="${process.env.HOME_FRONT}/" style="color: #4CAF50; text-decoration: none; font-size: 18px;">
-              Go to Homepage
-              </a>
           </div>
       </body>
       </html>

@@ -7,7 +7,7 @@ export class NotificationController {
 
   @Post('subscribe')
   async subscribe(@Body() subscription: any) {
-    // console.log('subscription', subscription);
+    console.log('subscription', subscription);
     return this.notificationService.saveSubscription(subscription);
   }
 

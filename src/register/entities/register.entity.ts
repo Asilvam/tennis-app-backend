@@ -12,7 +12,7 @@ export class Register {
   @Prop({ type: String, enum: ['A', 'B', 'C', 'D'], default: 'A' })
   category: string;
 
-  @Prop({ required: true, default:'0'})
+  @Prop({ required: true, default: '0' })
   points: string;
 
   @Prop({ unique: true, required: true })
