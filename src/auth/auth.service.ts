@@ -20,7 +20,6 @@ export class AuthService {
   async login({ username, password }: LoginDto) {
     const user = await this.registerService.validatePlayerEmail(username);
     const { namePlayer, role } = user;
-    // this.logger.log(user);
     if (!user) {
       throw new UnauthorizedException('email is wrong');
     }

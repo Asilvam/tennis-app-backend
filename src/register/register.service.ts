@@ -77,7 +77,7 @@ export class RegisterService {
   async findAllNamePlayers(): Promise<string[]> {
     this.logger.log('find all name players');
     const registers = await this.registerModel
-      .find({ statePlayer: true }) // Filter where statePlayer is true
+      .find({ statePlayer: true, updatePayment: true }) // Filter where statePlayer is true
       .sort({ namePlayer: 'asc' }) // Sort by namePlayer in ascending order
       .select('namePlayer') // Select only the namePlayer field
       .exec(); // Execute the query
@@ -91,12 +91,9 @@ export class RegisterService {
 
   async validatePlayerEmail(email: string): Promise<Register | undefined> {
     const register: Register | undefined = await this.registerModel
-      .findOne({ email: email, statePlayer: true })
-      .select('namePlayer email pwd role')
+      .findOne({ email: email })
+      .select('namePlayer email pwd role statePlayer updatePayment')
       .exec();
-    if (!register) {
-      this.logger.log('register', { register });
-    }
     return register;
   }
 
