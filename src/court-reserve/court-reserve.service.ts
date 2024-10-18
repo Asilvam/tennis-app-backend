@@ -124,7 +124,7 @@ export class CourtReserveService {
   async getAllCourtAvailable(selectedDate: string) {
     const activeReserves = await this.courtReserveModel
       .find({ dateToPlay: selectedDate, state: true }) // Adding state: true condition
-      .select('player1 player2 player3 player4 isDouble isVisit visitName')
+      .select('court turn player1 player2 player3 player4 isDouble isVisit visitName')
       .exec();
 
     const courtNumbers = this.configService.get('NUMBER_COURTS');
