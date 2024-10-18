@@ -122,17 +122,21 @@ export class CourtReserveService {
   }
 
   async getAllCourtAvailable(selectedDate: string) {
-    const activeReserves = await this.courtReserveModel.find({ dateToPlay: selectedDate }).exec();
+    const activeReserves = await this.courtReserveModel
+      .find({ dateToPlay: selectedDate, state: true }) // Adding state: true condition
+      .select('player1 player2 player3 player4 isDouble isVisit visitName')
+      .exec();
+
     const courtNumbers = this.configService.get('NUMBER_COURTS');
     const AllSlotsAvailable = [
-      { time: '08:15-10:00', available: true, isPayed: false },
-      { time: '10:15-12:00', available: true, isPayed: false },
-      { time: '12:15-14:00', available: true, isPayed: false },
-      { time: '14:15-16:00', available: true, isPayed: false },
-      { time: '16:15-18:00', available: true, isPayed: false },
-      { time: '18:15-20:00', available: true, isPayed: false },
-      { time: '20:15-22:00', available: true, isPayed: true },
-      { time: '22:15-00:00', available: true, isPayed: true },
+      { time: '08:15-10:00', available: true, isPayed: false, data: null },
+      { time: '10:15-12:00', available: true, isPayed: false, data: null },
+      { time: '12:15-14:00', available: true, isPayed: false, data: null },
+      { time: '14:15-16:00', available: true, isPayed: false, data: null },
+      { time: '16:15-18:00', available: true, isPayed: false, data: null },
+      { time: '18:15-20:00', available: true, isPayed: false, data: null },
+      { time: '20:15-22:00', available: true, isPayed: true, data: null },
+      { time: '22:15-00:00', available: true, isPayed: true, data: null },
     ];
     const generateCourtAvailability = () => {
       return Array.from({ length: courtNumbers }, (_, i) => ({
@@ -147,7 +151,10 @@ export class CourtReserveService {
         activeReserves.forEach((reserve) => {
           if (court.name === reserve.court) {
             const timeSlot = court.timeSlots.find((slot) => slot.time === reserve.turn);
-            if (timeSlot) timeSlot.available = false;
+            if (timeSlot) {
+              timeSlot.available = false;
+              timeSlot.data = reserve;
+            }
           }
         });
       }
