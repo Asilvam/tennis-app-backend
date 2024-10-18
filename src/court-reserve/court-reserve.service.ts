@@ -31,6 +31,18 @@ export class CourtReserveService {
     );
   };
 
+  playerActiveReserve = (player: string, activeReserves: CourtReserve[]) => {
+    const matchingReserve = activeReserves.find(
+      (reserve) =>
+        reserve.player1 === player ||
+        reserve.player2 === player ||
+        reserve.player3 === player ||
+        reserve.player4 === player,
+    );
+
+    return matchingReserve || null; // Return the matching reservation or null if not found
+  };
+
   validateDateTurn = async (dateToPlay: string, court: number, turn: string): Promise<boolean> => {
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTimeFull = DateTime.now().setZone(timezone); // Current time in the specified timezone
@@ -66,29 +78,28 @@ export class CourtReserveService {
     this.logger.log('validateDateTurn--> ', validateDateTurn);
     if (validateDateTurn) {
       const activeReserves = await this.getAllCourtReserves();
-
       if (activeReserves) {
         let playersToCheck: string[] = [];
-        // 1. If `isVisit` is true, only check `player1`
         if (isVisit) {
           playersToCheck = [player1];
-        }
-        // 2. If `isDouble` is true, check `player1`, `player3`, and `player4`
-        else if (isDouble) {
+        } else if (isDouble) {
           playersToCheck = [player1, player3, player4];
-        }
-        // 3. Regular case: check `player1` and `player2`
-        else {
+        } else {
           playersToCheck = [player1, player2];
         }
-        // Check if any of the players have active reservations
         for (const player of playersToCheck) {
           if (player && this.playerHasActiveReserve(player, activeReserves)) {
-            this.logger.log(`Player ${player} already has a reserve`);
-            throw new BadRequestException(`Player ${player} already has a reserve`);
+            const playerActiveReserve = this.playerActiveReserve(player, activeReserves);
+            this.logger.log(
+              // eslint-disable-next-line max-len
+              `Player ${player} already has a reserve, day ${playerActiveReserve.dateToPlay}, turn ${playerActiveReserve.turn}, on ${playerActiveReserve.court}`,
+            );
+            throw new BadRequestException(
+              // eslint-disable-next-line max-len
+              `Player ${player} already has a reserve, day ${playerActiveReserve.dateToPlay}, turn ${playerActiveReserve.turn}, on ${playerActiveReserve.court}`,
+            );
           }
         }
-        // Check if the court is already reserved for the same time slot
         const isCourtReserve = activeReserves.find(
           (courtReserve) =>
             courtReserve.court === court && courtReserve.turn === turn && courtReserve.dateToPlay === dateToPlay,
@@ -97,11 +108,10 @@ export class CourtReserveService {
           throw new BadRequestException('This court is already reserved for this time');
         }
       }
-      // Create the new court reservation
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
       await this.sendEmailReserve(response);
-      this.logger.log(response);
+      // this.logger.log(response);
       return response;
     } else {
       throw new BadRequestException('Invalid input');
@@ -124,9 +134,8 @@ export class CourtReserveService {
   async getAllCourtAvailable(selectedDate: string) {
     const activeReserves = await this.courtReserveModel
       .find({ dateToPlay: selectedDate, state: true }) // Adding state: true condition
-      .select('court turn player1 player2 player3 player4 isDouble isVisit visitName')
+      .select('dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName')
       .exec();
-
     const courtNumbers = this.configService.get('NUMBER_COURTS');
     const AllSlotsAvailable = [
       { time: '08:15-10:00', available: true, isPayed: false, data: null },
