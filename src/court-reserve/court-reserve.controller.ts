@@ -19,6 +19,11 @@ export class CourtReserveController {
     return this.courtReserveService.getAllCourtAvailable(selectedDate);
   }
 
+  @Get('active/:namePlayer')
+  findIfHasReserve(@Param('namePlayer') namePlayer: string) {
+    return this.courtReserveService.getAllReservesFor(namePlayer);
+  }
+
   @Get()
   findAll() {
     return this.courtReserveService.getAllCourtReserves();

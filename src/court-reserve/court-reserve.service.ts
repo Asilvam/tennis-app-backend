@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
@@ -46,19 +46,18 @@ export class CourtReserveService {
   validateDateTurn = async (dateToPlay: string, court: number, turn: string): Promise<boolean> => {
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTimeFull = DateTime.now().setZone(timezone); // Current time in the specified timezone
-    const currentTime = currentTimeFull.toFormat('HH:mm'); // Format as HH:mm
+    const currentTime = DateTime.fromFormat(currentTimeFull.toString(), 'HH:mm', { zone: timezone });
     const playDate = DateTime.fromFormat(dateToPlay, 'yyyy-MM-dd');
     const today = DateTime.now().startOf('day');
     if (playDate < today) {
       return false;
     }
-    // Use .hasSame() to compare only the date part
     if (playDate.hasSame(today, 'day')) {
       this.logger.log(currentTime);
       const [turnStart, turnEnd] = turn.split('-'); // Split turn into start and end times
       const turnStartTime = DateTime.fromFormat(turnStart, 'HH:mm', { zone: timezone });
       const turnEndTime = DateTime.fromFormat(turnEnd, 'HH:mm', { zone: timezone });
-      if (currentTimeFull > turnEndTime) {
+      if (currentTime > turnEndTime) {
         this.logger.log('Current time is after the turn.');
         return false;
       }
@@ -171,6 +170,48 @@ export class CourtReserveService {
     return availability;
   }
 
+  async getAllReservesFor(namePlayer:string): Promise<CourtReserve[] | null> {
+    console.log(namePlayer);
+    const timezone = 'America/Santiago'; // Chile timezone
+    const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
+    const today = currentTime.startOf('day');
+    try {
+      const courtReserves = await this.courtReserveModel
+        .find({
+          dateToPlay: { $gte: today.toISODate() },
+          state: true,
+          $or: [{ player1: namePlayer }, { player2: namePlayer }, { player3: namePlayer }, { player4: namePlayer }],
+        })
+        .select('dateToPlay court turn')
+        .sort({
+          dateToPlay: 'asc',
+          turn: 'asc',
+          court: 'asc',
+        })
+        .exec();
+      if (courtReserves.length > 0) {
+        const filteredReserves = courtReserves.filter((reserve) => {
+          const [start, end] = reserve.turn.split('-');
+          // Parse start, end, and current times using Luxon
+          const startTime = DateTime.fromFormat(start, 'HH:mm', { zone: timezone });
+          const endTime = DateTime.fromFormat(end, 'HH:mm', { zone: timezone });
+          const reservationDate = DateTime.fromISO(reserve.dateToPlay, { zone: timezone });
+          // Condition 1: Check if today is the same as the reservation date
+          const isToday = reservationDate.hasSame(today, 'day');
+          // Condition 2: Check if the current time is within the time range
+          const isWithinTimeRange = (currentTime >= startTime && currentTime < endTime) || currentTime < startTime;
+          // Condition 3: Check if the reservation is active (state is true)
+          const isFutureDate = reservationDate > today;
+          return (isToday && isWithinTimeRange) || (isFutureDate);
+        });
+        return filteredReserves.length > 0 ? filteredReserves : null;
+      }
+    } catch (error) {
+      this.logger.error('Error retrieving court reserves:', error);
+      throw error; // Optionally re-throw the error to propagate it
+    }
+  }
+
   async getAllCourtReserves(): Promise<CourtReserve[] | null> {
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
@@ -224,21 +265,30 @@ export class CourtReserveService {
       to: email.email,
       subject: 'Court Tennis Reservation',
       html: `
-    <p><strong>Court Reservation Details:</strong></p>
-    <p>You have a reservation to play ${
-      courtReserve.isDouble
-        ? `<strong>against ${courtReserve.player3} and ${courtReserve.player4}</strong> 
-           with your partner <strong>${courtReserve.player2}</strong>`
-        : `<strong> ${courtReserve.player1} against ${courtReserve.player2 || courtReserve.visitName}</strong>`
-    } on <strong>${courtReserve.dateToPlay}</strong> from <strong>${courtReserve.turn}</strong> 
-    on <strong>${courtReserve.court}</strong>.</p>
-    ${courtReserve.isPaidNight ? '<p><strong>Please note that this time slot is paid.</strong></p>' : ''}
-    <p>Don't forget to update your ranking after the match.</p>
-    <p>Your court reservation ID is <strong>${courtReserve.idCourtReserve}</strong> 
-    and your reservation pass is <strong>${courtReserve.passCourtReserve}</strong>.</p>
-    <p>We look forward to seeing you on the court!</p>
-    <p>Best regards,</p>
-    <p>Your Tennis Club</p>
+<p><strong>Court Reservation Details:</strong></p>
+<p>
+  You have a reservation to play 
+  ${
+    courtReserve.isDouble
+      ? `<strong>against ${courtReserve.player3} and ${courtReserve.player4}</strong> 
+         with your partner <strong>${courtReserve.player2}</strong>`
+      : `<strong>${courtReserve.player1} against ${courtReserve.player2 || courtReserve.visitName}</strong>`
+  } 
+  on <strong>${courtReserve.dateToPlay}</strong> from <strong>${courtReserve.turn}</strong> 
+  on <strong>${courtReserve.court}</strong>.
+</p>
+${courtReserve.isPaidNight ? '<p><strong>Please note that this time slot is paid.</strong></p>' : ''}
+${
+  !courtReserve.isVisit
+    ? `<p>Don't forget to update your ranking after the match.</p>
+       <p>Your court reservation ID is <strong>${courtReserve.idCourtReserve}</strong> 
+       and your reservation pass is <strong>${courtReserve.passCourtReserve}</strong>.</p>`
+    : ''
+}
+<p>We look forward to seeing you on the court!</p>
+<p>Best regards,</p>
+<p>Your Tennis Club</p>
+
   `,
     });
 
