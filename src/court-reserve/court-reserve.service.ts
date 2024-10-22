@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
@@ -170,8 +170,25 @@ export class CourtReserveService {
     return availability;
   }
 
-  async getAllReservesFor(namePlayer:string): Promise<CourtReserve[] | null> {
-    console.log(namePlayer);
+  async getAllHistoryReservesFor(namePlayer: string): Promise<CourtReserve[] | null> {
+    try {
+      const courtReserves = await this.courtReserveModel
+        .find({ player1: namePlayer })
+        .select('dateToPlay court turn')
+        .sort({
+          dateToPlay: 'desc',
+          turn: 'asc',
+          court: 'asc',
+        })
+        .exec();
+      return courtReserves;
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async getAllReservesFor(namePlayer: string): Promise<CourtReserve[] | null> {
+    // console.log(namePlayer);
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
     const today = currentTime.startOf('day');
@@ -202,7 +219,7 @@ export class CourtReserveService {
           const isWithinTimeRange = (currentTime >= startTime && currentTime < endTime) || currentTime < startTime;
           // Condition 3: Check if the reservation is active (state is true)
           const isFutureDate = reservationDate > today;
-          return (isToday && isWithinTimeRange) || (isFutureDate);
+          return (isToday && isWithinTimeRange) || isFutureDate;
         });
         return filteredReserves.length > 0 ? filteredReserves : null;
       }

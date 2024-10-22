@@ -23,6 +23,10 @@ export class CourtReserveController {
   findIfHasReserve(@Param('namePlayer') namePlayer: string) {
     return this.courtReserveService.getAllReservesFor(namePlayer);
   }
+  @Get('history/:namePlayer')
+  findHistoryReserve(@Param('namePlayer') namePlayer: string) {
+    return this.courtReserveService.getAllHistoryReservesFor(namePlayer);
+  }
 
   @Get()
   findAll() {
