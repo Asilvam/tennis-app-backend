@@ -44,6 +44,9 @@ export class CourtReserve {
   state: boolean;
 
   @Prop({ default: false })
+  resultMatchUpdated: boolean;
+
+  @Prop({ default: false })
   isPaidNight: boolean;
 
   @Prop({ default: false })

@@ -26,6 +26,10 @@ export class CreateCourtReserveDto {
   state?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  resultMatchUpdated?: boolean;
+
+  @IsOptional()
   @IsString()
   player3?: string;
 
