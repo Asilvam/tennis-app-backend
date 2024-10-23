@@ -174,7 +174,7 @@ export class CourtReserveService {
     try {
       const courtReserves = await this.courtReserveModel
         .find({ player1: namePlayer })
-        .select('dateToPlay court turn')
+        .select('dateToPlay court turn player2 player3 player4 visitName idCourtReserve state')
         .sort({
           dateToPlay: 'desc',
           turn: 'asc',
