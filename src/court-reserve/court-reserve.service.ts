@@ -147,12 +147,20 @@ export class CourtReserveService {
       { time: '22:15-00:00', available: true, isPayed: true, data: null },
     ];
     const generateCourtAvailability = () => {
-      return Array.from({ length: courtNumbers }, (_, i) => ({
-        id: i + 1,
-        name: `Court ${i + 1}`,
-        timeSlots: AllSlotsAvailable.map((slot) => ({ ...slot })), // Clone the available slots
-      }));
+      return Array.from({ length: courtNumbers }, (_, i) => {
+        const id = i + 1;
+        const timeSlots =
+          id === 2 || id === 3
+            ? AllSlotsAvailable.slice(0, 6) // Use only the first 6 slots for courts 2 and 3
+            : AllSlotsAvailable.map((slot) => ({ ...slot })); // Clone all available slots for other courts
+        return {
+          id,
+          name: `Court ${id}`,
+          timeSlots,
+        };
+      });
     };
+
     const availability = generateCourtAvailability();
     availability.forEach((court) => {
       if (activeReserves.length > 0) {
