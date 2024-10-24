@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
@@ -126,8 +126,15 @@ export class CourtReserveService {
     return `This action updates a #${id} courtReserve`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} courtReserve`;
+  async remove(idCourtReserve: string) {
+    const updatedRegister = await this.courtReserveModel
+      .findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: false }, { new: true })
+      .exec();
+
+    if (!updatedRegister) {
+      throw new NotFoundException(`Register with idCourtReserve ${idCourtReserve} not found`);
+    }
+    return updatedRegister;
   }
 
   async getAllCourtAvailable(selectedDate: string) {
@@ -160,7 +167,6 @@ export class CourtReserveService {
         };
       });
     };
-
     const availability = generateCourtAvailability();
     availability.forEach((court) => {
       if (activeReserves.length > 0) {

@@ -40,7 +40,7 @@ export class CourtReserveController {
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.courtReserveService.remove(+id);
+    return this.courtReserveService.remove(id);
   }
 
   @UseGuards(JwtAuthGuard) // Protect this route with JWT
