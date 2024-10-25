@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
@@ -143,7 +143,7 @@ export class CourtReserveService {
       .select('dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName')
       .exec();
     const courtNumbers = this.configService.get('NUMBER_COURTS');
-    const AllSlotsAvailable = [
+    const AllSlotsAvailableCourt1 = [
       { time: '08:15-10:00', available: true, isPayed: false, data: null },
       { time: '10:15-12:00', available: true, isPayed: false, data: null },
       { time: '12:15-14:00', available: true, isPayed: false, data: null },
@@ -153,18 +153,34 @@ export class CourtReserveService {
       { time: '20:15-22:00', available: true, isPayed: true, data: null },
       { time: '22:15-00:00', available: true, isPayed: true, data: null },
     ];
+    const AllSlotsAvailable = [
+      { time: '08:15-10:00', available: true, isPayed: false, data: null },
+      { time: '10:15-12:00', available: true, isPayed: false, data: null },
+      { time: '12:15-14:00', available: true, isPayed: false, data: null },
+      { time: '14:15-16:00', available: true, isPayed: false, data: null },
+      { time: '16:15-18:00', available: true, isPayed: false, data: null },
+      { time: '18:15-20:00', available: true, isPayed: false, data: null },
+    ];
     const generateCourtAvailability = () => {
       return Array.from({ length: courtNumbers }, (_, i) => {
         const id = i + 1;
-        const timeSlots =
-          id === 2 || id === 3
-            ? AllSlotsAvailable.slice(0, 6) // Use only the first 6 slots for courts 2 and 3
-            : AllSlotsAvailable.map((slot) => ({ ...slot })); // Clone all available slots for other courts
-        return {
-          id,
-          name: `Court ${id}`,
-          timeSlots,
-        };
+        if (id === 1) {
+          const timeSlots = AllSlotsAvailableCourt1.map((slot) => ({ ...slot })); // Clone all available slots for other
+          // courts
+          return {
+            id,
+            name: `Court ${id}`,
+            timeSlots,
+          };
+        } else {
+          // eslint-disable-next-line max-len
+          const timeSlots = AllSlotsAvailable.map((slot) => ({ ...slot })); // Clone all available slots for other courts
+          return {
+            id,
+            name: `Court ${id}`,
+            timeSlots,
+          };
+        }
       });
     };
     const availability = generateCourtAvailability();
