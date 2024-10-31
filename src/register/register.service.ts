@@ -57,7 +57,7 @@ export class RegisterService {
     return response;
   }
 
-  remove(id: number) {
+  async remove(id: number) {
     return `This action removes a #${id} register`;
   }
 

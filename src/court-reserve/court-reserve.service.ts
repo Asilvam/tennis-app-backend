@@ -8,6 +8,7 @@ import { DateTime } from 'luxon';
 import { EmailService } from '../email/email.service';
 import { RegisterService } from '../register/register.service';
 import { ConfigService } from '@nestjs/config';
+import { TimeSlot } from './interfaces/court-reserve.interface';
 
 @Injectable()
 export class CourtReserveService {
@@ -43,7 +44,7 @@ export class CourtReserveService {
     return matchingReserve || null; // Return the matching reservation or null if not found
   };
 
-  validateDateTurn = async (dateToPlay: string, court: number, turn: string): Promise<boolean> => {
+  validateDateTurn = async (dateToPlay: string, court: string, turn: string): Promise<boolean> => {
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTimeFull = DateTime.now().setZone(timezone); // Current time in the specified timezone
     const currentTime = DateTime.fromFormat(currentTimeFull.toString(), 'HH:mm', { zone: timezone });
@@ -64,21 +65,23 @@ export class CourtReserveService {
     }
     const getDateTurn = await this.getAllCourtAvailable(dateToPlay);
     if (!getDateTurn) return false;
-    const selectedCourt = getDateTurn.find((item) => item.id === court);
+    const selectedTurn = getDateTurn.find((item) => item.time === turn);
+    if (!selectedTurn) return false;
+    const selectedCourt = selectedTurn.slots.find((item) => item.court === court);
     if (!selectedCourt) return false;
-    const timeSlot = selectedCourt.timeSlots.find((slot) => slot.time === turn);
-    return timeSlot ? timeSlot.available : false;
+    return selectedCourt ? selectedCourt.available : false;
   };
 
   async create(createCourtReserveDto: CreateCourtReserveDto) {
     const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
-    const courtNumber = court.match(/\d+/);
-    const validateDateTurn = await this.validateDateTurn(dateToPlay, parseInt(courtNumber[0]), turn);
+    // const courtNumber = court.match(/\d+/);
+    this.logger.log('createCourtReserveDto--> ', createCourtReserveDto);
+    const validateDateTurn = await this.validateDateTurn(dateToPlay, court, turn);
     this.logger.log('validateDateTurn--> ', validateDateTurn);
     if (validateDateTurn) {
       const activeReserves = await this.getAllCourtReserves();
       if (activeReserves) {
-        let playersToCheck: string[] = [];
+        let playersToCheck: string[];
         if (isVisit) {
           playersToCheck = [player1];
         } else if (isDouble) {
@@ -138,60 +141,103 @@ export class CourtReserveService {
   }
 
   async getAllCourtAvailable(selectedDate: string) {
+    const formatPlayerNames = (players: { [key: string]: string }): string => {
+      return Object.values(players)
+        .filter((name) => name) // Remove empty names
+        .map((name) => {
+          const nameParts = name.split(' ');
+          const firstInitial = nameParts[0][0].toUpperCase();
+          const lastName = nameParts.length > 2 ? nameParts[nameParts.length - 2] : nameParts[nameParts.length - 1];
+          return `${firstInitial}. ${lastName.charAt(0).toUpperCase() + lastName.slice(1).toLowerCase()}`;
+        })
+        .join(', ');
+    };
+
     const activeReserves = await this.courtReserveModel
       .find({ dateToPlay: selectedDate, state: true }) // Adding state: true condition
       .select('dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName')
       .exec();
-    const courtNumbers = this.configService.get('NUMBER_COURTS');
-    const AllSlotsAvailableCourt1 = [
-      { time: '08:15-10:00', available: true, isPayed: false, data: null },
-      { time: '10:15-12:00', available: true, isPayed: false, data: null },
-      { time: '12:15-14:00', available: true, isPayed: false, data: null },
-      { time: '14:15-16:00', available: true, isPayed: false, data: null },
-      { time: '16:15-18:00', available: true, isPayed: false, data: null },
-      { time: '18:15-20:00', available: true, isPayed: false, data: null },
-      { time: '20:15-22:00', available: true, isPayed: true, data: null },
-      { time: '22:15-00:00', available: true, isPayed: true, data: null },
+
+    const AllTimeSlotsAvailable: TimeSlot[] = [
+      {
+        time: '08:15-10:00',
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+        ],
+      },
+      {
+        time: '10:15-12:00',
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+        ],
+      },
+      {
+        time: '12:15-14:00',
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+        ],
+      },
+      {
+        time: '14:15-16:00',
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+        ],
+      },
+      {
+        time: '16:15-18:00',
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+        ],
+      },
+      {
+        time: '18:15-20:00',
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+        ],
+      },
+      {
+        time: '20:15-22:00',
+        slots: [{ available: true, court: 'Cancha 1', isPayed: true, data: null }],
+      },
+      {
+        time: '22:15-00:00',
+        slots: [{ available: true, court: 'Cancha 1', isPayed: true, data: null }],
+      },
     ];
-    const AllSlotsAvailable = [
-      { time: '08:15-10:00', available: true, isPayed: false, data: null },
-      { time: '10:15-12:00', available: true, isPayed: false, data: null },
-      { time: '12:15-14:00', available: true, isPayed: false, data: null },
-      { time: '14:15-16:00', available: true, isPayed: false, data: null },
-      { time: '16:15-18:00', available: true, isPayed: false, data: null },
-      { time: '18:15-20:00', available: true, isPayed: false, data: null },
-    ];
-    const generateCourtAvailability = () => {
-      return Array.from({ length: courtNumbers }, (_, i) => {
-        const id = i + 1;
-        if (id === 1) {
-          const timeSlots = AllSlotsAvailableCourt1.map((slot) => ({ ...slot })); // Clone all available slots for other
-          // courts
-          return {
-            id,
-            name: `Court ${id}`,
-            timeSlots,
-          };
-        } else {
-          // eslint-disable-next-line max-len
-          const timeSlots = AllSlotsAvailable.map((slot) => ({ ...slot })); // Clone all available slots for other courts
-          return {
-            id,
-            name: `Court ${id}`,
-            timeSlots,
-          };
-        }
-      });
+    const generateTimeSlotAvailability = () => {
+      return AllTimeSlotsAvailable.map((timeSlot) => ({
+        time: timeSlot.time,
+        slots: timeSlot.slots.map((slot) => ({ ...slot })),
+      }));
     };
-    const availability = generateCourtAvailability();
-    availability.forEach((court) => {
+    const availability = generateTimeSlotAvailability();
+    availability.forEach((turn) => {
       if (activeReserves.length > 0) {
+        console.log(activeReserves);
         activeReserves.forEach((reserve) => {
-          if (court.name === reserve.court) {
-            const timeSlot = court.timeSlots.find((slot) => slot.time === reserve.turn);
-            if (timeSlot) {
-              timeSlot.available = false;
-              timeSlot.data = reserve;
+          if (turn.time === reserve.turn) {
+            const court = turn.slots.find((slot) => slot.court === reserve.court);
+            if (court) {
+              court.available = false;
+              court.data = formatPlayerNames({
+                player1: reserve.player1,
+                player2: reserve.player2,
+                player3: reserve.player3,
+                player4: reserve.player4,
+                visitName: reserve.visitName,
+              });
             }
           }
         });
@@ -236,6 +282,7 @@ export class CourtReserveService {
           court: 'asc',
         })
         .exec();
+      // console.log(courtReserves);
       if (courtReserves.length > 0) {
         const filteredReserves = courtReserves.filter((reserve) => {
           const [start, end] = reserve.turn.split('-');
