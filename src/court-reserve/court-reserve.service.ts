@@ -225,7 +225,7 @@ export class CourtReserveService {
     const availability = generateTimeSlotAvailability();
     availability.forEach((turn) => {
       if (activeReserves.length > 0) {
-        console.log(activeReserves);
+        // console.log(activeReserves);
         activeReserves.forEach((reserve) => {
           if (turn.time === reserve.turn) {
             const court = turn.slots.find((slot) => slot.court === reserve.court);
@@ -259,7 +259,7 @@ export class CourtReserveService {
         .exec();
       return courtReserves;
     } catch (error) {
-      console.log(error);
+      this.logger.error(error);
     }
   }
 

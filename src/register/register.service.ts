@@ -75,17 +75,17 @@ export class RegisterService {
   }
 
   async findAllNamePlayers(): Promise<string[]> {
-    this.logger.log('find all name players');
+    // this.logger.log('find all name players');
     const registers = await this.registerModel
       .find({ statePlayer: true, updatePayment: true }) // Filter where statePlayer is true
       .sort({ namePlayer: 'asc' }) // Sort by namePlayer in ascending order
       .select('namePlayer') // Select only the namePlayer field
       .exec(); // Execute the query
-    if (!registers) {
-      this.logger.log('not found registers');
-    } else {
-      this.logger.log(`return  ${registers.length}  registers`);
-    }
+    // if (!registers) {
+    //   this.logger.log('not found registers');
+    // } else {
+    //   this.logger.log(`return  ${registers.length}  registers`);
+    // }
     return registers.map((register) => register.namePlayer);
   }
 
