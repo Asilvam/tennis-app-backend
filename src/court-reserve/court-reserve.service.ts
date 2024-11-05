@@ -57,7 +57,9 @@ export class CourtReserveService {
       this.logger.log(currentTime);
       const [turnStart, turnEnd] = turn.split('-'); // Split turn into start and end times
       const turnStartTime = DateTime.fromFormat(turnStart, 'HH:mm', { zone: timezone });
+      this.logger.log(turnStartTime);
       const turnEndTime = DateTime.fromFormat(turnEnd, 'HH:mm', { zone: timezone });
+      this.logger.log(turnEndTime);
       if (currentTime > turnEndTime) {
         this.logger.log('Current time is after the turn.');
         return false;
@@ -75,9 +77,9 @@ export class CourtReserveService {
   async create(createCourtReserveDto: CreateCourtReserveDto) {
     const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
     // const courtNumber = court.match(/\d+/);
-    this.logger.log('createCourtReserveDto--> ', createCourtReserveDto);
+    this.logger.log('createCourtReserveDto--> ', { createCourtReserveDto });
     const validateDateTurn = await this.validateDateTurn(dateToPlay, court, turn);
-    this.logger.log('validateDateTurn--> ', validateDateTurn);
+    // this.logger.log('validateDateTurn--> ', validateDateTurn);
     if (validateDateTurn) {
       const activeReserves = await this.getAllCourtReserves();
       if (activeReserves) {
@@ -264,7 +266,6 @@ export class CourtReserveService {
   }
 
   async getAllReservesFor(namePlayer: string): Promise<CourtReserve[] | null> {
-    // console.log(namePlayer);
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
     const today = currentTime.startOf('day');
@@ -282,7 +283,6 @@ export class CourtReserveService {
           court: 'asc',
         })
         .exec();
-      // console.log(courtReserves);
       if (courtReserves.length > 0) {
         const filteredReserves = courtReserves.filter((reserve) => {
           const [start, end] = reserve.turn.split('-');
@@ -324,17 +324,12 @@ export class CourtReserveService {
       if (courtReserves.length > 0) {
         const filteredReserves = courtReserves.filter((reserve) => {
           const [start, end] = reserve.turn.split('-');
-          // Parse start, end, and current times using Luxon
           const startTime = DateTime.fromFormat(start, 'HH:mm', { zone: timezone });
           const endTime = DateTime.fromFormat(end, 'HH:mm', { zone: timezone });
           const reservationDate = DateTime.fromISO(reserve.dateToPlay, { zone: timezone });
-          // Condition 1: Check if today is the same as the reservation date
           const isToday = reservationDate.hasSame(today, 'day');
-          // Condition 2: Check if the current time is within the time range
           const isWithinTimeRange = (currentTime >= startTime && currentTime < endTime) || currentTime < startTime;
-          // Condition 3: Check if the reservation is active (state is true)
           const isActive = reserve.state === true;
-          // Condition 4: Check if the reservation date is in the future
           const isFutureDate = reservationDate > today;
           return (isToday && isWithinTimeRange && isActive) || (isFutureDate && isActive);
         });
@@ -359,29 +354,30 @@ export class CourtReserveService {
       to: email.email,
       subject: 'Court Tennis Reservation',
       html: `
-<p><strong>Court Reservation Details:</strong></p>
+<p><strong>Detalles Reserva:</strong></p>
 <p>
-  You have a reservation to play 
+  Tienes una reserva para jugar 
   ${
     courtReserve.isDouble
-      ? `<strong>against ${courtReserve.player3} and ${courtReserve.player4}</strong> 
-         with your partner <strong>${courtReserve.player2}</strong>`
-      : `<strong>${courtReserve.player1} against ${courtReserve.player2 || courtReserve.visitName}</strong>`
+      ? `<strong>contra ${courtReserve.player3} y ${courtReserve.player4}</strong> 
+         con tu compañero <strong>${courtReserve.player2}</strong>`
+      : `<strong>${courtReserve.player1} contra ${courtReserve.player2 || courtReserve.visitName}</strong>`
   } 
-  on <strong>${courtReserve.dateToPlay}</strong> from <strong>${courtReserve.turn}</strong> 
-  on <strong>${courtReserve.court}</strong>.
+  el <strong>${courtReserve.dateToPlay}</strong> desde <strong>${courtReserve.turn}</strong> 
+  en la cancha <strong>${courtReserve.court}</strong>.
 </p>
-${courtReserve.isPaidNight ? '<p><strong>Please note that this time slot is paid.</strong></p>' : ''}
+${courtReserve.isPaidNight ? '<p><strong>Por favor, ten en cuenta que este horario es pagado.</strong></p>' : ''}
 ${
   !courtReserve.isVisit
-    ? `<p>Don't forget to update your ranking after the match.</p>
-       <p>Your court reservation ID is <strong>${courtReserve.idCourtReserve}</strong> 
-       and your reservation pass is <strong>${courtReserve.passCourtReserve}</strong>.</p>`
+    ? `<p>No olvides actualizar tu ranking después del partido.</p>
+       <p>Tu ID de reserva de cancha es <strong>${courtReserve.idCourtReserve}</strong> 
+       y tu clave de reserva es <strong>${courtReserve.passCourtReserve}</strong>.</p>`
     : ''
 }
-<p>We look forward to seeing you on the court!</p>
-<p>Best regards,</p>
-<p>Your Tennis Club</p>
+<p></p>
+<p>Atentamente,</p>
+<p>Club de Tenis Quintero</p>
+
 
   `,
     });
