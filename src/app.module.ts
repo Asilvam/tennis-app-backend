@@ -10,6 +10,8 @@ import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
 import { EmailModule } from './email/email.module';
 import { NotificationModule } from './notification/notification.module';
+import { InfoItemsModule } from './info-items/info-items.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { NotificationModule } from './notification/notification.module';
     }),
     EmailModule,
     NotificationModule,
+    InfoItemsModule,
+    CloudinaryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

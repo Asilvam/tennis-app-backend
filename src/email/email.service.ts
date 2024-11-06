@@ -27,9 +27,9 @@ export class EmailService {
     this.logger.log(email, verificationLink);
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Verify your email',
-      html: `<p>Please verify your email by clicking on the link below:</p>
-               <a href="${verificationLink}">Verify Email</a>`,
+      subject: 'Validar tu direccion email',
+      html: `<p>Por favor, verifica tu correo electrónico haciendo clic en el enlace a continuación.:</p>
+               <a href="${verificationLink}">Valida Email</a>`,
     });
   }
 }
