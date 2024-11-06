@@ -364,7 +364,7 @@ export class CourtReserveService {
       : `<strong>${courtReserve.player1} contra ${courtReserve.player2 || courtReserve.visitName}</strong>`
   } 
   el <strong>${courtReserve.dateToPlay}</strong> desde <strong>${courtReserve.turn}</strong> 
-  en la cancha <strong>${courtReserve.court}</strong>.
+  en <strong>${courtReserve.court}</strong>.
 </p>
 ${courtReserve.isPaidNight ? '<p><strong>Por favor, ten en cuenta que este horario es pagado.</strong></p>' : ''}
 ${
