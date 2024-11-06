@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { CreateInfoItemDto } from './dto/create-info-item.dto';
 import { UpdateInfoItemDto } from './dto/update-info-item.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -32,7 +32,14 @@ export class InfoItemsService {
     return `This action updates a #${id} infoItem`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} infoItem`;
+  async remove(id: string) {
+    console.log(id);
+    const updatedRegister = await this.itemModel
+      .findOneAndUpdate({ _id: id }, { state: false }, { new: true })
+      .exec();
+    if (!updatedRegister) {
+      throw new NotFoundException(`Register with idCourtReserve ${id} not found`);
+    }
+    return updatedRegister;
   }
 }

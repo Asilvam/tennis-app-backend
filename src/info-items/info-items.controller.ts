@@ -47,6 +47,6 @@ export class InfoItemsController {
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.infoItemsService.remove(+id);
+    return this.infoItemsService.remove(id);
   }
 }

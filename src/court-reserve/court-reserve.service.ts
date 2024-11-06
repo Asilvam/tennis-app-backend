@@ -135,7 +135,6 @@ export class CourtReserveService {
     const updatedRegister = await this.courtReserveModel
       .findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: false }, { new: true })
       .exec();
-
     if (!updatedRegister) {
       throw new NotFoundException(`Register with idCourtReserve ${idCourtReserve} not found`);
     }
