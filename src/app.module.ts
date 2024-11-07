@@ -12,6 +12,7 @@ import { EmailModule } from './email/email.module';
 import { NotificationModule } from './notification/notification.module';
 import { InfoItemsModule } from './info-items/info-items.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { MatchRankingModule } from './match-ranking/match-ranking.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     NotificationModule,
     InfoItemsModule,
     CloudinaryModule,
+    MatchRankingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

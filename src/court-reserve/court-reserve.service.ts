@@ -367,7 +367,7 @@ export class CourtReserveService {
 </p>
 ${courtReserve.isPaidNight ? '<p><strong>Por favor, ten en cuenta que este horario es pagado.</strong></p>' : ''}
 ${
-  !courtReserve.isVisit
+  !courtReserve.isVisit && courtReserve.isForRanking
     ? `<p>No olvides actualizar tu ranking después del partido.</p>
        <p>Tu ID de reserva de cancha es <strong>${courtReserve.idCourtReserve}</strong> 
        y tu clave de reserva es <strong>${courtReserve.passCourtReserve}</strong>.</p>`
