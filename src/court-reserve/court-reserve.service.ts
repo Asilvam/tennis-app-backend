@@ -77,7 +77,7 @@ export class CourtReserveService {
   async create(createCourtReserveDto: CreateCourtReserveDto) {
     const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
     // const courtNumber = court.match(/\d+/);
-    this.logger.log('createCourtReserveDto--> ', { createCourtReserveDto });
+    // this.logger.log('createCourtReserveDto--> ', { createCourtReserveDto });
     const validateDateTurn = await this.validateDateTurn(dateToPlay, court, turn);
     // this.logger.log('validateDateTurn--> ', validateDateTurn);
     if (validateDateTurn) {
