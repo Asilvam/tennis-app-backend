@@ -126,6 +126,32 @@ export class CourtReserveService {
     return await this.courtReserveModel.find().exec();
   }
 
+  async validateIdReserve({ id, pass }) {
+    const getShortNames = (names: string[]): string[] =>
+      names.map((name) => {
+        const nameParts = name.split(' ');
+        const firstInitial = `${nameParts[0][0]}.`;
+        const lastName = nameParts.length > 2 ? nameParts[nameParts.length - 2] : nameParts[1];
+        return `${firstInitial} ${lastName}`;
+      });
+    // this.logger.log(id, pass);
+    const reserves = await this.courtReserveModel
+      .findOne({ idCourtReserve: id, passCourtReserve: pass, resultMatchUpdated: false })
+      .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble');
+    if (reserves.isDouble) {
+      return {
+        isValid: true,
+        players: getShortNames([reserves.player1, reserves.player2, reserves.player3, reserves.player4]),
+        isDouble: reserves.isDouble,
+      };
+    } else
+      return {
+        isValid: true,
+        players: getShortNames([reserves.player1, reserves.player2]),
+        isDouble: reserves.isDouble,
+      };
+  }
+
   update(id: number, updateCourtReserveDto: UpdateCourtReserveDto) {
     this.logger.log('updateCourtReserveDto', updateCourtReserveDto);
     return `This action updates a #${id} courtReserve`;

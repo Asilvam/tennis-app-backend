@@ -10,5 +10,6 @@ import { EmailService } from '../email/email.service';
   imports: [MongooseModule.forFeature([{ name: CourtReserve.name, schema: CourtReserveSchema }]), RegisterModule],
   providers: [CourtReserveService, EmailService],
   controllers: [CourtReserveController],
+  exports: [CourtReserveService, MongooseModule],
 })
 export class CourtReserveModule {}

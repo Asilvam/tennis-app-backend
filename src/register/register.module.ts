@@ -11,6 +11,6 @@ import { EmailService } from '../email/email.service';
   imports: [MongooseModule.forFeature([{ name: Register.name, schema: RegisterSchema }])],
   controllers: [RegisterController],
   providers: [RegisterService, JwtService, AuthService, EmailService],
-  exports: [RegisterService],
+  exports: [RegisterService, MongooseModule],
 })
 export class RegisterModule {}

@@ -1,11 +1,30 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateMatchRankingDto } from './dto/create-match-ranking.dto';
 import { UpdateMatchRankingDto } from './dto/update-match-ranking.dto';
+import { ValidateMatchDto } from './dto/validate-match.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { MatchRanking } from './entities/match-ranking.entity';
+import { Model } from 'mongoose';
+import { CourtReserveService } from '../court-reserve/court-reserve.service';
 
 @Injectable()
 export class MatchRankingService {
+  logger = new Logger('MatchRankingService');
+
+  constructor(
+    @InjectModel(MatchRanking.name)
+    private readonly matchRankingModel: Model<MatchRanking>,
+    private readonly courtReserveService: CourtReserveService,
+  ) {}
+
   create(createMatchRankingDto: CreateMatchRankingDto) {
     return 'This action adds a new matchRanking';
+  }
+
+  validateMatch(validateMatchDto: ValidateMatchDto) {
+    this.logger.log({ validateMatchDto });
+    const response = this.courtReserveService.validateIdReserve(validateMatchDto);
+    return response;
   }
 
   findAll() {
