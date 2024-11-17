@@ -24,7 +24,7 @@ export class MatchRanking {
   isDoubles: boolean; // Indica si es un partido de dobles
 
   @Prop({ required: true })
-  result: string; // Ejemplo: "6-4, 3-6, 7-5"
+  result: string; // Ejemplo: "6:4, 3:6, 7:5"
 
   @Prop({ required: true })
   winner: string; // Nombre del ganador o equipo ganador

@@ -13,6 +13,13 @@ import { CreateRegisterDto } from './dto/create-register.dto';
 import { EmailService } from '../email/email.service';
 import { UpdateRegisterDto } from './dto/update-register.dto';
 
+interface PlayerData {
+  email: string;
+  points: string;
+  category: string;
+  cellular: string;
+}
+
 @Injectable()
 export class RegisterService {
   logger = new Logger(RegisterService.name);
@@ -61,16 +68,21 @@ export class RegisterService {
     return `This action removes a #${id} register`;
   }
 
-  async findOneEmail(player: string): Promise<string | object | null> {
+  async findOneEmail(player: string): Promise<PlayerData | null> {
     try {
       const response: Register = await this.registerModel.findOne({ namePlayer: player }).exec();
       if (!response) {
-        return { status: 404 };
+        throw new NotFoundException('Register not found');
       }
-      return { email: response.email }; // Return the email in an object
+      return {
+        email: response.email,
+        points: response.points,
+        category: response.category,
+        cellular: response.cellular,
+      };
     } catch (error) {
       this.logger.error('Error:', error.message);
-      return { status: 500 };
+      throw new BadRequestException(`Error finding register: ${error.message}`);
     }
   }
 

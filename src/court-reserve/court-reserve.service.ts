@@ -10,6 +10,13 @@ import { RegisterService } from '../register/register.service';
 import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 
+interface PlayerData {
+  email: string;
+  points: string;
+  category: string;
+  cellular: string;
+}
+
 @Injectable()
 export class CourtReserveService {
   logger = new Logger(CourtReserveService.name);
@@ -135,20 +142,43 @@ export class CourtReserveService {
         return `${firstInitial} ${lastName}`;
       });
     // this.logger.log(id, pass);
+    let player1Data;
+    let player2Data;
+    let player3Data;
+    let player4Data;
+
     const reserves = await this.courtReserveModel
-      .findOne({ idCourtReserve: id, passCourtReserve: pass, resultMatchUpdated: false })
+      .findOne({
+        idCourtReserve: id,
+        passCourtReserve: pass,
+        resultMatchUpdated: false,
+        state: true,
+        isForRanking: true,
+      })
       .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble');
+    if (reserves) {
+      if (reserves.isDouble) {
+        player3Data = await this.registerService.findOneEmail(reserves.player3);
+        player4Data = await this.registerService.findOneEmail(reserves.player4);
+      }
+      player1Data = await this.registerService.findOneEmail(reserves.player1);
+      player2Data = await this.registerService.findOneEmail(reserves.player2);
+    }
     if (reserves.isDouble) {
       return {
         isValid: true,
         players: getShortNames([reserves.player1, reserves.player2, reserves.player3, reserves.player4]),
         isDouble: reserves.isDouble,
+        dataPlayers: [player1Data, player2Data, player3Data, player4Data],
+        dateToPlay: reserves.dateToPlay,
       };
     } else
       return {
         isValid: true,
         players: getShortNames([reserves.player1, reserves.player2]),
         isDouble: reserves.isDouble,
+        dataPlayers: [player1Data, player2Data],
+        dateToPlay: reserves.dateToPlay,
       };
   }
 
