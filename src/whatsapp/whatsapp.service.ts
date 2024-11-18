@@ -11,7 +11,15 @@ export class WhatsappService implements OnModuleInit {
   constructor() {
     this.client = new Client({
       authStrategy: new LocalAuth(),
-      puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+      puppeteer: { headless: true,  args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--single-process',
+          '--disable-extensions',
+          '--disable-gpu',
+        ],
+      },
     });
 
     // Generate a QR code for authentication

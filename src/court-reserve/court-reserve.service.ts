@@ -156,6 +156,7 @@ export class CourtReserveService {
         isForRanking: true,
       })
       .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble');
+
     if (reserves) {
       if (reserves.isDouble) {
         player3Data = await this.registerService.findOneEmail(reserves.player3);
@@ -163,6 +164,8 @@ export class CourtReserveService {
       }
       player1Data = await this.registerService.findOneEmail(reserves.player1);
       player2Data = await this.registerService.findOneEmail(reserves.player2);
+    } else {
+      throw new BadRequestException('No se encontro la reserva');
     }
     if (reserves.isDouble) {
       return {
