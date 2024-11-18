@@ -11,7 +11,7 @@ export class WhatsappService implements OnModuleInit {
   constructor() {
     this.client = new Client({
       authStrategy: new LocalAuth(),
-      // puppeteer: { headless: true },
+      puppeteer: { headless: true },
     });
 
     // Generate a QR code for authentication
