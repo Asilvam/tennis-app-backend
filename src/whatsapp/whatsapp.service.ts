@@ -1,5 +1,5 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { Chat, Client, LocalAuth } from "whatsapp-web.js";
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Chat, Client, LocalAuth } from 'whatsapp-web.js';
 import * as qrcode from 'qrcode-terminal';
 
 @Injectable()
@@ -11,7 +11,7 @@ export class WhatsappService implements OnModuleInit {
   constructor() {
     this.client = new Client({
       authStrategy: new LocalAuth(),
-      puppeteer: { headless: true },
+      // puppeteer: { headless: true },
     });
 
     // Generate a QR code for authentication
