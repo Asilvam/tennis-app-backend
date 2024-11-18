@@ -10,13 +10,6 @@ import { RegisterService } from '../register/register.service';
 import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 
-interface PlayerData {
-  email: string;
-  points: string;
-  category: string;
-  cellular: string;
-}
-
 @Injectable()
 export class CourtReserveService {
   logger = new Logger(CourtReserveService.name);
@@ -151,11 +144,17 @@ export class CourtReserveService {
       .findOne({
         idCourtReserve: id,
         passCourtReserve: pass,
-        resultMatchUpdated: false,
-        state: true,
         isForRanking: true,
       })
-      .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble');
+      .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble state resultMatchUpdated');
+
+    if (!reserves.state) {
+      throw new BadRequestException('Reserva no valida, fue cancelada');
+    }
+
+    if (reserves.resultMatchUpdated) {
+      throw new BadRequestException('Reserva ya fue actualizada');
+    }
 
     if (reserves) {
       if (reserves.isDouble) {
