@@ -7,6 +7,7 @@ export interface Slot {
   available: boolean;
   court: string;
   isPayed?: boolean;
+  isBlockedByAdmin?: boolean;
   data?: any;
 }
 

@@ -22,8 +22,8 @@ export class CourtReserve {
   @Prop({ required: true })
   court: string;
 
-  @Prop({ required: true })
-  player1: string;
+  @Prop({ required: false })
+  player1?: string;
 
   @Prop({ required: false })
   player2?: string;
@@ -60,6 +60,12 @@ export class CourtReserve {
 
   @Prop({ default: false })
   isForRanking: boolean;
+
+  @Prop({ default: false })
+  isBlockedByAdmin: boolean;
+
+  @Prop({ default: '' })
+  blockedMotive: string;
 }
 
 export const CourtReserveSchema = SchemaFactory.createForClass(CourtReserve);

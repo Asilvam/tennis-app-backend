@@ -72,7 +72,7 @@ export class RegisterService {
     try {
       const response: Register = await this.registerModel.findOne({ namePlayer: player }).exec();
       if (!response) {
-        throw new NotFoundException('Register not found');
+        throw new NotFoundException('Name Player Register not found');
       }
       return {
         email: response.email,

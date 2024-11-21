@@ -5,9 +5,9 @@ export class CreateCourtReserveDto {
   @IsString()
   court: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  player1: string;
+  player1?: string;
 
   @IsOptional()
   @IsString()
@@ -56,4 +56,12 @@ export class CreateCourtReserveDto {
   @IsOptional()
   @IsBoolean()
   isForRanking?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isBlockedByAdmin?: boolean;
+
+  @IsOptional()
+  @IsString()
+  blockedMotive?: string;
 }

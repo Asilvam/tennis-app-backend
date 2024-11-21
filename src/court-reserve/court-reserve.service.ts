@@ -147,8 +147,9 @@ export class CourtReserveService {
         isForRanking: true,
       })
       .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble state resultMatchUpdated');
-
+    this.logger.log('reserves-->', reserves);
     if (!reserves.state) {
+      this.logger.log('reserves.state-->', reserves.state);
       throw new BadRequestException('Reserva no valida, fue cancelada');
     }
 
@@ -214,7 +215,7 @@ export class CourtReserveService {
 
     const activeReserves = await this.courtReserveModel
       .find({ dateToPlay: selectedDate, state: true }) // Adding state: true condition
-      .select('dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName')
+      .select('dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName isBlockedByAdmin')
       .exec();
 
     const AllTimeSlotsAvailable: TimeSlot[] = [
@@ -290,13 +291,18 @@ export class CourtReserveService {
             const court = turn.slots.find((slot) => slot.court === reserve.court);
             if (court) {
               court.available = false;
-              court.data = formatPlayerNames({
-                player1: reserve.player1,
-                player2: reserve.player2,
-                player3: reserve.player3,
-                player4: reserve.player4,
-                visitName: reserve.visitName,
-              });
+              if (!reserve.isBlockedByAdmin) {
+                court.data = formatPlayerNames({
+                  player1: reserve.player1,
+                  player2: reserve.player2,
+                  player3: reserve.player3,
+                  player4: reserve.player4,
+                  visitName: reserve.visitName,
+                });
+              } else
+                court.data = {
+                  blockedMotive: reserve.blockedMotive,
+                };
             }
           }
         });
