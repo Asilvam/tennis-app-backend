@@ -14,6 +14,11 @@ export class CourtReserveController {
     return this.courtReserveService.create(createCourtReserveDto);
   }
 
+  @Post('adminreserve')
+  adminReserve(@Body() createCourtReserveDto: CreateCourtReserveDto) {
+    return this.courtReserveService.adminReserve(createCourtReserveDto);
+  }
+
   @Get('available/:selectedDate')
   findAllAvailable(@Param('selectedDate') selectedDate: string) {
     return this.courtReserveService.getAllCourtAvailable(selectedDate);

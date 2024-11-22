@@ -74,6 +74,21 @@ export class CourtReserveService {
     return selectedCourt ? selectedCourt.available : false;
   };
 
+  async adminReserve(createCourtReserveDto: CreateCourtReserveDto) {
+    const { dateToPlay, turn, court } = createCourtReserveDto;
+
+    // Deactivate the existing reservation
+    await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false }).exec();
+
+    // Create a new reservation
+    const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
+    const savedReservation = await newCourtReserve.save();
+
+    // Log the saved reservation and return it
+    // this.logger.log(savedReservation);
+    return savedReservation;
+  }
+
   async create(createCourtReserveDto: CreateCourtReserveDto) {
     const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
     // const courtNumber = court.match(/\d+/);
@@ -147,9 +162,9 @@ export class CourtReserveService {
         isForRanking: true,
       })
       .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble state resultMatchUpdated');
-    this.logger.log('reserves-->', reserves);
+    // this.logger.log('reserves-->', reserves);
     if (!reserves.state) {
-      this.logger.log('reserves.state-->', reserves.state);
+      // this.logger.log('reserves.state-->', reserves.state);
       throw new BadRequestException('Reserva no valida, fue cancelada');
     }
 
@@ -215,65 +230,68 @@ export class CourtReserveService {
 
     const activeReserves = await this.courtReserveModel
       .find({ dateToPlay: selectedDate, state: true }) // Adding state: true condition
-      .select('dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName isBlockedByAdmin')
+      .select(
+        // eslint-disable-next-line max-len
+        'dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName isBlockedByAdmin blockedMotive',
+      )
       .exec();
-
+    this.logger.log(activeReserves);
     const AllTimeSlotsAvailable: TimeSlot[] = [
       {
         time: '08:15-10:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
         ],
       },
       {
         time: '10:15-12:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
         ],
       },
       {
         time: '12:15-14:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
         ],
       },
       {
         time: '14:15-16:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
         ],
       },
       {
         time: '16:15-18:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
         ],
       },
       {
         time: '18:15-20:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
         ],
       },
       {
         time: '20:15-22:00',
-        slots: [{ available: true, court: 'Cancha 1', isPayed: true, data: null }],
+        slots: [{ available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null }],
       },
       {
         time: '22:15-00:00',
-        slots: [{ available: true, court: 'Cancha 1', isPayed: true, data: null }],
+        slots: [{ available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null }],
       },
     ];
     const generateTimeSlotAvailability = () => {
@@ -285,7 +303,7 @@ export class CourtReserveService {
     const availability = generateTimeSlotAvailability();
     availability.forEach((turn) => {
       if (activeReserves.length > 0) {
-        // console.log(activeReserves);
+        // this.logger.log(activeReserves);
         activeReserves.forEach((reserve) => {
           if (turn.time === reserve.turn) {
             const court = turn.slots.find((slot) => slot.court === reserve.court);
@@ -299,10 +317,10 @@ export class CourtReserveService {
                   player4: reserve.player4,
                   visitName: reserve.visitName,
                 });
-              } else
-                court.data = {
-                  blockedMotive: reserve.blockedMotive,
-                };
+              } else {
+                court.isBlockedByAdmin = true;
+                court.data = reserve.blockedMotive;
+              }
             }
           }
         });
