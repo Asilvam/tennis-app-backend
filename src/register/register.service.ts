@@ -35,6 +35,46 @@ export class RegisterService {
     return await bcrypt.hash(password, saltRounds);
   }
 
+  generateRandomPassword(length: number): string {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!';
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      password += characters[randomIndex];
+    }
+    return password;
+  }
+
+  async createNewPassword(): Promise<{ plainPassword: string; hashedPassword: string }> {
+    const plainPassword = this.generateRandomPassword(6); // Genera una contraseña de 6 caracteres
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
+
+    return { plainPassword, hashedPassword };
+  }
+
+  async resetPassword(email: any): Promise<{ success: boolean; message: string; newPassword?: string }> {
+    this.logger.log(email.email);
+    try {
+      const user = this.registerModel.findOne({ email });
+      if (!user) {
+        return { success: false, message: 'Usuario no encontrado' };
+      }
+      const { plainPassword, hashedPassword } = await this.createNewPassword();
+      this.logger.log('Nueva contraseña generada:', plainPassword);
+      this.logger.log('Contraseña encriptada (hash):', hashedPassword);
+      await this.registerModel.updateOne({ email: email.email }, { pwd: hashedPassword });
+      return {
+        success: true,
+        message: 'Contraseña actualizada con éxito',
+        newPassword: plainPassword,
+      };
+    } catch (error) {
+      this.logger.error('Error al actualizar la contraseña:', error);
+      return { success: false, message: 'Error al actualizar la contraseña' };
+    }
+  }
+
   async findAll(): Promise<Register[]> {
     try {
       const registers = await this.registerModel.find().sort({ namePlayer: 1 }).exec();

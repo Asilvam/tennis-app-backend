@@ -23,6 +23,11 @@ export class RegisterController {
     return this.registerService.create(registerDto);
   }
 
+  @Post('resetpass')
+  resetPassword(@Body() email: any) {
+    return this.registerService.resetPassword(email);
+  }
+
   @Get('names')
   findAllNAmes() {
     return this.registerService.findAllNamePlayers();
