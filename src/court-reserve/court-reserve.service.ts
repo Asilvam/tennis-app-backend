@@ -74,19 +74,26 @@ export class CourtReserveService {
     return selectedCourt ? selectedCourt.available : false;
   };
 
-  async adminReserve(createCourtReserveDto: CreateCourtReserveDto) {
-    const { dateToPlay, turn, court } = createCourtReserveDto;
+  async adminReserve(createCourtReserveDtoArray: CreateCourtReserveDto[]) {
+    const savedReservations = [];
+    for (const reservation of createCourtReserveDtoArray) {
+      const { dateToPlay, turn, court } = reservation;
 
-    // Deactivate the existing reservation
-    await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false }).exec();
+      // Deactivate the existing reservation
+      await this.courtReserveModel
+        .findOneAndUpdate({ dateToPlay, turn, court }, { state: false })
+        .exec();
 
-    // Create a new reservation
-    const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
-    const savedReservation = await newCourtReserve.save();
+      // Create a new reservation
+      const newCourtReserve = new this.courtReserveModel(reservation);
+      const savedReservation = await newCourtReserve.save();
 
-    // Log the saved reservation and return it
-    // this.logger.log(savedReservation);
-    return savedReservation;
+      savedReservations.push(savedReservation);
+
+      // Log the saved reservation
+      this.logger.log(savedReservation);
+    }
+    return savedReservations;
   }
 
   async create(createCourtReserveDto: CreateCourtReserveDto) {
@@ -235,7 +242,7 @@ export class CourtReserveService {
         'dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName isBlockedByAdmin blockedMotive',
       )
       .exec();
-    this.logger.log(activeReserves);
+    // this.logger.log(activeReserves);
     const AllTimeSlotsAvailable: TimeSlot[] = [
       {
         time: '08:15-10:00',
@@ -442,9 +449,9 @@ export class CourtReserveService {
     courtReserve.isDouble
       ? `<strong>contra ${courtReserve.player3} y ${courtReserve.player4}</strong> 
          con tu compañero <strong>${courtReserve.player2}</strong>`
-      : `<strong>${courtReserve.player1} contra ${courtReserve.player2 || courtReserve.visitName}</strong>`
+      : `<strong>${courtReserve.player1} vs ${courtReserve.player2 || courtReserve.visitName}</strong>`
   } 
-  el <strong>${courtReserve.dateToPlay}</strong> desde <strong>${courtReserve.turn}</strong> 
+  el <strong>${courtReserve.dateToPlay}</strong> turno <strong>${courtReserve.turn}</strong> 
   en <strong>${courtReserve.court}</strong>.
 </p>
 ${courtReserve.isPaidNight ? '<p><strong>Por favor, ten en cuenta que este horario es pagado.</strong></p>' : ''}

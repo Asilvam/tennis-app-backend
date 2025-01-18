@@ -15,7 +15,7 @@ export class CourtReserveController {
   }
 
   @Post('adminreserve')
-  adminReserve(@Body() createCourtReserveDto: CreateCourtReserveDto) {
+  adminReserve(@Body() createCourtReserveDto: CreateCourtReserveDto[]) {
     return this.courtReserveService.adminReserve(createCourtReserveDto);
   }
 
