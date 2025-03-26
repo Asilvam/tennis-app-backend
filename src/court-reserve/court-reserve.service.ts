@@ -19,7 +19,7 @@ export class CourtReserveService {
     private readonly courtReserveModel: Model<CourtReserve>,
     private readonly registerService: RegisterService,
     private readonly emailService: EmailService,
-    private configService: ConfigService,
+    // private configService: ConfigService,
   ) {}
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
@@ -329,7 +329,7 @@ export class CourtReserveService {
 
   async getAllHistoryReservesFor(namePlayer: string): Promise<CourtReserve[] | null> {
     try {
-      const courtReserves = await this.courtReserveModel
+      return await this.courtReserveModel
         .find({ player1: namePlayer })
         .select('dateToPlay court turn player2 player3 player4 visitName idCourtReserve state')
         .sort({
@@ -338,7 +338,6 @@ export class CourtReserveService {
           court: 'asc',
         })
         .exec();
-      return courtReserves;
     } catch (error) {
       this.logger.error(error);
     }
@@ -424,8 +423,7 @@ export class CourtReserveService {
   }
 
   async findOneEmail(player: string): Promise<any> {
-    const response = await this.registerService.findOneEmail(player);
-    return response;
+    return await this.registerService.findOneEmail(player);
   }
 
   async sendEmailReserve(courtReserve: CourtReserve) {
@@ -438,7 +436,7 @@ export class CourtReserveService {
   Tienes una reserva para jugar 
   ${
     courtReserve.isDouble
-      ? `<strong>contra ${courtReserve.player3} y ${courtReserve.player4}</strong> 
+      ? `<strong>vs ${courtReserve.player3} y ${courtReserve.player4}</strong> 
          con tu compañero <strong>${courtReserve.player2}</strong>`
       : `<strong>${courtReserve.player1} vs ${courtReserve.player2 || courtReserve.visitName}</strong>`
   } 
