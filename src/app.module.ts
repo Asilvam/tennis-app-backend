@@ -14,6 +14,7 @@ import { InfoItemsModule } from './info-items/info-items.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { MatchRankingModule } from './match-ranking/match-ranking.module';
 // import { WhatsappModule } from './whatsapp/whatsapp.module';
+import { BookingModule } from './booking/booking.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MatchRankingModule } from './match-ranking/match-ranking.module';
     InfoItemsModule,
     CloudinaryModule,
     MatchRankingModule,
+    BookingModule,
     // WhatsappModule,
   ],
   controllers: [AppController],

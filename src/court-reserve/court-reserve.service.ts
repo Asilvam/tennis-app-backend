@@ -78,19 +78,10 @@ export class CourtReserveService {
     const savedReservations = [];
     for (const reservation of createCourtReserveDtoArray) {
       const { dateToPlay, turn, court } = reservation;
-
-      // Deactivate the existing reservation
-      await this.courtReserveModel
-        .findOneAndUpdate({ dateToPlay, turn, court }, { state: false })
-        .exec();
-
-      // Create a new reservation
+      await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false }).exec();
       const newCourtReserve = new this.courtReserveModel(reservation);
       const savedReservation = await newCourtReserve.save();
-
       savedReservations.push(savedReservation);
-
-      // Log the saved reservation
       this.logger.log(savedReservation);
     }
     return savedReservations;
