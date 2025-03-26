@@ -7,7 +7,7 @@ import { Model } from 'mongoose';
 import { DateTime } from 'luxon';
 import { EmailService } from '../email/email.service';
 import { RegisterService } from '../register/register.service';
-import { ConfigService } from '@nestjs/config';
+// import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 
 @Injectable()
