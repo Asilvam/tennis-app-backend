@@ -88,7 +88,13 @@ export class RegisterService {
   async create(registerDto: CreateRegisterDto) {
     const user: Register | null = await this.registerModel.findOne({ email: registerDto.email }).exec();
     if (user) {
-      throw new BadRequestException('User already exists');
+      this.logger.error('User already exists.');
+      throw new BadRequestException('User mail already exists');
+    }
+    const exists = await this.registerModel.findOne({ cellular: registerDto.cellular });
+    if (exists) {
+      this.logger.error('Phone number already exists.');
+      throw new BadRequestException('Phone number already exists.');
     }
     const hashedPassword = await this.hashPassword(registerDto.pwd);
     const registerEntity = {
