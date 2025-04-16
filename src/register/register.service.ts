@@ -35,6 +35,56 @@ export class RegisterService {
     return await bcrypt.hash(password, saltRounds);
   }
 
+  // Función original para habilitar (con mejoras)
+  // eslint-disable-next-line max-len
+  async enablePlayerPayment(email: string): Promise<{ success: boolean; message: string }> {
+    // Cambiado el nombre y el tipo de email
+    try {
+      const user = await this.registerModel.findOne({ email }); // Añadido await
+      if (!user) {
+        this.logger.warn(`Usuario con email ${email} no encontrado para habilitar.`);
+        throw new NotFoundException('Usuario no encontrado');
+      }
+      // Se asegura de ponerlo en true
+      await this.registerModel.updateOne({ email }, { updatePayment: true });
+      this.logger.log(`Jugador con email ${email} habilitado (updatePayment: true).`);
+      return {
+        success: true,
+        message: 'Estado de Pago actualizado con éxito.', // Mensaje claro
+      };
+    } catch (error) {
+      this.logger.error(`Error al habilitar al jugador con email ${email}:`, error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al actualizar el estado del jugador.');
+    }
+  }
+
+  // Nueva función para bloquear
+  async blockPlayerPayment(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const user = await this.registerModel.findOne({ email }); // Añadido await
+      if (!user) {
+        this.logger.warn(`Usuario con email ${email} no encontrado para bloquear.`);
+        throw new NotFoundException('Usuario no encontrado');
+      }
+      // Cambiamos el valor a false para bloquear
+      await this.registerModel.updateOne({ email }, { updatePayment: false });
+      this.logger.log(`Jugador con email ${email} bloqueado (updatePayment: false).`);
+      return {
+        success: true,
+        message: 'Jugador bloqueado con éxito (pago no actualizado).', // Mensaje claro
+      };
+    } catch (error) {
+      this.logger.error(`Error al bloquear al jugador con email ${email}:`, error);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al actualizar el estado del jugador.');
+    }
+  }
+
   generateRandomPassword(length: number): string {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!';
     let password = '';
@@ -54,15 +104,15 @@ export class RegisterService {
   }
 
   async resetPassword(email: any): Promise<{ success: boolean; message: string; newPassword?: string }> {
-    this.logger.log(email.email);
+    // this.logger.log(email.email);
     try {
       const user = this.registerModel.findOne({ email });
       if (!user) {
         return { success: false, message: 'Usuario no encontrado' };
       }
       const { plainPassword, hashedPassword } = await this.createNewPassword();
-      this.logger.log('Nueva contraseña generada:', plainPassword);
-      this.logger.log('Contraseña encriptada (hash):', hashedPassword);
+      // this.logger.log('Nueva contraseña generada:', plainPassword);
+      // this.logger.log('Contraseña encriptada (hash):', hashedPassword);
       await this.registerModel.updateOne({ email: email.email }, { pwd: hashedPassword });
       return {
         success: true,
