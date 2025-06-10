@@ -38,6 +38,9 @@ export class Register {
 
   @Prop({ type: String, enum: ['admin', 'user'], default: 'user' })
   role: string;
+
+  @Prop({ default: false })
+  hasVoted: boolean;
 }
 
 export const RegisterSchema = SchemaFactory.createForClass(Register);

@@ -78,13 +78,22 @@ export class CourtReserveService {
     const savedReservations = [];
     for (const reservation of createCourtReserveDtoArray) {
       const { dateToPlay, turn, court } = reservation;
-      await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false }).exec();
+      await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false });
       const newCourtReserve = new this.courtReserveModel(reservation);
       const savedReservation = await newCourtReserve.save();
       savedReservations.push(savedReservation);
       this.logger.log(savedReservation);
     }
     return savedReservations;
+  }
+
+  async adminCreate(createCourtReserveDto: CreateCourtReserveDto) {
+    const { court, turn, dateToPlay } = createCourtReserveDto;
+    await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false });
+    const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
+    const savedReservation = await newCourtReserve.save();
+    this.logger.log(savedReservation);
+    return savedReservation;
   }
 
   async create(createCourtReserveDto: CreateCourtReserveDto) {
@@ -136,7 +145,7 @@ export class CourtReserveService {
   }
 
   async findAll() {
-    return await this.courtReserveModel.find().exec();
+    return await this.courtReserveModel.find();
   }
 
   async validateIdReserve({ id, pass }) {
@@ -203,6 +212,19 @@ export class CourtReserveService {
     return `This action updates a #${id} courtReserve`;
   }
 
+  async updateResultMatch(idCourtReserve: string) {
+    const updatedReserve = await this.courtReserveModel
+      .findOneAndUpdate({ idCourtReserve: idCourtReserve }, { resultMatchUpdated: false }, { new: true })
+      .exec();
+    if (!updatedReserve) {
+      throw new NotFoundException(
+        `Reserve with idCourtReserve ${idCourtReserve} not found or already updated`,
+      );
+    }
+    this.logger.log(`Match result updated for reserve: ${idCourtReserve}`);
+    return updatedReserve;
+  }
+
   async remove(idCourtReserve: string) {
     const updatedRegister = await this.courtReserveModel
       .findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: false }, { new: true })
@@ -227,11 +249,21 @@ export class CourtReserveService {
     };
 
     const activeReserves = await this.courtReserveModel
-      .find({ dateToPlay: selectedDate, state: true }) // Adding state: true condition
-      .select(
-        // eslint-disable-next-line max-len
-        'dateToPlay court turn player1 player2 player3 player4 isDouble isVisit visitName isBlockedByAdmin blockedMotive',
-      )
+      .find({ dateToPlay: selectedDate, state: true })
+      .select([
+        'dateToPlay',
+        'court',
+        'turn',
+        'player1',
+        'player2',
+        'player3',
+        'player4',
+        'isDouble',
+        'isVisit',
+        'visitName',
+        'isBlockedByAdmin',
+        'blockedMotive',
+      ])
       .exec();
     // this.logger.log(activeReserves);
     const AllTimeSlotsAvailable: TimeSlot[] = [
@@ -278,18 +310,26 @@ export class CourtReserveService {
       {
         time: '18:15-20:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: true, isBlockedByAdmin: false, data: null },
         ],
       },
       {
         time: '20:15-22:00',
-        slots: [{ available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null }],
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: true, isBlockedByAdmin: false, data: null },
+        ],
       },
       {
         time: '22:15-00:00',
-        slots: [{ available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null }],
+        slots: [
+          { available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: true, isBlockedByAdmin: false, data: null },
+        ],
       },
     ];
     const generateTimeSlotAvailability = () => {
@@ -433,7 +473,7 @@ export class CourtReserveService {
       html: `
 <p><strong>Detalles Reserva:</strong></p>
 <p>
-  Tienes una reserva para jugar 
+  Tu reserva esta lista!
   ${
     courtReserve.isDouble
       ? `<strong>vs ${courtReserve.player3} y ${courtReserve.player4}</strong> 
