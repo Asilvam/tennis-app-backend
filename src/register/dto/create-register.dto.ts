@@ -49,4 +49,8 @@ export class CreateRegisterDto {
   @IsOptional() // Mark as optional
   @IsString()
   role?: string;
+
+  @IsOptional() // Mark as optional
+  @IsBoolean()
+  hasVoted?: boolean;
 }

@@ -19,8 +19,11 @@ export class MatchRankingService {
     private readonly registerService: RegisterService,
   ) {}
 
-  create(createMatchRankingDto: CreateMatchRankingDto) {
-    return 'This action adds a new matchRanking';
+  async create(createMatchRankingDto: CreateMatchRankingDto) {
+    this.logger.log({ createMatchRankingDto });
+    await this.courtReserveService.updateResultMatch(createMatchRankingDto.matchId);
+    const newMatchRanking = new this.matchRankingModel(createMatchRankingDto);
+    return newMatchRanking.save();
   }
 
   async validateMatch(validateMatchDto: ValidateMatchDto) {
