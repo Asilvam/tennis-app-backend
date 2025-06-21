@@ -213,13 +213,13 @@ export class CourtReserveService {
   }
 
   async updateResultMatch(idCourtReserve: string) {
-    const updatedReserve = await this.courtReserveModel
-      .findOneAndUpdate({ idCourtReserve: idCourtReserve }, { resultMatchUpdated: false }, { new: true })
-      .exec();
+    const updatedReserve = await this.courtReserveModel.findOneAndUpdate(
+      { idCourtReserve: idCourtReserve },
+      { resultMatchUpdated: true },
+      { new: true },
+    );
     if (!updatedReserve) {
-      throw new NotFoundException(
-        `Reserve with idCourtReserve ${idCourtReserve} not found or already updated`,
-      );
+      throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
     }
     this.logger.log(`Match result updated for reserve: ${idCourtReserve}`);
     return updatedReserve;
