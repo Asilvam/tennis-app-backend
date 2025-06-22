@@ -169,14 +169,27 @@ export class CourtReserveService {
         isForRanking: true,
       })
       .select('idCourtReserve court turn dateToPlay player1 player2 player3 player4 isDouble state resultMatchUpdated');
-    // this.logger.log('reserves-->', reserves);
+    if (reserves === null) {
+      throw new BadRequestException('No se encontro la reserva');
+    }
     if (!reserves.state) {
-      // this.logger.log('reserves.state-->', reserves.state);
       throw new BadRequestException('Reserva no valida, fue cancelada');
     }
 
     if (reserves.resultMatchUpdated) {
       throw new BadRequestException('Reserva ya fue actualizada');
+    }
+
+    const timezone = 'America/Santiago';
+    const matchDate = DateTime.fromISO(reserves.dateToPlay, { zone: timezone }).startOf('day');
+    const currentDate = DateTime.now().setZone(timezone).startOf('day');
+
+    const diffInDays = currentDate.diff(matchDate, 'days').days;
+
+    if (diffInDays > 2) {
+      throw new BadRequestException(
+        'No se puede actualizar el resultado. El plazo para hacerlo ha expirado (2 días después del partido).',
+      );
     }
 
     if (reserves) {
@@ -186,9 +199,8 @@ export class CourtReserveService {
       }
       player1Data = await this.registerService.findOneEmail(reserves.player1);
       player2Data = await this.registerService.findOneEmail(reserves.player2);
-    } else {
-      throw new BadRequestException('No se encontro la reserva');
     }
+
     if (reserves.isDouble) {
       return {
         isValid: true,
