@@ -114,6 +114,7 @@ export class RegisterService {
       // this.logger.log('Nueva contraseña generada:', plainPassword);
       // this.logger.log('Contraseña encriptada (hash):', hashedPassword);
       await this.registerModel.updateOne({ email: email.email }, { pwd: hashedPassword });
+      await this.emailService.sendResetPasswordEmail(email.email, plainPassword);
       return {
         success: true,
         message: 'Contraseña actualizada con éxito',
