@@ -477,12 +477,16 @@ export class CourtReserveService {
   async findOneEmail(player: string): Promise<any> {
     return await this.registerService.findOneEmail(player);
   }
-
   async sendEmailReserve(courtReserve: CourtReserve) {
-    const getEmailData = (email: { email: string }, courtReserve: CourtReserve) => ({
-      to: email.email,
-      subject: 'Confirmación de Reserva de Cancha de Tenis',
-      html: `
+    const getEmailData = (email: { email: string }, courtReserve: CourtReserve) => {
+      // --- Formateo de datos para el correo ---
+      const formattedDate = DateTime.fromISO(courtReserve.dateToPlay).toFormat('dd-MM-yyyy'); // <-- MODIFICADO
+      const courtNumber = courtReserve.court.replace('Cancha ', ''); // <-- MODIFICADO
+
+      return {
+        to: email.email,
+        subject: 'Confirmación de Reserva',
+        html: `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
   
   <h2 style="color: #0d47a1; text-align: center; margin-top: 0; border-bottom: 2px solid #0d47a1; padding-bottom: 15px;">
@@ -490,40 +494,57 @@ export class CourtReserveService {
   </h2>
   
   <p style="font-size: 16px;">¡Hola!</p>
-  <p style="font-size: 16px; line-height: 1.6;">Tu reserva ha sido confirmada con éxito. Aquí están los detalles:</p>
+  <p style="font-size: 16px; line-height: 1.6;">Tu reserva ha sido confirmada con éxito. Aquí tienes los detalles:</p>
   
   <div style="background-color: #f5f8fa; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e0e0e0;">
+        <!-- SECCIÓN DE PARTIDO MEJORADA -->
+    <div style="font-size: 16px; margin: 20px 0;">
+      <strong style="display: block; margin-bottom: 10px;">👥 Partido:</strong>
+      <div style="text-align: center; padding: 15px; background-color: #ffffff; border: 1px dashed #ccc; border-radius: 8px; font-size: 18px;">
+        <div style="margin-bottom: 8px; color: #1e88e5;">
+          <strong>
+            ${
+          courtReserve.isDouble
+            ? `${courtReserve.player1} y ${courtReserve.player2}`
+            : `${courtReserve.player1}`
+        }
+          </strong>
+        </div>
+        <div style="color: #757575; font-style: italic; font-weight: bold; margin: 8px 0;">vs</div>
+        <div style="margin-top: 8px; color: #d32f2f;">
+          <strong>
+            ${
+          courtReserve.isDouble
+            ? `${courtReserve.player3} y ${courtReserve.player4}`
+            : `${courtReserve.player2 || courtReserve.visitName}`
+        }
+          </strong>
+        </div>
+      </div>
+    </div>
     <p style="font-size: 16px; margin: 12px 0;">
-      <strong>👥 Partido:</strong> 
-      ${
-        courtReserve.isDouble
-          ? `<strong>${courtReserve.player1} y ${courtReserve.player2}</strong> vs <strong>${courtReserve.player3} y ${courtReserve.player4}</strong>`
-          : `<strong>${courtReserve.player1}</strong> vs <strong>${courtReserve.player2 || courtReserve.visitName}</strong>`
-      }
-    </p>
-    <p style="font-size: 16px; margin: 12px 0;">
-      <strong>📅 Fecha:</strong> ${courtReserve.dateToPlay}
+      <strong>📅 Fecha:</strong> ${formattedDate}
     </p>
     <p style="font-size: 16px; margin: 12px 0;">
       <strong>⏰ Turno:</strong> ${courtReserve.turn}
     </p>
     <p style="font-size: 16px; margin: 12px 0;">
-      <strong>📍 Cancha:</strong> ${courtReserve.court}
+      <strong>📍 Cancha:</strong> ${courtNumber}
     </p>
   </div>
 
   ${
-        courtReserve.isPaidNight
-          ? `
+          courtReserve.isPaidNight
+            ? `
   <div style="margin-top: 25px; padding: 15px; background-color: #fffbe6; border-left: 5px solid #ffc107; color: #856404; border-radius: 5px;">
     <p style="margin: 0; font-size: 15px;"><strong>💲 Horario Pagado:</strong> Por favor, ten en cuenta que este horario requiere pago.</p>
   </div>`
-          : ''
-      }
+            : ''
+        }
 
   ${
-        !courtReserve.isVisit && courtReserve.isForRanking
-          ? `
+          !courtReserve.isVisit && courtReserve.isForRanking
+            ? `
   <div style="margin-top: 25px; padding: 20px; background-color: #e7f3ff; border-left: 5px solid #0056b3; border-radius: 5px;">
     <h3 style="margin-top: 0; color: #004085;">🏆 Actualiza tu Ranking</h3>
     <p style="font-size: 15px; line-height: 1.6;">No olvides registrar el resultado del partido para actualizar tu ranking. Usa los siguientes datos:</p>
@@ -532,14 +553,15 @@ export class CourtReserveService {
       <li><strong>🔒 Clave de Reserva:</strong> ${courtReserve.passCourtReserve}</li>
     </ul>
   </div>`
-          : ''
-      }
+            : ''
+        }
 
   <p style="margin-top: 30px; font-size: 16px;">¡Que tengas un excelente partido!</p>
   <p style="margin-top: 10px; font-size: 16px; line-height: 1.6;">Atentamente,<br><strong>Club de Tenis Quintero</strong></p>
 </div>
   `,
-    });
+      };
+    };
 
     const sendEmailIfNeeded = async (player: string | null) => {
       if (player) {
