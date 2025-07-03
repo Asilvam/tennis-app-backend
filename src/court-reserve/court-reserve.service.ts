@@ -481,33 +481,63 @@ export class CourtReserveService {
   async sendEmailReserve(courtReserve: CourtReserve) {
     const getEmailData = (email: { email: string }, courtReserve: CourtReserve) => ({
       to: email.email,
-      subject: 'Court Tennis Reservation',
+      subject: 'Confirmación de Reserva de Cancha de Tenis',
       html: `
-<p><strong>Detalles Reserva:</strong></p>
-<p>
-  Tu reserva esta lista!
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+  
+  <h2 style="color: #0d47a1; text-align: center; margin-top: 0; border-bottom: 2px solid #0d47a1; padding-bottom: 15px;">
+    🎾 Reserva Confirmada 🎾
+  </h2>
+  
+  <p style="font-size: 16px;">¡Hola!</p>
+  <p style="font-size: 16px; line-height: 1.6;">Tu reserva ha sido confirmada con éxito. Aquí están los detalles:</p>
+  
+  <div style="background-color: #f5f8fa; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e0e0e0;">
+    <p style="font-size: 16px; margin: 12px 0;">
+      <strong>👥 Partido:</strong> 
+      ${
+        courtReserve.isDouble
+          ? `<strong>${courtReserve.player1} y ${courtReserve.player2}</strong> vs <strong>${courtReserve.player3} y ${courtReserve.player4}</strong>`
+          : `<strong>${courtReserve.player1}</strong> vs <strong>${courtReserve.player2 || courtReserve.visitName}</strong>`
+      }
+    </p>
+    <p style="font-size: 16px; margin: 12px 0;">
+      <strong>📅 Fecha:</strong> ${courtReserve.dateToPlay}
+    </p>
+    <p style="font-size: 16px; margin: 12px 0;">
+      <strong>⏰ Turno:</strong> ${courtReserve.turn}
+    </p>
+    <p style="font-size: 16px; margin: 12px 0;">
+      <strong>📍 Cancha:</strong> ${courtReserve.court}
+    </p>
+  </div>
+
   ${
-    courtReserve.isDouble
-      ? `<strong>vs ${courtReserve.player3} y ${courtReserve.player4}</strong> 
-         con tu compañero <strong>${courtReserve.player2}</strong>`
-      : `<strong>${courtReserve.player1} vs ${courtReserve.player2 || courtReserve.visitName}</strong>`
-  } 
-  el <strong>${courtReserve.dateToPlay}</strong> turno <strong>${courtReserve.turn}</strong> 
-  en <strong>${courtReserve.court}</strong>.
-</p>
-${courtReserve.isPaidNight ? '<p><strong>Por favor, ten en cuenta que este horario es pagado.</strong></p>' : ''}
-${
-  !courtReserve.isVisit && courtReserve.isForRanking
-    ? `<p>No olvides actualizar tu ranking después del partido.</p>
-       <p>Tu ID de reserva de cancha es <strong>${courtReserve.idCourtReserve}</strong> 
-       y tu clave de reserva es <strong>${courtReserve.passCourtReserve}</strong>.</p>`
-    : ''
-}
-<p></p>
-<p>Atentamente,</p>
-<p>Club de Tenis Quintero</p>
+        courtReserve.isPaidNight
+          ? `
+  <div style="margin-top: 25px; padding: 15px; background-color: #fffbe6; border-left: 5px solid #ffc107; color: #856404; border-radius: 5px;">
+    <p style="margin: 0; font-size: 15px;"><strong>💲 Horario Pagado:</strong> Por favor, ten en cuenta que este horario requiere pago.</p>
+  </div>`
+          : ''
+      }
 
+  ${
+        !courtReserve.isVisit && courtReserve.isForRanking
+          ? `
+  <div style="margin-top: 25px; padding: 20px; background-color: #e7f3ff; border-left: 5px solid #0056b3; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #004085;">🏆 Actualiza tu Ranking</h3>
+    <p style="font-size: 15px; line-height: 1.6;">No olvides registrar el resultado del partido para actualizar tu ranking. Usa los siguientes datos:</p>
+    <ul style="font-size: 15px; list-style-type: none; padding-left: 0;">
+      <li style="margin-bottom: 8px;"><strong>🔑 ID de Reserva:</strong> ${courtReserve.idCourtReserve}</li>
+      <li><strong>🔒 Clave de Reserva:</strong> ${courtReserve.passCourtReserve}</li>
+    </ul>
+  </div>`
+          : ''
+      }
 
+  <p style="margin-top: 30px; font-size: 16px;">¡Que tengas un excelente partido!</p>
+  <p style="margin-top: 10px; font-size: 16px; line-height: 1.6;">Atentamente,<br><strong>Club de Tenis Quintero</strong></p>
+</div>
   `,
     });
 
