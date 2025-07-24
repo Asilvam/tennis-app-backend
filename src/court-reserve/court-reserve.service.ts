@@ -477,11 +477,18 @@ export class CourtReserveService {
   async findOneEmail(player: string): Promise<any> {
     return await this.registerService.findOneEmail(player);
   }
+
   async sendEmailReserve(courtReserve: CourtReserve) {
     const getEmailData = (email: { email: string }, courtReserve: CourtReserve) => {
       // --- Formateo de datos para el correo ---
-      const formattedDate = DateTime.fromISO(courtReserve.dateToPlay).toFormat('dd-MM-yyyy'); // <-- MODIFICADO
-      const courtNumber = courtReserve.court.replace('Cancha ', ''); // <-- MODIFICADO
+      const formattedDate = DateTime.fromISO(courtReserve.dateToPlay).toFormat('dd-MM-yyyy');
+      const courtNumber = courtReserve.court.replace('Cancha ', '');
+
+      // --- Lógica para el mensaje de mantenimiento ---
+      const [turnStart] = courtReserve.turn.split('-');
+      const turnStartTime = DateTime.fromFormat(turnStart, 'HH:mm');
+      const maintenanceThresholdTime = DateTime.fromFormat('14:15', 'HH:mm');
+      const requiresMaintenance = turnStartTime >= maintenanceThresholdTime;
 
       return {
         to: email.email,
@@ -552,6 +559,21 @@ export class CourtReserveService {
       <li style="margin-bottom: 8px;"><strong>🔑 ID de Reserva:</strong> ${courtReserve.idCourtReserve}</li>
       <li><strong>🔒 Clave de Reserva:</strong> ${courtReserve.passCourtReserve}</li>
     </ul>
+  </div>`
+            : ''
+        }
+
+  ${
+          requiresMaintenance
+            ? `
+  <div style="margin-top: 25px; padding: 15px; background-color: #e8f5e9; border-left: 5px solid #4caf50; color: #2e7d32; border-radius: 5px;">
+    <h3 style="margin-top: 0; color: #1b5e20;">🧹 Mantenimiento de la Cancha</h3>
+    <p style="margin: 0; font-size: 15px; line-height: 1.6;">
+      <strong>¡Importante!</strong> En este horario no hay canchero disponible.
+      Te pedimos tu colaboración para dejar la cancha en óptimas condiciones para los siguientes jugadores: <strong>pasando el paño y regando</strong> al finalizar tu partido.
+      <br><br>
+      ¡Agradecemos de antemano tu ayuda!
+    </p>
   </div>`
             : ''
         }
