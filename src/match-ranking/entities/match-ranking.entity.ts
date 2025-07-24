@@ -12,7 +12,7 @@ export class MatchRanking {
   result: string; // Ejemplo: "6:4, 3:6, 7:5"
 
   @Prop({ required: true })
-  winner: string; // Nombre del ganador o equipo ganador
+  winner: [{ email: string; points: string; category: string; cellular: string }];
 }
 
 export const MatchResultSchema = SchemaFactory.createForClass(MatchRanking);
