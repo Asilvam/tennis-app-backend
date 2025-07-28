@@ -9,7 +9,22 @@ export class Register {
   @Prop({ required: true })
   namePlayer: string;
 
-  @Prop({ type: String, enum: ['A', 'B', 'C', 'D'], default: 'A' })
+  @Prop({
+    type: String,
+    enum: [
+      '1',
+      '2',
+      '3',
+      '4',
+      'Damas', // Tus categorías existentes
+      'Menores',
+      'Menores - Cancha Amarilla',
+      'Menores - Cancha Verde',
+      'Menores - Cancha Naranja',
+      'Menores - Cancha Roja',
+    ],
+    default: '4', // Asegúrate de que el default siga siendo apropiado o cámbialo
+  })
   category: string;
 
   @Prop({ required: true, default: '0' })
@@ -24,7 +39,7 @@ export class Register {
   @Prop({ required: true, select: false })
   pwd: string;
 
-  @Prop({ default: true })
+  @Prop({ default: false })
   statePlayer: boolean;
 
   @Prop({ default: true })

@@ -8,10 +8,16 @@ import { RegisterService } from '../register/register.service';
 import { EmailService } from '../email/email.service';
 import { CourtReserveModule } from '../court-reserve/court-reserve.module';
 import { RegisterModule } from '../register/register.module';
+import { CourtReserve, CourtReserveSchema } from '../court-reserve/entities/court-reserve.entity';
+import { Register, RegisterSchema } from '../register/entities/register.entity';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: MatchRanking.name, schema: MatchResultSchema }]),
+    MongooseModule.forFeature([
+      { name: MatchRanking.name, schema: MatchResultSchema },
+      { name: CourtReserve.name, schema: CourtReserveSchema },
+      { name: Register.name, schema: RegisterSchema },
+    ]),
     CourtReserveModule,
     RegisterModule,
   ],

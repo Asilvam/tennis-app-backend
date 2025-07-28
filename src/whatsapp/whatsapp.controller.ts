@@ -10,4 +10,10 @@ export class WhatsappController {
     await this.whatsappService.sendMessage(to, message);
     return { status: 'Message sent', to, message };
   }
+
+  @Post('sendgroup')
+  async sendGroupMessage(@Body('groupId') groupId: string, @Body('message') message: string) {
+    await this.whatsappService.sendGroupMessage(groupId, message);
+    return { status: 'Message sent', groupId, message };
+  }
 }
