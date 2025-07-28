@@ -189,6 +189,7 @@ export class MatchRankingService {
   }
 
   update(id: number, updateMatchRankingDto: UpdateMatchRankingDto) {
+    this.logger.log({ updateMatchRankingDto });
     return `This action updates a #${id} matchRanking`;
   }
 
