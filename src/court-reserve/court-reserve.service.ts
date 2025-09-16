@@ -521,10 +521,10 @@ export class CourtReserveService {
         <div style="margin-top: 8px; color: #d32f2f;">
           <strong>
             ${
-          courtReserve.isDouble
-            ? `${courtReserve.player3} y ${courtReserve.player4}`
-            : `${courtReserve.player2 || courtReserve.visitName}`
-        }
+              courtReserve.isDouble
+                ? `${courtReserve.player3} y ${courtReserve.player4}`
+                : `${courtReserve.player2 || courtReserve.visitName}`
+            }
           </strong>
         </div>
       </div>
@@ -540,14 +540,21 @@ export class CourtReserveService {
     </p>
   </div>
 
-  ${
-          courtReserve.isPaidNight
-            ? `
+${
+  courtReserve.isPaidNight
+          ? `
   <div style="margin-top: 25px; padding: 15px; background-color: #fffbe6; border-left: 5px solid #ffc107; color: #856404; border-radius: 5px;">
     <p style="margin: 0; font-size: 15px;"><strong>💲 Horario Pagado:</strong> Por favor, ten en cuenta que este horario requiere pago.</p>
+    <div style="margin-top: 10px;">
+      <strong>Datos Bancarios</strong><br>
+      Banco: Estado<br>
+      cta vista: 22970365170<br>
+      rut: 65178540-5
+    </div>
   </div>`
-            : ''
+          : ''
         }
+
 
   ${
           !courtReserve.isVisit && courtReserve.isForRanking

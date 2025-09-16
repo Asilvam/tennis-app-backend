@@ -11,5 +11,6 @@ import { MulterModule } from '@nestjs/platform-express';
   ],
   controllers: [CloudinaryController],
   providers: [CloudinaryService],
+  exports: [CloudinaryService],
 })
 export class CloudinaryModule {}

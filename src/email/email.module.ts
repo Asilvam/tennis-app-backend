@@ -10,6 +10,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
       useFactory: async (config: ConfigService) => ({
         transport: {
           host: config.get('MAIL_HOST'),
+          pool: true,
           secure: false,
           auth: {
             user: config.get('MAIL_USER'),
@@ -25,5 +26,6 @@ import { MailerModule } from '@nestjs-modules/mailer';
   ],
   controllers: [EmailController],
   providers: [EmailService],
+  exports: [EmailService],
 })
 export class EmailModule {}

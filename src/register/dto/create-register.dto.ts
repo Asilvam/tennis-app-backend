@@ -1,5 +1,8 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, MinLength, IsIn } from 'class-validator';
+import { EstadoPago } from '../enums/estado-pago.enum';
+import { TipoSocio } from '../enums/tipo-socio.enum';
+import { Category } from '../enums/category.enum';
 
 export class CreateRegisterDto {
   @Transform(({ value }) => value.trim())
@@ -15,7 +18,8 @@ export class CreateRegisterDto {
 
   @IsOptional()
   @IsString()
-  category?: string;
+  @IsIn(Object.values(Category))
+  category?: Category;
 
   @IsOptional()
   @IsString()
@@ -26,15 +30,15 @@ export class CreateRegisterDto {
   @MinLength(6)
   pwd: string;
 
-  @IsOptional() // Mark as optional
+  @IsOptional()
   @IsBoolean()
   statePlayer?: boolean;
 
-  @IsOptional() // Mark as optional
+  @IsOptional()
   @IsBoolean()
   updatePayment?: boolean;
 
-  @IsOptional() // Mark as optional
+  @IsOptional()
   @IsBoolean()
   emailVerified?: boolean;
 
@@ -46,11 +50,29 @@ export class CreateRegisterDto {
   @IsString()
   urlEmail?: string;
 
-  @IsOptional() // Mark as optional
+  @IsOptional()
   @IsString()
   role?: string;
 
-  @IsOptional() // Mark as optional
+  @IsOptional()
   @IsBoolean()
   hasVoted?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(Object.values(EstadoPago))
+  estadoPago?: EstadoPago;
+
+  @IsString()
+  @IsIn(Object.values(TipoSocio))
+  partnerType: TipoSocio;
+
+  @IsOptional()
+  @IsString()
+  socioPrincipal?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(Object.values(TipoSocio))
+  montoPagar?: TipoSocio;
 }

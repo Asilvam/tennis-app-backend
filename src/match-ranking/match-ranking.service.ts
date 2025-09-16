@@ -29,8 +29,9 @@ export class MatchRankingService {
       const winner = createMatchRankingDto.winner[0];
       const player = await this.registerService.findOneEmail(winner.email);
       if (player) {
-        const points = parseInt(player.points) + parseInt('300');
-        await this.registerService.updateByEmail(player.email, { points: points.toString() });
+        this.logger.log({ player });
+        // const points = parseInt(player.points) + parseInt('300');
+        // await this.registerService.updateByEmail(player.email, { points: points.toString() });
       }
     }
     await this.courtReserveService.updateResultMatch(createMatchRankingDto.matchId);

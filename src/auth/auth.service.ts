@@ -1,4 +1,11 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { RegisterService } from '../register/register.service';
 import { JwtService } from '@nestjs/jwt';
@@ -84,14 +91,22 @@ export class AuthService {
     }
   }
 
-  async verifyEmailToken(token: string) {
+  async verifyEmailToken(token: string): Promise<{ message: string }> {
+    if (!token) {
+      throw new BadRequestException('Verification token is missing.');
+    }
     const user = await this.registerService.findByVerificationToken(token);
     if (!user) {
-      return null;
+      throw new NotFoundException('Invalid or expired verification token. Please request a new one.');
     }
+    if (user.emailVerified) {
+      throw new ConflictException('This email address has already been verified.');
+    }
+    user.statePlayer = true;
     user.emailVerified = true;
-    user.verificationToken = null;
+    user.verificationToken = null; // Invalidate the token after use
     await user.save();
-    return user;
+    this.logger.log(`Email successfully verified for user: ${user.email}`);
+    return { message: 'Your email has been successfully verified.' };
   }
 }
