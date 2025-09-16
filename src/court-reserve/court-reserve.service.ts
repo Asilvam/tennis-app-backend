@@ -322,9 +322,9 @@ export class CourtReserveService {
       {
         time: '18:15-20:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: true, isBlockedByAdmin: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
         ],
       },
       {
