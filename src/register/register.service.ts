@@ -168,8 +168,11 @@ export class RegisterService {
 
   async findOneEmail(player: string): Promise<PlayerData | null> {
     try {
-      const response: Register = await this.registerModel.findOne({ namePlayer: player }).exec();
+      const response: Register = await this.registerModel
+        .findOne({ $or: [{ email: player }, { namePlayer: player }] })
+        .exec();
       if (!response) {
+        this.logger.error('Email Player not found', player);
         throw new NotFoundException('Name Player Register not found');
       }
       return {
