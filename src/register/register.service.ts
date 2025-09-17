@@ -15,6 +15,7 @@ import { UpdateRegisterDto } from './dto/update-register.dto';
 
 interface PlayerData {
   email: string;
+  name: string;
   points: string;
   category: string;
   cellular: string;
@@ -177,6 +178,7 @@ export class RegisterService {
       }
       return {
         email: response.email,
+        name: response.namePlayer,
         points: response.points,
         category: response.category,
         cellular: response.cellular,

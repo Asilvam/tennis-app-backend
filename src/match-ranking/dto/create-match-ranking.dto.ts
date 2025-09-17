@@ -9,6 +9,10 @@ class WinnerDto {
 
   @IsString()
   @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
   points: string;
 
   @IsString()
@@ -24,6 +28,10 @@ class LooserDto {
   @IsString()
   @IsNotEmpty()
   email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 
   @IsString()
   @IsNotEmpty()

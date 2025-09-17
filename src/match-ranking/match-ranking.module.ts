@@ -7,6 +7,7 @@ import { CourtReserveModule } from '../court-reserve/court-reserve.module';
 import { RegisterModule } from '../register/register.module';
 import { CourtReserve, CourtReserveSchema } from '../court-reserve/entities/court-reserve.entity';
 import { Register, RegisterSchema } from '../register/entities/register.entity';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { Register, RegisterSchema } from '../register/entities/register.entity';
     ]),
     CourtReserveModule,
     RegisterModule,
+    EmailModule,
   ],
   providers: [MatchRankingService],
   controllers: [MatchRankingController],
