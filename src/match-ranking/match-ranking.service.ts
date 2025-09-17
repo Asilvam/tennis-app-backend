@@ -23,16 +23,62 @@ export class MatchRankingService {
     private readonly registerService: RegisterService,
   ) {}
 
+  calculateSinglesValidPoints(createMatchRankingDto: CreateMatchRankingDto) {
+    this.logger.log(createMatchRankingDto);
+    const winnerData = createMatchRankingDto.winner[0];
+    const looserData = createMatchRankingDto.looser[0];
+    const winnerPts = typeof winnerData.points === 'string' ? parseInt(winnerData.points, 10) : winnerData.points;
+    const looserPts = typeof looserData.points === 'string' ? parseInt(looserData.points, 10) : looserData.points;
+    const winnerCat = winnerData.category;
+    const looserCat = looserData.category;
+
+    let winnerPointChange = 0;
+    let looserPointChange = 0;
+    const baseWin = 300;
+    const baseLose = 100;
+    let detail: string;
+
+    if (winnerCat === looserCat) {
+      winnerPointChange = baseWin;
+      looserPointChange = baseLose;
+      if (parseInt(String(winnerPts)) < parseInt(String(looserPts))) {
+        const diff = looserPts - winnerPts;
+        const bonus = Math.floor(diff / 5);
+        winnerPointChange += bonus;
+        looserPointChange -= bonus;
+        detail = `Misma cat: +${baseWin}/+${baseLose} y TRANSFIERE 1/5(${diff})=${bonus}`;
+      } else {
+        detail = `Misma cat: +${baseWin}/+${baseLose} (sin transferencia)`;
+      }
+    } else {
+      if (parseInt(winnerCat) > parseInt(looserCat)) {
+        winnerPointChange = 600;
+        looserPointChange = 50;
+        detail = 'Distintas cat: gana inferior → +600/+50';
+      } else {
+        winnerPointChange = 150;
+        looserPointChange = 100;
+        detail = 'Distintas cat: gana superior → +150/+100';
+      }
+    }
+    return {
+      winnerPoints: winnerPts + winnerPointChange,
+      looserPoints: looserPts + looserPointChange,
+      detail: detail,
+    };
+  }
+
   async create(createMatchRankingDto: CreateMatchRankingDto) {
     this.logger.log({ createMatchRankingDto });
     if (createMatchRankingDto.winner.length === 1) {
-      const winner = createMatchRankingDto.winner[0];
-      const player = await this.registerService.findOneEmail(winner.email);
-      if (player) {
-        this.logger.log({ player });
-        // const points = parseInt(player.points) + parseInt('300');
-        // await this.registerService.updateByEmail(player.email, { points: points.toString() });
-      }
+      const { winnerPoints, looserPoints, detail } = this.calculateSinglesValidPoints(createMatchRankingDto);
+      this.logger.log({ winnerPoints, looserPoints, detail });
+      await this.registerService.updateByEmail(createMatchRankingDto.winner[0].email, {
+        points: winnerPoints.toString(),
+      });
+      await this.registerService.updateByEmail(createMatchRankingDto.looser[0].email, {
+        points: looserPoints.toString(),
+      });
     }
     await this.courtReserveService.updateResultMatch(createMatchRankingDto.matchId);
     const newMatchRanking = new this.matchRankingModel(createMatchRankingDto);

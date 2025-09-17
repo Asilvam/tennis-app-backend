@@ -13,6 +13,9 @@ export class MatchRanking {
 
   @Prop({ required: true })
   winner: [{ email: string; points: string; category: string; cellular: string }];
+
+  @Prop({ required: true })
+  looser: [{ email: string; points: string; category: string; cellular: string }];
 }
 
 export const MatchResultSchema = SchemaFactory.createForClass(MatchRanking);

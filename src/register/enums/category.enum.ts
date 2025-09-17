@@ -1,8 +1,8 @@
 export enum Category {
-  UNO = '1',
-  DOS = '2',
-  TRES = '3',
-  CUATRO = '4',
+  PRIMERA = '1',
+  SEGUNDA = '2',
+  TERCERA = '3',
+  CUARTA = '4',
   DAMAS = 'Damas',
   MENORES = 'Menores',
   MENORES_CANCHA_AMARILLA = 'Menores - Cancha Amarilla',
