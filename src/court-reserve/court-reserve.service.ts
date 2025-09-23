@@ -9,6 +9,7 @@ import { EmailService } from '../email/email.service';
 import { RegisterService } from '../register/register.service';
 // import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class CourtReserveService {
@@ -21,6 +22,23 @@ export class CourtReserveService {
     private readonly emailService: EmailService,
     // private configService: ConfigService,
   ) {}
+
+  async exportFilteredReservesToExcelBuffer(): Promise<Buffer> {
+    const reserves = await this.findFilteredReserves();
+    const data = reserves.map(r => ({
+      dateToPlay: r.dateToPlay,
+      court: r.court,
+      turn: r.turn,
+      player1: r.player1,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reserves');
+
+    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  }
+
 
   async findFilteredReserves(): Promise<CourtReserve[]> {
     // Definimos los criterios de la consulta
@@ -36,9 +54,7 @@ export class CourtReserveService {
         $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
       },
     };
-    return this.courtReserveModel.find(filter)
-      .select('dateToPlay court turn player1 -_id')
-      .exec();
+    return this.courtReserveModel.find(filter).select('dateToPlay court turn player1 -_id').exec();
   }
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {

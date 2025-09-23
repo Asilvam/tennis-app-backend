@@ -10,6 +10,7 @@ import {
   Logger,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
@@ -51,7 +52,15 @@ export class CourtReserveController {
     return this.courtReserveService.getAllHistoryReservesFor(namePlayer);
   }
 
-  @Get('filtered-light') // Ruta completa: GET /court-reserves/filtered-evening
+  @Get('filtered-reserves/excel')
+  async getFilteredReservesExcel(@Res() res) {
+    const buffer = await this.courtReserveService.exportFilteredReservesToExcelBuffer();
+    res.setHeader('Content-Disposition', 'attachment; filename="reserves.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  }
+
+  @Get('filtered-reserves') // Ruta completa: GET /court-reserves/filtered-evening
   @HttpCode(HttpStatus.OK)
   async getFilteredReserves() {
     try {
