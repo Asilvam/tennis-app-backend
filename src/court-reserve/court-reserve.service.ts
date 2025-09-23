@@ -22,6 +22,25 @@ export class CourtReserveService {
     // private configService: ConfigService,
   ) {}
 
+  async findFilteredReserves(): Promise<CourtReserve[]> {
+    // Definimos los criterios de la consulta
+    const filter = {
+      dateToPlay: {
+        $gte: '2025-09-01',
+      },
+      turn: {
+        $in: ['20:15-22:00', '22:15-00:00'],
+      },
+      state: true,
+      player1: {
+        $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
+      },
+    };
+    return this.courtReserveModel.find(filter)
+      .select('dateToPlay court turn player1 -_id')
+      .exec();
+  }
+
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
     return activeReserves.some(
       (reserve) =>
@@ -428,6 +447,7 @@ export class CourtReserveService {
           const isFutureDate = reservationDate > today;
           return (isToday && isWithinTimeRange) || isFutureDate;
         });
+        this.logger.log(filteredReserves);
         return filteredReserves.length > 0 ? filteredReserves : null;
       }
     } catch (error) {

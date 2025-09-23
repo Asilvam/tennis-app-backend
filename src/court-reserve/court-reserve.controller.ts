@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Logger,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
@@ -33,9 +45,21 @@ export class CourtReserveController {
   findIfHasReserve(@Param('namePlayer') namePlayer: string) {
     return this.courtReserveService.getAllReservesFor(namePlayer);
   }
+
   @Get('history/:namePlayer')
   findHistoryReserve(@Param('namePlayer') namePlayer: string) {
     return this.courtReserveService.getAllHistoryReservesFor(namePlayer);
+  }
+
+  @Get('filtered-light') // Ruta completa: GET /court-reserves/filtered-evening
+  @HttpCode(HttpStatus.OK)
+  async getFilteredReserves() {
+    try {
+      const reserves = await this.courtReserveService.findFilteredReserves();
+      return reserves;
+    } catch (error) {
+      throw new Error('Error al obtener las reservas filtradas.');
+    }
   }
 
   @Get()
