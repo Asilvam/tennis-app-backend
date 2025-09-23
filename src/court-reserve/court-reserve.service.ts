@@ -25,7 +25,7 @@ export class CourtReserveService {
 
   async exportFilteredReservesToExcelBuffer(): Promise<Buffer> {
     const reserves = await this.findFilteredReserves();
-    const data = reserves.map(r => ({
+    const data = reserves.map((r) => ({
       dateToPlay: r.dateToPlay,
       court: r.court,
       turn: r.turn,
@@ -38,7 +38,6 @@ export class CourtReserveService {
 
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   }
-
 
   async findFilteredReserves(): Promise<CourtReserve[]> {
     // Definimos los criterios de la consulta
@@ -463,7 +462,7 @@ export class CourtReserveService {
           const isFutureDate = reservationDate > today;
           return (isToday && isWithinTimeRange) || isFutureDate;
         });
-        this.logger.log(filteredReserves);
+        // this.logger.log(filteredReserves);
         return filteredReserves.length > 0 ? filteredReserves : null;
       }
     } catch (error) {
@@ -546,11 +545,7 @@ export class CourtReserveService {
       <div style="text-align: center; padding: 15px; background-color: #ffffff; border: 1px dashed #ccc; border-radius: 8px; font-size: 18px;">
         <div style="margin-bottom: 8px; color: #1e88e5;">
           <strong>
-            ${
-          courtReserve.isDouble
-            ? `${courtReserve.player1} y ${courtReserve.player2}`
-            : `${courtReserve.player1}`
-        }
+            ${courtReserve.isDouble ? `${courtReserve.player1} y ${courtReserve.player2}` : `${courtReserve.player1}`}
           </strong>
         </div>
         <div style="color: #757575; font-style: italic; font-weight: bold; margin: 8px 0;">vs</div>
@@ -578,7 +573,7 @@ export class CourtReserveService {
 
 ${
   courtReserve.isPaidNight
-          ? `
+    ? `
   <div style="margin-top: 25px; padding: 15px; background-color: #fffbe6; border-left: 5px solid #ffc107; color: #856404; border-radius: 5px;">
     <p style="margin: 0; font-size: 15px;"><strong>💲 Horario Pagado:</strong> Por favor, ten en cuenta que este horario requiere pago.</p>
     <div style="margin-top: 10px;">
@@ -588,13 +583,13 @@ ${
       rut: 65178540-5
     </div>
   </div>`
-          : ''
-        }
+    : ''
+}
 
 
   ${
-          !courtReserve.isVisit && courtReserve.isForRanking
-            ? `
+    !courtReserve.isVisit && courtReserve.isForRanking
+      ? `
   <div style="margin-top: 25px; padding: 20px; background-color: #e7f3ff; border-left: 5px solid #0056b3; border-radius: 5px;">
     <h3 style="margin-top: 0; color: #004085;">🏆 Actualiza tu Ranking</h3>
     <p style="font-size: 15px; line-height: 1.6;">No olvides registrar el resultado del partido para actualizar tu ranking. Usa los siguientes datos:</p>
@@ -603,12 +598,12 @@ ${
       <li><strong>🔒 Clave de Reserva:</strong> ${courtReserve.passCourtReserve}</li>
     </ul>
   </div>`
-            : ''
-        }
+      : ''
+  }
 
   ${
-          requiresMaintenance
-            ? `
+    requiresMaintenance
+      ? `
   <div style="margin-top: 25px; padding: 15px; background-color: #e8f5e9; border-left: 5px solid #4caf50; color: #2e7d32; border-radius: 5px;">
     <h3 style="margin-top: 0; color: #1b5e20;">🧹 Mantenimiento de la Cancha</h3>
     <p style="margin: 0; font-size: 15px; line-height: 1.6;">
@@ -618,8 +613,8 @@ ${
       ¡Agradecemos de antemano tu ayuda!
     </p>
   </div>`
-            : ''
-        }
+      : ''
+  }
 
   <p style="margin-top: 30px; font-size: 16px;">¡Que tengas un excelente partido!</p>
   <p style="margin-top: 10px; font-size: 16px; line-height: 1.6;">Atentamente,<br><strong>Club de Tenis Quintero</strong></p>
