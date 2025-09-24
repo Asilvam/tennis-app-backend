@@ -20,7 +20,6 @@ export class CourtReserveService {
     private readonly courtReserveModel: Model<CourtReserve>,
     private readonly registerService: RegisterService,
     private readonly emailService: EmailService,
-    // private configService: ConfigService,
   ) {}
 
   async exportFilteredReservesToExcelBuffer(): Promise<Buffer> {
@@ -31,16 +30,13 @@ export class CourtReserveService {
       turn: r.turn,
       player1: r.player1,
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Reserves');
-
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   }
 
   async findFilteredReserves(): Promise<CourtReserve[]> {
-    // Definimos los criterios de la consulta
     const filter = {
       dateToPlay: {
         $gte: '2025-09-01',
@@ -49,6 +45,7 @@ export class CourtReserveService {
         $in: ['20:15-22:00', '22:15-00:00'],
       },
       state: true,
+      isPaidNight: true,
       player1: {
         $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
       },
@@ -74,7 +71,6 @@ export class CourtReserveService {
         reserve.player3 === player ||
         reserve.player4 === player,
     );
-
     return matchingReserve || null; // Return the matching reservation or null if not found
   };
 
@@ -168,6 +164,7 @@ export class CourtReserveService {
           throw new BadRequestException('This court is already reserved for this time');
         }
       }
+      await this.registerService.findOneAndUpdate(player1, { isLigthNigth: true });
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
       await this.sendEmailReserve(response);

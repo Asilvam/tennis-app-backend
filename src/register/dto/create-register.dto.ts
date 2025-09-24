@@ -68,11 +68,15 @@ export class CreateRegisterDto {
   partnerType: TipoSocio;
 
   @IsOptional()
-  @IsString()
-  socioPrincipal?: string;
+  @IsBoolean()
+  socioPrincipal?: boolean;
 
   @IsOptional()
   @IsString()
   @IsIn(Object.values(TipoSocio))
   montoPagar?: TipoSocio;
+
+  @IsOptional()
+  @IsBoolean()
+  isLigthNigth?: boolean;
 }

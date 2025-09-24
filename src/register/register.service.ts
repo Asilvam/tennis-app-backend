@@ -212,6 +212,12 @@ export class RegisterService {
     return register;
   }
 
+  findOneAndUpdate(player: string, updateRegisterDto: UpdateRegisterDto) {
+    return this.registerModel.findOneAndUpdate({ namePlayer: player }, updateRegisterDto, {
+      isLigthNigth: true,
+    });
+  }
+
   findOneByEmail(email: string) {
     return this.registerModel.findOne({ email });
   }

@@ -34,8 +34,8 @@ export class Register {
   @Prop({ required: true, enum: Object.values(TipoSocio), default: TipoSocio.TITULAR })
   partnerType: TipoSocio;
 
-  @Prop({ type: String, required: false })
-  socioPrincipal?: string;
+  @Prop({ required: false })
+  socioPrincipal?: boolean;
 
   @Prop({ required: false, enum: Object.values(TipoSocio), default: TipoSocio.TITULAR })
   montoPagar: TipoSocio;
@@ -69,6 +69,9 @@ export class Register {
 
   @Prop({ default: false })
   hasVoted: boolean;
+
+  @Prop({ default: false })
+  isLigthNigth: boolean;
 }
 
 export const RegisterSchema = SchemaFactory.createForClass(Register);
