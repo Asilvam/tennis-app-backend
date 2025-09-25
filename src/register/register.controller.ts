@@ -13,6 +13,11 @@ export class RegisterController {
     return this.registerService.findAll();
   }
 
+  @Get('active/:namePlayer')
+  findIfHasReserveNigthLigth(@Param('namePlayer') namePlayer: string) {
+    return this.registerService.getAllNigthsLigths(namePlayer);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.registerService.remove(+id);
@@ -26,6 +31,16 @@ export class RegisterController {
   @Post('resetpass')
   resetPassword(@Body() email: any) {
     return this.registerService.resetPassword(email);
+  }
+
+  @Post('updateLightNigths')
+  updateLightNigths(@Body() data: any[]) {
+    this.logger.log(data);
+    data.forEach((item: any) => {
+      const response = this.registerService.findOneAndUpdate(item.email, { isLigthNigth: true });
+      this.logger.log(response);
+    });
+    return;
   }
 
   @Get('names')

@@ -127,6 +127,15 @@ export class RegisterService {
       return { success: false, message: 'Error al actualizar la contraseña' };
     }
   }
+  async getAllNigthsLigths(namePlayer: string) {
+    const response = await this.registerModel.find({ namePlayer: namePlayer, isLigthNigth: true });
+    // this.logger.log(response);
+    if (!response) {
+      return false;
+    } else {
+      return true;
+    }
+  }
 
   async findAll(): Promise<Register[]> {
     try {
@@ -212,10 +221,9 @@ export class RegisterService {
     return register;
   }
 
-  findOneAndUpdate(player: string, updateRegisterDto: UpdateRegisterDto) {
-    return this.registerModel.findOneAndUpdate({ namePlayer: player }, updateRegisterDto, {
-      isLigthNigth: true,
-    });
+  findOneAndUpdate(email: string, updateRegisterDto: UpdateRegisterDto) {
+    this.logger.log(email, updateRegisterDto);
+    return this.registerModel.findOneAndUpdate({ email: email }, updateRegisterDto);
   }
 
   findOneByEmail(email: string) {

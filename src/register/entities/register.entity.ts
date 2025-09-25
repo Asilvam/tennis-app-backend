@@ -58,6 +58,9 @@ export class Register {
   })
   category: string;
 
+  @Prop({ default: false })
+  isLigthNigth: boolean;
+
   @Prop({ required: true, default: '0' })
   points: string;
 
@@ -69,9 +72,6 @@ export class Register {
 
   @Prop({ default: false })
   hasVoted: boolean;
-
-  @Prop({ default: false })
-  isLigthNigth: boolean;
 }
 
 export const RegisterSchema = SchemaFactory.createForClass(Register);
