@@ -128,12 +128,15 @@ export class RegisterService {
     }
   }
   async getAllNigthsLigths(namePlayer: string) {
-    const response = await this.registerModel.find({ namePlayer: namePlayer, isLigthNigth: true });
-    // this.logger.log(response);
-    if (!response) {
-      return false;
-    } else {
-      return true;
+    try {
+      const response = await this.registerModel.find({ namePlayer: namePlayer, isLigthNigth: true });
+      if (response.length > 0) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      this.logger.error('Failed to find all registers', e.stack);
     }
   }
 
