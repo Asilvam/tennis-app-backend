@@ -29,6 +29,10 @@ export class CourtReserveService {
       court: r.court,
       turn: r.turn,
       player1: r.player1,
+      player2: r.player2,
+      player3: r.player3,
+      player4: r.player4,
+      visitName: r.visitName,
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
@@ -50,7 +54,7 @@ export class CourtReserveService {
         $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
       },
     };
-    return this.courtReserveModel.find(filter).select('dateToPlay court turn player1 -_id').exec();
+    return this.courtReserveModel.find(filter).select('dateToPlay court turn player1 player2 player3 player4 visitName -_id').exec();
   }
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
