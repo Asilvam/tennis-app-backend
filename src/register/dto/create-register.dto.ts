@@ -79,4 +79,8 @@ export class CreateRegisterDto {
   @IsOptional()
   @IsBoolean()
   isLigthNigth?: boolean;
+
+  @IsOptional()
+  @IsString()
+  imageUrlProfile?: string;
 }

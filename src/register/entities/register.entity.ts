@@ -72,6 +72,13 @@ export class Register {
 
   @Prop({ default: false })
   hasVoted: boolean;
+
+  @Prop({
+    type: String,
+    required: false, // No es requerido, ya que tendrá un valor por defecto
+    default: '/images/fantasma_avatar.png',
+  })
+  imageUrlProfile: string;
 }
 
 export const RegisterSchema = SchemaFactory.createForClass(Register);
