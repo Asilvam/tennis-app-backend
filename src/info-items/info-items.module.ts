@@ -6,10 +6,7 @@ import { InfoItem, InfoItemSchema } from './entities/info-item.entity';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: InfoItem.name, schema: InfoItemSchema }]),
-    CloudinaryModule,
-  ],
+  imports: [MongooseModule.forFeature([{ name: InfoItem.name, schema: InfoItemSchema }]), CloudinaryModule],
   controllers: [InfoItemsController],
   providers: [InfoItemsService],
 })
