@@ -76,7 +76,7 @@ export class Register {
   @Prop({
     type: String,
     required: false, // No es requerido, ya que tendrá un valor por defecto
-    default: '/images/fantasma_avatar.png',
+    default: '/images/avatar-fantasma.png',
   })
   imageUrlProfile: string;
 }

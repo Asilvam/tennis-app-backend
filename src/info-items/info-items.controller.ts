@@ -1,6 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { InfoItemsService } from './info-items.service';
-import { CreateInfoItemDto } from './dto/create-info-item.dto';
 import { UpdateInfoItemDto } from './dto/update-info-item.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { FileInterceptor } from '@nestjs/platform-express';

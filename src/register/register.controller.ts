@@ -1,12 +1,30 @@
-import { Controller, Get, Post, Body, Param, Delete, Logger, Patch, HttpStatus, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Logger,
+  Patch,
+  HttpStatus,
+  HttpCode,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
 import { RegisterService } from './register.service';
 import { CreateRegisterDto } from './dto/create-register.dto';
 import { UpdateRegisterDto } from './dto/update-register.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Controller('register')
 export class RegisterController {
   logger = new Logger(RegisterController.name);
-  constructor(private readonly registerService: RegisterService) {}
+  constructor(
+    private readonly registerService: RegisterService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Get()
   findAll() {
@@ -17,6 +35,12 @@ export class RegisterController {
   findIfHasReserveNigthLigth(@Param('namePlayer') namePlayer: string) {
     return this.registerService.getAllNigthsLigths(namePlayer);
   }
+
+  @Get('profile/:email')
+  findOne(@Param('email') email: string) {
+    return this.registerService.findOneByEmail(email);
+  }
+
 
   @Delete(':id')
   remove(@Param('id') id: string) {
@@ -41,6 +65,20 @@ export class RegisterController {
       this.logger.log(response);
     });
     return;
+  }
+
+  @Post('profile')
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadProfileImage(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
+    try {
+      const uploadedImage = await this.cloudinaryService.uploadImageBuffer(file.buffer); // Ensure file.path is correct
+      return { imageUrl: uploadedImage.secure_url };
+    } catch (error) {
+      throw new Error(`Failed to upload image to Cloudinary: ${error.message}`);
+    }
   }
 
   @Get('names')
