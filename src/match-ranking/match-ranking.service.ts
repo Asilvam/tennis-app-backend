@@ -146,6 +146,7 @@ export class MatchRankingService {
             categoria: p.category as PlayerCategory,
             rank: 0, // Placeholder, se asignará en el siguiente paso.
             cellular: p.cellular,
+            imageUrlProfile: p.imageUrlProfile,
           }))
           .sort((a, b) => b.puntos - a.puntos) // Ordenar de mayor a menor por puntos.
           .map((p, index) => ({ ...p, rank: index + 1 })); // Asignar el ranking secuencial.
