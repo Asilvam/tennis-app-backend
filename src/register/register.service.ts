@@ -224,9 +224,9 @@ export class RegisterService {
     return register;
   }
 
-  findOneAndUpdate(player: string, updateRegisterDto: UpdateRegisterDto) {
+  async findOneAndUpdate(player: string, updateRegisterDto: UpdateRegisterDto) {
     // this.logger.log('player--> ', player, 'data--> ', updateRegisterDto, updateRegisterDto);
-    return this.registerModel.findOneAndUpdate({ namePlayer: player }, updateRegisterDto);
+    return await this.registerModel.findOneAndUpdate({ namePlayer: player }, updateRegisterDto);
   }
 
   findOneByEmail(email: string) {
@@ -241,11 +241,9 @@ export class RegisterService {
     const updatedRegister = await this.registerModel
       .findOneAndUpdate({ email: email }, updateRegisterDto, { new: true })
       .exec();
-
     if (!updatedRegister) {
       throw new NotFoundException(`Register with email ${email} not found`);
     }
-
     return updatedRegister;
   }
 }

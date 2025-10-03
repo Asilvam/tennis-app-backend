@@ -17,6 +17,7 @@ import { CreateRegisterDto } from './dto/create-register.dto';
 import { UpdateRegisterDto } from './dto/update-register.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { response } from 'express';
 
 @Controller('register')
 export class RegisterController {
@@ -59,10 +60,8 @@ export class RegisterController {
 
   @Post('updateLightNigths')
   updateLightNigths(@Body() data: any[]) {
-    this.logger.log(data);
     data.forEach((item: any) => {
-      const response = this.registerService.findOneAndUpdate(item.email, { isLigthNigth: true });
-      this.logger.log(response);
+      this.registerService.findOneAndUpdate(item.namePlayer, { isLigthNigth: true });
     });
     return;
   }
