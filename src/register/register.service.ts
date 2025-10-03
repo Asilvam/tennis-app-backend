@@ -224,9 +224,9 @@ export class RegisterService {
     return register;
   }
 
-  findOneAndUpdate(email: string, updateRegisterDto: UpdateRegisterDto) {
-    this.logger.log(email, updateRegisterDto);
-    return this.registerModel.findOneAndUpdate({ email: email }, updateRegisterDto);
+  findOneAndUpdate(player: string, updateRegisterDto: UpdateRegisterDto) {
+    // this.logger.log('player--> ', player, 'data--> ', updateRegisterDto, updateRegisterDto);
+    return this.registerModel.findOneAndUpdate({ namePlayer: player }, updateRegisterDto);
   }
 
   findOneByEmail(email: string) {
