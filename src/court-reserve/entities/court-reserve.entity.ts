@@ -50,6 +50,9 @@ export class CourtReserve {
   isPaidNight: boolean;
 
   @Prop({ default: false })
+  wasPaidNight: boolean;
+
+  @Prop({ default: false })
   isDouble: boolean;
 
   @Prop({ default: false })
