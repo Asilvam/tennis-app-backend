@@ -60,7 +60,7 @@ export class CourtReserveController {
     res.send(buffer);
   }
 
-  @Get('filtered-reserves') // Ruta completa: GET /court-reserves/filtered-evening
+  @Get('filtered-reserves') // Ruta completa: GET /court-reserves/filtered-reserves
   @HttpCode(HttpStatus.OK)
   async getFilteredReserves() {
     try {
