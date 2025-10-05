@@ -50,6 +50,7 @@ export class CourtReserveService {
       },
       state: true,
       isPaidNight: true,
+      wasPaidNight: false,
       player1: {
         $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
       },
