@@ -43,7 +43,7 @@ export class CourtReserveService {
   async findFilteredReserves(): Promise<CourtReserve[]> {
     const filter = {
       dateToPlay: {
-        $gte: '2025-09-01',
+        $gte: '2025-10-01',
       },
       turn: {
         $in: ['20:15-22:00', '22:15-00:00'],
@@ -54,7 +54,10 @@ export class CourtReserveService {
         $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
       },
     };
-    return this.courtReserveModel.find(filter).select('dateToPlay court turn player1 player2 player3 player4 visitName -_id').exec();
+    return this.courtReserveModel
+      .find(filter)
+      .select('dateToPlay court turn player1 player2 player3 player4 visitName -_id')
+      .exec();
   }
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
