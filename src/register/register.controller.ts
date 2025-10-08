@@ -41,7 +41,6 @@ export class RegisterController {
     return this.registerService.findOneByEmail(email);
   }
 
-
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.registerService.remove(+id);
