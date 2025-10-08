@@ -129,7 +129,7 @@ export class RegisterService {
   }
   async getAllNigthsLigths(namePlayer: string) {
     try {
-      const response = await this.registerModel.find({ namePlayer: namePlayer, isLigthNigth: true });
+      const response = await this.registerModel.find({ namePlayer: namePlayer, isLigthNigth: true }).exec();
       if (response.length > 0) {
         return true;
       } else {
