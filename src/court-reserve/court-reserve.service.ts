@@ -172,7 +172,7 @@ export class CourtReserveService {
           throw new BadRequestException('This court is already reserved for this time');
         }
       }
-      await this.registerService.findOneAndUpdate(player1, { isLigthNigth: true });
+      // await this.registerService.findOneAndUpdate(player1, { isLigthNigth: true });
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
       await this.sendEmailReserve(response);
