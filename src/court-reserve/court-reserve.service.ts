@@ -175,8 +175,12 @@ export class CourtReserveService {
       // await this.registerService.findOneAndUpdate(player1, { isLigthNigth: true });
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
-      await this.sendEmailReserve(response);
-      // this.logger.log(response);
+      try {
+        await this.sendEmailReserve(response);
+      } catch (err) {
+        this.logger.error('Failed to send reservation email', err?.stack || err?.message || String(err));
+      }
+      this.logger.log(response);
       return response;
     } else {
       throw new BadRequestException('Invalid input');
@@ -524,7 +528,6 @@ export class CourtReserveService {
       const formattedDate = DateTime.fromISO(courtReserve.dateToPlay).toFormat('dd-MM-yyyy');
       const courtNumber = courtReserve.court.replace('Cancha ', '');
 
-      // --- Lógica para el mensaje de mantenimiento ---
       const [turnStart] = courtReserve.turn.split('-');
       const turnStartTime = DateTime.fromFormat(turnStart, 'HH:mm');
       const maintenanceThresholdTime = DateTime.fromFormat('14:15', 'HH:mm');
