@@ -256,8 +256,9 @@ export class MatchRankingService {
     return `This action returns all matchRanking`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} matchRanking 11111`;
+  findOne(id: string) {
+    this.logger.log({ id });
+    return this.matchRankingModel.findOne({ id });
   }
 
   update(id: number, updateMatchRankingDto: UpdateMatchRankingDto) {

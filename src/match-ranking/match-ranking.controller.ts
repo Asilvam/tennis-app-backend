@@ -42,7 +42,7 @@ export class MatchRankingController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.matchRankingService.findOne(+id);
+    return this.matchRankingService.findOne(id);
   }
 
   @Patch(':id')

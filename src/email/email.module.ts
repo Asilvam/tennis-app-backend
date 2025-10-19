@@ -18,7 +18,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
           },
         },
         defaults: {
-          from: `"No Reply" <${config.get('MAIL_FROM')}>`,
+          from: `"Club de Tenis Quintero APP" <${config.get('MAIL_FROM')}>`,
         },
       }),
       inject: [ConfigService],
