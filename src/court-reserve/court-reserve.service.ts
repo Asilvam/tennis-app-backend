@@ -425,9 +425,11 @@ export class CourtReserveService {
   async getAllHistoryReservesFor(namePlayer: string): Promise<CourtReserve[] | null> {
     try {
       return await this.courtReserveModel
-        .find({ player1: namePlayer })
+        .find({
+          $or: [{ player1: namePlayer }, { player2: namePlayer }, { player3: namePlayer }, { player4: namePlayer }],
+        })
         .select(
-          'dateToPlay court turn player2 player3 player4 ' +
+          'dateToPlay court turn player1 player2 player3 player4 ' +
             'visitName idCourtReserve state passCourtReserve isForRanking resultMatchUpdated',
         )
         .sort({
