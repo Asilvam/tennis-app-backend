@@ -287,6 +287,7 @@ export class CourtReserveService {
     if (!updatedRegister) {
       throw new NotFoundException(`Register with idCourtReserve ${idCourtReserve} not found`);
     }
+    this.sendEmailRemove(idCourtReserve)
     return updatedRegister;
   }
 
@@ -654,4 +655,64 @@ ${
       await sendEmailIfNeeded(courtReserve.player4);
     }
   }
+
+  private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
+    const reserve = await this.courtReserveModel
+      .findOne({ idCourtReserve })
+      .select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble')
+      .exec();
+
+    if (!reserve) {
+      throw new NotFoundException(`Reserva ${idCourtReserve} no encontrada`);
+    }
+
+    return reserve;
+  }
+
+  async sendEmailRemove(idCourtReserve: string, reason?: string): Promise<void> {
+    const courtReserve = await this.getCourtReserveById(idCourtReserve);
+
+    const formatDate = (iso: string) => DateTime.fromISO(iso).toFormat('dd-MM-yyyy');
+    const courtNumber = courtReserve.court.replace('Cancha ', '');
+    const formattedDate = formatDate(courtReserve.dateToPlay);
+
+    const buildCancellationEmail = (emailAddress: string) => ({
+      to: emailAddress,
+      subject: 'Reserva Cancelada',
+      html: `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#333; max-width:600px; margin:auto; padding:20px; border:1px solid #e0e0e0; border-radius:8px;">
+  <h2 style="color:#c62828; margin:0 0 12px 0;">Reserva Cancelada</h2>
+  <p style="font-size:15px; margin:0 0 8px 0;">La siguiente reserva ha sido cancelada:</p>
+  <ul style="font-size:15px; margin:8px 0 12px 0; padding-left:16px;">
+    <li><strong>📅 Fecha:</strong> ${formattedDate}</li>
+    <li><strong>⏰ Turno:</strong> ${courtReserve.turn}</li>
+    <li><strong>📍 Cancha:</strong> ${courtNumber}</li>
+  </ul>
+  ${reason ? `<p style="background:#fff3f3; padding:10px; border-left:4px solid #f44336;"><strong>Motivo:</strong> ${reason}</p>` : ''}
+  <p style="margin-top:12px; font-size:15px;">Si tienes dudas, contacta con administración.</p>
+  <p style="margin-top:12px; font-size:15px;">Atentamente,<br><strong>Club de Tenis Quintero</strong></p>
+</div>
+    `,
+    });
+
+    const notifyPlayer = async (playerName: string | null) => {
+      if (!playerName) return;
+      try {
+        const emailData = await this.findOneEmail(playerName);
+        if (emailData?.email) {
+          await this.emailService.sendEmail(buildCancellationEmail(emailData.email));
+        }
+      } catch (err) {
+        this.logger.error(`Error notifying ${playerName}`, err?.stack || err?.message || String(err));
+      }
+    };
+
+    const players = [courtReserve.player1];
+    if (!courtReserve.isVisit) players.push(courtReserve.player2);
+    else if (courtReserve.visitName) players.push(courtReserve.visitName);
+    if (courtReserve.isDouble) players.push(courtReserve.player3, courtReserve.player4);
+
+    await Promise.allSettled(players.map(notifyPlayer));
+  }
+
 }
