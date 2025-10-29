@@ -114,15 +114,37 @@ export class CourtReserveService {
 
   async adminReserve(createCourtReserveDtoArray: CreateCourtReserveDto[]) {
     const savedReservations = [];
+    const errors = [];
+
     for (const reservation of createCourtReserveDtoArray) {
-      const { dateToPlay, turn, court } = reservation;
-      await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false });
-      const newCourtReserve = new this.courtReserveModel(reservation);
-      const savedReservation = await newCourtReserve.save();
-      savedReservations.push(savedReservation);
-      this.logger.log(savedReservation);
+      try {
+        const { dateToPlay, turn, court, blockedMotive } = reservation;
+        const existingReserve = await this.courtReserveModel
+          .findOne({ dateToPlay, turn, court, state: true })
+          .select('idCourtReserve')
+          .exec();
+        if (existingReserve?.idCourtReserve) {
+          try {
+            await this.sendEmailRemove(existingReserve.idCourtReserve, blockedMotive);
+          } catch (emailErr) {
+            this.logger.warn(`Failed to send cancellation email for ${existingReserve.idCourtReserve}`, emailErr);
+          }
+        }
+        await this.courtReserveModel.updateMany({ dateToPlay, turn, court }, { state: false });
+        const newCourtReserve = new this.courtReserveModel(reservation);
+        const savedReservation = await newCourtReserve.save();
+        savedReservations.push(savedReservation);
+        this.logger.log(`Reserva guardada: ${savedReservation.idCourtReserve}`);
+      } catch (err) {
+        const errorMsg = err?.message || String(err);
+        this.logger.error(`Error procesando reserva`, errorMsg, err?.stack);
+        errors.push({
+          reservation: { dateToPlay: reservation.dateToPlay, court: reservation.court, turn: reservation.turn },
+          error: errorMsg,
+        });
+      }
     }
-    return savedReservations;
+    return { savedReservations, errors };
   }
 
   async adminCreate(createCourtReserveDto: CreateCourtReserveDto) {
@@ -281,13 +303,16 @@ export class CourtReserveService {
   }
 
   async remove(idCourtReserve: string) {
+    const reserve = await this.getCourtReserveById(idCourtReserve);
+    if (!reserve.isBlockedByAdmin) {
+      this.sendEmailRemove(idCourtReserve);
+    }
     const updatedRegister = await this.courtReserveModel
       .findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: false }, { new: true })
       .exec();
     if (!updatedRegister) {
       throw new NotFoundException(`Register with idCourtReserve ${idCourtReserve} not found`);
     }
-    this.sendEmailRemove(idCourtReserve)
     return updatedRegister;
   }
 
@@ -659,7 +684,7 @@ ${
   private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
     const reserve = await this.courtReserveModel
       .findOne({ idCourtReserve })
-      .select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble')
+      .select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin')
       .exec();
 
     if (!reserve) {
@@ -714,5 +739,4 @@ ${
 
     await Promise.allSettled(players.map(notifyPlayer));
   }
-
 }
