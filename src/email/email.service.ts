@@ -1,21 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
 import { SendEmailDto } from './dto/send-email.dto';
+import axios from 'axios';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  constructor(private mailerService: MailerService) {}
+  constructor(private readonly configService: ConfigService) {}
 
   async sendEmail(sendEmailDto: SendEmailDto) {
     const { to, subject, html } = sendEmailDto;
-
+    const emailServiceApiUrl = this.configService.get<string>('EMAIL_SERVICE_API_URL');
     try {
-      await this.mailerService.sendMail({
-        to,
-        subject,
-        html, // Make sure `text` is directly passed, or use `html` for rich text emails
-      });
+      await axios.post(
+        `${emailServiceApiUrl}/send`,
+        {
+          to,
+          subject,
+          html,
+        },
+        {
+          headers: {
+            'x-api-key': 'API_KEY_1234567890',
+          },
+        },
+      );
       this.logger.log(`Email sent successfully to ${to}`);
     } catch (error) {
       this.logger.error(`Failed to send email to ${to}: ${error.message}`, error.stack);
@@ -39,11 +48,7 @@ export class EmailService {
       </div>
     `;
     try {
-      await this.mailerService.sendMail({
-        to,
-        subject,
-        html,
-      });
+      await this.sendEmail({ to, subject, html });
       this.logger.log(`Reset password email sent successfully to ${to}`);
     } catch (error) {
       this.logger.error(`Failed to send reset password email to ${to}: ${error.message}`, error.stack);
@@ -72,7 +77,7 @@ export class EmailService {
     `;
 
     try {
-      await this.mailerService.sendMail({ to: email, subject, html });
+      await this.sendEmail({ to: email, subject, html });
       this.logger.log(`Verification email sent successfully to ${email}`);
     } catch (error) {
       this.logger.error(`Failed to send verification email to ${email}: ${error.message}`, error.stack);

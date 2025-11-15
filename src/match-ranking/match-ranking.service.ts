@@ -11,7 +11,6 @@ import { CourtReserve, CourtReserveDocument } from '../court-reserve/entities/co
 import { Register, RegisterDocument } from '../register/entities/register.entity';
 import { PlayerCategory, RankingPorCategoria, Resultado } from './interfaces/tennis.types';
 import { EmailService } from '../email/email.service';
-import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -219,12 +218,7 @@ export class MatchRankingService {
         const isWinner = matchResult ? matchResult.winner.some((w) => w.email === email) : false; // Asume false si no hay MatchResult (partido no ganado o no registrado)
 
         // Determinar el rival/rivales
-        const playersInMatch = [
-          courtReserve.player1,
-          courtReserve.player2,
-          courtReserve.player3,
-          courtReserve.player4,
-        ].filter((p) => p && p !== playerName);
+        const playersInMatch = [courtReserve.player1, courtReserve.player2, courtReserve.player3, courtReserve.player4].filter((p) => p && p !== playerName);
 
         let rivalName = 'N/A';
         if (playersInMatch.length > 0) {
@@ -274,7 +268,6 @@ export class MatchRankingService {
   }
 
   private async _sendPointsUpdateEmail(playerEmail: string, playerName: string, isWinner: boolean, opponentName: string, score: string, oldPoints: number, newPoints: number) {
-    const emailServiceApiUrl = this.configService.get<string>('EMAIL_SERVICE_API_URL');
     const subject = '🏆 Actualización de Puntaje de Ranking';
     const pointChange = newPoints - oldPoints;
     const changeSymbol = pointChange >= 0 ? '+' : '';
@@ -317,20 +310,7 @@ export class MatchRankingService {
     `;
 
     try {
-      await axios.post(
-        `${emailServiceApiUrl}/send`,
-        {
-          to: playerEmail,
-          subject,
-          html,
-        },
-        {
-          headers: {
-            'x-api-key': 'API_KEY_1234567890',
-          },
-        },
-      );
-      // await this.emailService.sendEmail({ to: playerEmail, subject, html });
+      await this.emailService.sendEmail({ to: playerEmail, subject, html });
       this.logger.log(`Email de actualización de puntaje enviado a ${playerEmail}`);
     } catch (error) {
       this.logger.error(`No se pudo enviar el email de puntaje a ${playerEmail}`, error);
