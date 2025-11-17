@@ -104,19 +104,20 @@ export class RegisterService {
     return { plainPassword, hashedPassword };
   }
 
-  async resetPassword(email: any): Promise<{ success: boolean; message: string; newPassword?: string }> {
+  async resetPassword({ email }): Promise<{ success: boolean; message: string; newPassword?: string }> {
     // this.logger.log(email.email);
+    const emailLowerCase = email.toLowerCase();
     try {
-      const user = this.registerModel.findOne({ email });
+      const user = this.registerModel.findOne({ email: emailLowerCase });
       if (!user) {
         return { success: false, message: 'Usuario no encontrado' };
       }
       const { plainPassword, hashedPassword } = await this.createNewPassword();
       // this.logger.log('Nueva contraseña generada:', plainPassword);
       // this.logger.log('Contraseña encriptada (hash):', hashedPassword);
-      await this.registerModel.updateOne({ email: email.email }, { pwd: hashedPassword });
-      await this.emailService.sendResetPasswordEmail(email.email, plainPassword);
-      this.logger.log(`Contraseña actualizada para el usuario con email ${email.email}`);
+      await this.registerModel.updateOne({ email: emailLowerCase }, { pwd: hashedPassword });
+      await this.emailService.sendResetPasswordEmail(emailLowerCase, plainPassword);
+      this.logger.log(`Contraseña actualizada para el usuario con email ${emailLowerCase}`);
       return {
         success: true,
         message: 'Contraseña actualizada con éxito',
@@ -218,7 +219,7 @@ export class RegisterService {
 
   async validatePlayerEmail(email: string): Promise<Register | undefined> {
     const register: Register | undefined = await this.registerModel
-      .findOne({ email: email })
+      .findOne({ email: email.toLowerCase() })
       .select('namePlayer email pwd role statePlayer updatePayment')
       .exec();
     return register;
