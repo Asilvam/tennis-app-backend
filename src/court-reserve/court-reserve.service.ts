@@ -734,7 +734,6 @@ ${
 
     const players = [courtReserve.player1];
     if (!courtReserve.isVisit) players.push(courtReserve.player2);
-    else if (courtReserve.visitName) players.push(courtReserve.visitName);
     if (courtReserve.isDouble) players.push(courtReserve.player3, courtReserve.player4);
 
     await Promise.allSettled(players.map(notifyPlayer));
