@@ -16,6 +16,7 @@ import { MatchRankingModule } from './match-ranking/match-ranking.module';
 // import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { BookingModule } from './booking/booking.module';
 // import { GoogleSheetsModule } from './google-sheets/google-sheets.module';
+import { MpModule } from './mp/mp.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { BookingModule } from './booking/booking.module';
     CloudinaryModule,
     MatchRankingModule,
     BookingModule,
+    MpModule,
     // GoogleSheetsModule,
     // WhatsappModule,
   ],
