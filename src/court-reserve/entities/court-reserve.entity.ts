@@ -72,3 +72,12 @@ export class CourtReserve {
 }
 
 export const CourtReserveSchema = SchemaFactory.createForClass(CourtReserve);
+
+CourtReserveSchema.pre('save', function (next) {
+  if (this.isPaidNight) {
+    this.state = false;
+  } else {
+    this.state = true;
+  }
+  next();
+});

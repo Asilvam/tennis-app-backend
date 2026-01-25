@@ -20,4 +20,8 @@ export class CreateMpDto {
   @IsNumber()
   @IsNotEmpty()
   amount: number;
+
+  @IsString()
+  @IsNotEmpty()
+  idCourtReserve: string;
 }
