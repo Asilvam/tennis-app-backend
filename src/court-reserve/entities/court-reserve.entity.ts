@@ -75,7 +75,7 @@ export const CourtReserveSchema = SchemaFactory.createForClass(CourtReserve);
 
 CourtReserveSchema.pre('save', function (next) {
   if (this.isPaidNight) {
-    this.state = false;
+    this.state = true; // era false si agenda para pagar
   } else {
     this.state = true;
   }
