@@ -37,6 +37,11 @@ export class CourtReserveController {
     return this.courtReserveService.adminReserve(createCourtReserveDto);
   }
 
+  @Post('UpdateStateReserve/:idCourtReserve')
+  updateStateReserve(@Param('idCourtReserve') idCourtReserve: string) {
+    return this.courtReserveService.updateStateReserve(idCourtReserve);
+  }
+
   @Get('available/:selectedDate')
   findAllAvailable(@Param('selectedDate') selectedDate: string) {
     return this.courtReserveService.getAllCourtAvailable(selectedDate);

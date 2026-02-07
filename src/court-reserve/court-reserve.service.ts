@@ -302,6 +302,15 @@ export class CourtReserveService {
     return updatedReserve;
   }
 
+  async updateStateReserve(idCourtReserve: string){
+    const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: true });
+    if (!updatedReserve) {
+      throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
+    }
+    this.logger.log(`reserve state has been updated for reserve: ${idCourtReserve}`);
+    return updatedReserve;
+  }
+
   async remove(idCourtReserve: string) {
     const reserve = await this.getCourtReserveById(idCourtReserve);
     if (!reserve.isBlockedByAdmin) {
