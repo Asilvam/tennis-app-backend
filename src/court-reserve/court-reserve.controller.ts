@@ -42,6 +42,11 @@ export class CourtReserveController {
     return this.courtReserveService.updateStateReserve(idCourtReserve);
   }
 
+  @Post('emailconfirmation')
+  sendEmailConfirmation(@Body() body: { reservationId: string; paymentStatus: string }) {
+    return this.courtReserveService.sendEmailConfirmation(body.reservationId, body.paymentStatus);
+  }
+
   @Get('available/:selectedDate')
   findAllAvailable(@Param('selectedDate') selectedDate: string) {
     return this.courtReserveService.getAllCourtAvailable(selectedDate);
