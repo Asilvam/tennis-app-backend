@@ -50,7 +50,7 @@ export class CourtReserveService {
       },
       state: true,
       isPaidNight: true,
-      wasPaidNight: false,
+      wasPaid: false,
       player1: {
         $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
       },
@@ -302,13 +302,81 @@ export class CourtReserveService {
     return updatedReserve;
   }
 
-  async updateStateReserve(idCourtReserve: string){
-    const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: true });
+  async updateStateReserve(idCourtReserve: string) {
+    const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: true, wasPaid: true });
     if (!updatedReserve) {
       throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
     }
     this.logger.log(`reserve state has been updated for reserve: ${idCourtReserve}`);
     return updatedReserve;
+  }
+
+  async sendEmailConfirmation(idCourtReserve: string, paymentStatus: string) {
+    const reserve = await this.getCourtReserveById(idCourtReserve);
+    if (!reserve) {
+      throw new NotFoundException(`[sendEmailConfirmation] Reserve with idCourtReserve ${idCourtReserve} not found`);
+    }
+    const email = await this.findOneEmail(reserve.player1);
+    if (!email) {
+      throw new NotFoundException(`[sendEmailConfirmation] Email for player ${reserve.player1} not found`);
+    }
+    if (paymentStatus === 'approved') {
+      const buildEmailData = {
+        to: email.email,
+        subject: '✅ Pago Confirmado - Reserva Aprobada',
+        html: `
+<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
+  
+  <h2 style="color: #2e7d32; text-align: center; margin: 0 0 20px 0; border-bottom: 2px solid #4caf50; padding-bottom: 12px;">
+    ✅ Pago Confirmado
+  </h2>
+  
+  <p style="font-size: 15px; margin: 0 0 15px 0;">Hola ${reserve.player1},</p>
+  
+  <div style="background: #e8f5e9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+    <p style="margin: 0; font-size: 15px; color: #1b5e20;">
+      <strong>✓ Tu pago fue confirmado</strong> y tu reserva está definitivamente aprobada.
+    </p>
+  </div>
+
+  <p style="margin-top: 20px; font-size: 15px;">¡Nos vemos en la cancha!</p>
+  <p style="margin: 5px 0 0 0; font-size: 15px;"><strong>Club de Tenis Quintero</strong></p>
+</div>
+        `,
+      };
+      await this.emailService.sendEmail(buildEmailData);
+    } else {
+      const buildEmailData = {
+        to: email.email,
+        subject: '❌ Pago Rechazado - Reserva Cancelada',
+        html: `
+<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
+  
+  <h2 style="color: #c62828; text-align: center; margin: 0 0 20px 0; border-bottom: 2px solid #d32f2f; padding-bottom: 12px;">
+    ❌ Pago Rechazado
+  </h2>
+  
+  <p style="font-size: 15px; margin: 0 0 15px 0;">Hola ${reserve.player1},</p>
+  
+  <div style="background: #ffebee; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+    <p style="margin: 0; font-size: 15px; color: #c62828;">
+      <strong>✗ Tu pago no fue aprobado</strong> y tu reserva ha sido cancelada automáticamente.
+    </p>
+  </div>
+
+  <div style="background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #ff9800;">
+    <p style="margin: 0; font-size: 15px; line-height: 1.6;">
+      💡 <strong>¿Qué puedes hacer?</strong> Si deseas reservar nuevamente, puedes intentarlo con otro método de pago o contactar con la administración del club.
+    </p>
+  </div>
+
+  <p style="margin-top: 20px; font-size: 15px;">Si tienes dudas, no dudes en contactarnos.</p>
+  <p style="margin: 5px 0 0 0; font-size: 15px;"><strong>Club de Tenis Quintero</strong></p>
+</div>
+        `,
+      };
+      await this.emailService.sendEmail(buildEmailData);
+    }
   }
 
   async remove(idCourtReserve: string) {
@@ -584,7 +652,35 @@ export class CourtReserveService {
   </h2>
   
   <p style="font-size: 16px;">¡Hola!</p>
-  <p style="font-size: 16px; line-height: 1.6;">Tu reserva ha sido confirmada con éxito. Aquí tienes los detalles:</p>
+
+  ${
+    courtReserve.isPaidNight && courtReserve.isVisit
+      ? `
+  <div style="margin: 20px 0; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 5px;">
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #e65100;">
+      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno con visita está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
+    </p>
+  </div>`
+      : courtReserve.isPaidNight
+        ? `
+  <div style="margin: 20px 0; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 5px;">
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #e65100;">
+      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
+    </p>
+  </div>`
+        : courtReserve.isVisit
+          ? `
+  <div style="margin: 20px 0; padding: 15px; background-color: #f3e5f5; border-left: 5px solid #9c27b0; border-radius: 5px;">
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6a1b9a;">
+      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva con visita está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
+    </p>
+  </div>`
+          : ''
+  }
+
+  <p style="font-size: 16px; line-height: 1.6;">
+    ${courtReserve.isPaidNight || courtReserve.isVisit ? 'Aquí tienes los detalles:' : 'Tu reserva ha sido confirmada con éxito. Aquí tienes los detalles:'}
+  </p>
   
   <div style="background-color: #f5f8fa; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e0e0e0;">
         <!-- SECCIÓN DE PARTIDO MEJORADA -->
@@ -599,11 +695,7 @@ export class CourtReserveService {
         <div style="color: #757575; font-style: italic; font-weight: bold; margin: 8px 0;">vs</div>
         <div style="margin-top: 8px; color: #d32f2f;">
           <strong>
-            ${
-              courtReserve.isDouble
-                ? `${courtReserve.player3} y ${courtReserve.player4}`
-                : `${courtReserve.player2 || courtReserve.visitName}`
-            }
+            ${courtReserve.isDouble ? `${courtReserve.player3} y ${courtReserve.player4}` : `${courtReserve.player2 || courtReserve.visitName}`}
           </strong>
         </div>
       </div>
@@ -618,22 +710,6 @@ export class CourtReserveService {
       <strong>📍 Cancha:</strong> ${courtNumber}
     </p>
   </div>
-
-${
-  courtReserve.isPaidNight
-    ? `
-  <div style="margin-top: 25px; padding: 15px; background-color: #fffbe6; border-left: 5px solid #ffc107; color: #856404; border-radius: 5px;">
-    <p style="margin: 0; font-size: 15px;"><strong>💲 Horario Pagado:</strong> Por favor, ten en cuenta que este horario requiere pago.</p>
-    <div style="margin-top: 10px;">
-      <strong>Datos Bancarios</strong><br>
-      Banco: Estado<br>
-      cta vista: 22970365170<br>
-      rut: 65178540-5
-    </div>
-  </div>`
-    : ''
-}
-
 
   ${
     !courtReserve.isVisit && courtReserve.isForRanking
@@ -688,6 +764,10 @@ ${
       await sendEmailIfNeeded(courtReserve.player3);
       await sendEmailIfNeeded(courtReserve.player4);
     }
+    if (courtReserve.isVisit || courtReserve.isPaidNight) {
+      const notificationEmail = 'clubquinterotenis@gmail.com'; // Reemplaza esto con el email deseado
+      await this.emailService.sendEmail(getEmailData({ email: notificationEmail }, courtReserve));
+    }
   }
 
   private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
@@ -721,6 +801,18 @@ ${
     <li><strong>📅 Fecha:</strong> ${formattedDate}</li>
     <li><strong>⏰ Turno:</strong> ${courtReserve.turn}</li>
     <li><strong>📍 Cancha:</strong> ${courtNumber}</li>
+    <li><strong>👥 Jugadores:</strong>
+    ${
+      courtReserve.isDouble
+        ? `${courtReserve.player1} y ${courtReserve.player2} vs ${courtReserve.player3} y ${courtReserve.player4}`
+        : courtReserve.isVisit
+          ? `${courtReserve.player1} vs ${courtReserve.visitName}`
+          : `${courtReserve.player1} vs ${courtReserve.player2}`
+    }
+  </li>
+  ${courtReserve.isVisit ? `<li><strong>👤 Visita:</strong> ${courtReserve.visitName}</li>` : ''}
+  ${courtReserve.isPaidNight ? '<li><strong>💰 Turno:</strong> Nocturno Pagado</li>' : ''}
+  ${courtReserve.isDouble ? '<li><strong>🎾 Modalidad:</strong> Dobles</li>' : '<li><strong>🎾 Modalidad:</strong> Singles</li>'}
   </ul>
   ${reason ? `<p style="background:#fff3f3; padding:10px; border-left:4px solid #f44336;"><strong>Motivo:</strong> ${reason}</p>` : ''}
   <p style="margin-top:12px; font-size:15px;">Si tienes dudas, contacta con administración.</p>
@@ -732,9 +824,13 @@ ${
     const notifyPlayer = async (playerName: string | null) => {
       if (!playerName) return;
       try {
-        const emailData = await this.findOneEmail(playerName);
-        if (emailData?.email) {
-          await this.emailService.sendEmail(buildCancellationEmail(emailData.email));
+        if (playerName === 'clubquinterotenis@gmail.com') {
+          await this.emailService.sendEmail(buildCancellationEmail(playerName));
+        } else {
+          const emailData = await this.findOneEmail(playerName);
+          if (emailData?.email) {
+            await this.emailService.sendEmail(buildCancellationEmail(emailData.email));
+          }
         }
       } catch (err) {
         this.logger.error(`Error notifying ${playerName}`, err?.stack || err?.message || String(err));
@@ -744,6 +840,9 @@ ${
     const players = [courtReserve.player1];
     if (!courtReserve.isVisit) players.push(courtReserve.player2);
     if (courtReserve.isDouble) players.push(courtReserve.player3, courtReserve.player4);
+    if (courtReserve.isVisit || courtReserve.isPaidNight) {
+      players.push('clubquinterotenis@gmail.com');
+    }
 
     await Promise.allSettled(players.map(notifyPlayer));
   }

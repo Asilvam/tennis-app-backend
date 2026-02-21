@@ -50,7 +50,7 @@ export class CourtReserve {
   isPaidNight: boolean;
 
   @Prop({ default: false })
-  wasPaidNight: boolean;
+  wasPaid: boolean;
 
   @Prop({ default: false })
   isDouble: boolean;
@@ -74,8 +74,8 @@ export class CourtReserve {
 export const CourtReserveSchema = SchemaFactory.createForClass(CourtReserve);
 
 CourtReserveSchema.pre('save', function (next) {
-  if (this.isPaidNight) {
-    this.state = true; // era false si agenda para pagar
+  if (this.isPaidNight || this.isVisit) {
+    this.state = false; // era false si agenda para pagar
   } else {
     this.state = true;
   }

@@ -43,7 +43,7 @@ export class CreateCourtReserveDto {
 
   @IsOptional()
   @IsBoolean()
-  wasPaidNight?: boolean;
+  wasPaid?: boolean;
 
   @IsOptional()
   @IsBoolean()
