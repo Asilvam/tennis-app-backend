@@ -39,7 +39,7 @@ export class MatchRankingService {
     let winnerPointChange = 0;
     let looserPointChange = 0;
     const baseWin = 300;
-    const baseLose = 100;
+    const baseLose = 50;
     let detail: string;
 
     if (winnerCat === looserCat) {
@@ -61,8 +61,8 @@ export class MatchRankingService {
         detail = 'Distintas cat: gana inferior → +600/+50';
       } else {
         winnerPointChange = 150;
-        looserPointChange = 100;
-        detail = 'Distintas cat: gana superior → +150/+100';
+        looserPointChange = 50;
+        detail = 'Distintas cat: gana superior → +150/+50';
       }
     }
     return {
@@ -105,6 +105,53 @@ export class MatchRankingService {
         typeof looserData.points === 'string' ? parseInt(looserData.points, 10) : looserData.points,
         looserPoints,
       );
+    } else if (createMatchRankingDto.winner.length === 2) {
+      // Lógica para doubles - usa pointsDoubles
+      const winner1 = createMatchRankingDto.winner[0];
+      const winner2 = createMatchRankingDto.winner[1];
+      const looser1 = createMatchRankingDto.looser[0];
+      const looser2 = createMatchRankingDto.looser[1];
+
+      const pointsToWin = 300;
+      const pointsToLose = 50;
+
+      // Calcular nuevos puntos para ganadores usando pointsDoubles
+      const winner1OldPoints = typeof winner1.pointsDoubles === 'string' ? parseInt(winner1.pointsDoubles, 10) : winner1.pointsDoubles;
+      const winner2OldPoints = typeof winner2.pointsDoubles === 'string' ? parseInt(winner2.pointsDoubles, 10) : winner2.pointsDoubles;
+      const winner1NewPoints = winner1OldPoints + pointsToWin;
+      const winner2NewPoints = winner2OldPoints + pointsToWin;
+
+      // Calcular nuevos puntos para perdedores usando pointsDoubles
+      const looser1OldPoints = typeof looser1.pointsDoubles === 'string' ? parseInt(looser1.pointsDoubles, 10) : looser1.pointsDoubles;
+      const looser2OldPoints = typeof looser2.pointsDoubles === 'string' ? parseInt(looser2.pointsDoubles, 10) : looser2.pointsDoubles;
+      const looser1NewPoints = looser1OldPoints + pointsToLose;
+      const looser2NewPoints = looser2OldPoints + pointsToLose;
+
+      // Actualizar pointsDoubles de los 4 jugadores
+      await this.registerService.updateByEmail(winner1.email, {
+        pointsDoubles: winner1NewPoints.toString(),
+      });
+      await this.registerService.updateByEmail(winner2.email, {
+        pointsDoubles: winner2NewPoints.toString(),
+      });
+      await this.registerService.updateByEmail(looser1.email, {
+        pointsDoubles: looser1NewPoints.toString(),
+      });
+      await this.registerService.updateByEmail(looser2.email, {
+        pointsDoubles: looser2NewPoints.toString(),
+      });
+
+      // Enviar emails a los ganadores
+      const losersNames = `${looser1.name} y ${looser2.name}`;
+      this._sendPointsUpdateEmail(winner1.email, winner1.name, true, losersNames, createMatchRankingDto.result, winner1OldPoints, winner1NewPoints);
+      this._sendPointsUpdateEmail(winner2.email, winner2.name, true, losersNames, createMatchRankingDto.result, winner2OldPoints, winner2NewPoints);
+
+      // Enviar emails a los perdedores
+      const winnersNames = `${winner1.name} y ${winner2.name}`;
+      this._sendPointsUpdateEmail(looser1.email, looser1.name, false, winnersNames, createMatchRankingDto.result, looser1OldPoints, looser1NewPoints);
+      this._sendPointsUpdateEmail(looser2.email, looser2.name, false, winnersNames, createMatchRankingDto.result, looser2OldPoints, looser2NewPoints);
+
+      this.logger.log('Doubles match processed: Winners +300, Losers +50 (pointsDoubles)');
     }
     await this.courtReserveService.updateResultMatch(createMatchRankingDto.matchId);
     const newMatchRanking = new this.matchRankingModel(createMatchRankingDto);

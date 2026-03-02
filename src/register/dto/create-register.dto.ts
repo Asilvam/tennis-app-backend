@@ -25,6 +25,10 @@ export class CreateRegisterDto {
   @IsString()
   points?: string;
 
+  @IsOptional()
+  @IsString()
+  pointsDoubles?: string;
+
   @Transform(({ value }) => value.trim())
   @IsString()
   @MinLength(6)
