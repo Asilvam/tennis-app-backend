@@ -13,9 +13,7 @@ import { NotificationModule } from './notification/notification.module';
 import { InfoItemsModule } from './info-items/info-items.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { MatchRankingModule } from './match-ranking/match-ranking.module';
-// import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { BookingModule } from './booking/booking.module';
-// import { GoogleSheetsModule } from './google-sheets/google-sheets.module';
 import { MpModule } from './mp/mp.module';
 
 @Module({
@@ -36,8 +34,6 @@ import { MpModule } from './mp/mp.module';
     MatchRankingModule,
     BookingModule,
     MpModule,
-    // GoogleSheetsModule,
-    // WhatsappModule,
   ],
   controllers: [AppController],
   providers: [AppService],

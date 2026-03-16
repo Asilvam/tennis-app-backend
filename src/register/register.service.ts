@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
@@ -17,6 +11,7 @@ interface PlayerData {
   email: string;
   name: string;
   points: string;
+  pointsDoubles: string;
   category: string;
   cellular: string;
 }
@@ -182,9 +177,7 @@ export class RegisterService {
 
   async findOneEmail(player: string): Promise<PlayerData | null> {
     try {
-      const response: Register = await this.registerModel
-        .findOne({ $or: [{ email: player }, { namePlayer: player }] })
-        .exec();
+      const response: Register = await this.registerModel.findOne({ $or: [{ email: player }, { namePlayer: player }] }).exec();
       if (!response) {
         this.logger.error('Email Player not found', player);
         throw new NotFoundException('Name Player Register not found');
@@ -193,6 +186,7 @@ export class RegisterService {
         email: response.email,
         name: response.namePlayer,
         points: response.points,
+        pointsDoubles: response.pointsDoubles,
         category: response.category,
         cellular: response.cellular,
       };
@@ -218,10 +212,7 @@ export class RegisterService {
   }
 
   async validatePlayerEmail(email: string): Promise<Register | undefined> {
-    const register: Register | undefined = await this.registerModel
-      .findOne({ email: email.toLowerCase() })
-      .select('namePlayer email pwd role statePlayer updatePayment')
-      .exec();
+    const register: Register | undefined = await this.registerModel.findOne({ email: email.toLowerCase() }).select('namePlayer email pwd role statePlayer updatePayment').exec();
     return register;
   }
 
@@ -239,9 +230,7 @@ export class RegisterService {
   }
 
   async updateByEmail(email: string, updateRegisterDto: UpdateRegisterDto): Promise<Register> {
-    const updatedRegister = await this.registerModel
-      .findOneAndUpdate({ email: email }, updateRegisterDto, { new: true })
-      .exec();
+    const updatedRegister = await this.registerModel.findOneAndUpdate({ email: email }, updateRegisterDto, { new: true }).exec();
     if (!updatedRegister) {
       throw new NotFoundException(`Register with email ${email} not found`);
     }

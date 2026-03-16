@@ -64,6 +64,9 @@ export class Register {
   @Prop({ required: true, default: '0' })
   points: string;
 
+  @Prop({ required: true, default: '0' })
+  pointsDoubles: string;
+
   @Prop({ default: false })
   statePlayer: boolean;
 
