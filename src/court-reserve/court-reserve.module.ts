@@ -6,11 +6,13 @@ import { CourtReserve, CourtReserveSchema } from './entities/court-reserve.entit
 import { RegisterModule } from '../register/register.module';
 // import { EmailModule } from '../email/email.module';
 import { EmailService } from '../email/email.service';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: CourtReserve.name, schema: CourtReserveSchema }]),
     RegisterModule,
+    AuditLogModule,
     // EmailModule,
   ],
   providers: [CourtReserveService, EmailService],

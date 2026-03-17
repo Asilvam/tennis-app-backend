@@ -15,6 +15,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { MatchRankingModule } from './match-ranking/match-ranking.module';
 import { BookingModule } from './booking/booking.module';
 import { MpModule } from './mp/mp.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { MpModule } from './mp/mp.module';
     MatchRankingModule,
     BookingModule,
     MpModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
