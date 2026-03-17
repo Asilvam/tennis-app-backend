@@ -109,4 +109,27 @@ export class AuthService {
     this.logger.log(`Email successfully verified for user: ${user.email}`);
     return { message: 'Your email has been successfully verified.' };
   }
+
+  async checkIfUserIsBlocked(email: string): Promise<boolean> {
+    try {
+      const user = await this.registerService.validatePlayerEmail(email);
+
+      if (!user) {
+        // Si el usuario no existe, considerarlo como "bloqueado"
+        return true;
+      }
+
+      // Un usuario está bloqueado si:
+      // - statePlayer es false (usuario bloqueado manualmente)
+      // - updatePayment es false (bloqueado por falta de pago)
+      const isBlocked = !user.statePlayer || !user.updatePayment;
+
+      this.logger.log(`User ${email} blocked status: ${isBlocked}`);
+      return isBlocked;
+    } catch (error) {
+      this.logger.error(`Error checking if user is blocked: ${error.message}`);
+      // Si hay un error al buscar el usuario, considerarlo bloqueado por seguridad
+      return true;
+    }
+  }
 }

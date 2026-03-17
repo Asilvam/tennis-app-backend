@@ -2,6 +2,7 @@ import { Query, Controller, Post, Body, Logger, Get, BadRequestException, Res } 
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { TokenDto } from './dto/token.dto';
+import { CheckBlockedDto } from './dto/check-blocked.dto';
 import { Response } from 'express';
 
 @Controller('auth')
@@ -22,6 +23,11 @@ export class AuthController {
   @Post('validateToken')
   validateToken(@Body() token: TokenDto) {
     return this.authService.validateToken(token);
+  }
+
+  @Post('checkBlocked')
+  async checkBlocked(@Body() dto: CheckBlockedDto): Promise<boolean> {
+    return this.authService.checkIfUserIsBlocked(dto.email);
   }
 
   @Get('verify-email')
