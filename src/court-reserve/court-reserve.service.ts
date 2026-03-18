@@ -7,6 +7,7 @@ import { Model } from 'mongoose';
 import { DateTime } from 'luxon';
 import { EmailService } from '../email/email.service';
 import { RegisterService } from '../register/register.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
 // import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 import * as XLSX from 'xlsx';
@@ -20,6 +21,7 @@ export class CourtReserveService {
     private readonly courtReserveModel: Model<CourtReserve>,
     private readonly registerService: RegisterService,
     private readonly emailService: EmailService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   async exportFilteredReservesToExcelBuffer(): Promise<Buffer> {
@@ -55,30 +57,15 @@ export class CourtReserveService {
         $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
       },
     };
-    return this.courtReserveModel
-      .find(filter)
-      .select('dateToPlay court turn player1 player2 player3 player4 visitName -_id')
-      .exec();
+    return this.courtReserveModel.find(filter).select('dateToPlay court turn player1 player2 player3 player4 visitName -_id').exec();
   }
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
-    return activeReserves.some(
-      (reserve) =>
-        reserve.player1 === player ||
-        reserve.player2 === player ||
-        reserve.player3 === player ||
-        reserve.player4 === player,
-    );
+    return activeReserves.some((reserve) => reserve.player1 === player || reserve.player2 === player || reserve.player3 === player || reserve.player4 === player);
   };
 
   playerActiveReserve = (player: string, activeReserves: CourtReserve[]) => {
-    const matchingReserve = activeReserves.find(
-      (reserve) =>
-        reserve.player1 === player ||
-        reserve.player2 === player ||
-        reserve.player3 === player ||
-        reserve.player4 === player,
-    );
+    const matchingReserve = activeReserves.find((reserve) => reserve.player1 === player || reserve.player2 === player || reserve.player3 === player || reserve.player4 === player);
     return matchingReserve || null; // Return the matching reservation or null if not found
   };
 
@@ -119,10 +106,7 @@ export class CourtReserveService {
     for (const reservation of createCourtReserveDtoArray) {
       try {
         const { dateToPlay, turn, court, blockedMotive } = reservation;
-        const existingReserve = await this.courtReserveModel
-          .findOne({ dateToPlay, turn, court, state: true })
-          .select('idCourtReserve')
-          .exec();
+        const existingReserve = await this.courtReserveModel.findOne({ dateToPlay, turn, court, state: true }).select('idCourtReserve').exec();
         if (existingReserve?.idCourtReserve) {
           try {
             await this.sendEmailRemove(existingReserve.idCourtReserve, blockedMotive);
@@ -134,6 +118,14 @@ export class CourtReserveService {
         const newCourtReserve = new this.courtReserveModel(reservation);
         const savedReservation = await newCourtReserve.save();
         savedReservations.push(savedReservation);
+
+        // ✅ AUDITORÍA: Registrar creación individual
+        try {
+          await this.auditLogService.logReserveCreation(savedReservation.toObject(), 'ADMIN', 'Admin Bulk Operation');
+        } catch (auditErr) {
+          this.logger.error('[adminReserve] Error logging audit', auditErr);
+        }
+
         this.logger.log(`Reserva guardada: ${savedReservation.idCourtReserve}`);
       } catch (err) {
         const errorMsg = err?.message || String(err);
@@ -144,6 +136,16 @@ export class CourtReserveService {
         });
       }
     }
+
+    // ✅ AUDITORÍA: Registrar operación masiva
+    if (savedReservations.length > 0) {
+      try {
+        await this.auditLogService.logBulkAdminReserves(savedReservations.length);
+      } catch (auditErr) {
+        this.logger.error('[adminReserve] Error logging bulk audit', auditErr);
+      }
+    }
+
     return { savedReservations, errors };
   }
 
@@ -152,6 +154,14 @@ export class CourtReserveService {
     await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false });
     const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
     const savedReservation = await newCourtReserve.save();
+
+    // ✅ AUDITORÍA: Registrar creación por admin
+    try {
+      await this.auditLogService.logReserveCreation(savedReservation.toObject(), 'ADMIN', 'Admin User');
+    } catch (auditErr) {
+      this.logger.error('[adminCreate] Error logging audit', auditErr);
+    }
+
     this.logger.log(savedReservation);
     return savedReservation;
   }
@@ -186,10 +196,7 @@ export class CourtReserveService {
             );
           }
         }
-        const isCourtReserve = activeReserves.find(
-          (courtReserve) =>
-            courtReserve.court === court && courtReserve.turn === turn && courtReserve.dateToPlay === dateToPlay,
-        );
+        const isCourtReserve = activeReserves.find((courtReserve) => courtReserve.court === court && courtReserve.turn === turn && courtReserve.dateToPlay === dateToPlay);
         if (isCourtReserve) {
           throw new BadRequestException('This court is already reserved for this time');
         }
@@ -197,6 +204,15 @@ export class CourtReserveService {
       // await this.registerService.findOneAndUpdate(player1, { isLigthNigth: true });
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
+
+      // ✅ AUDITORÍA: Registrar creación de reserva
+      try {
+        const playerEmail = await this.findOneEmail(player1);
+        await this.auditLogService.logReserveCreation(response.toObject(), 'USER', player1, playerEmail?.email);
+      } catch (auditErr) {
+        this.logger.error('[create] Error logging audit', auditErr);
+      }
+
       try {
         await this.sendEmailReserve(response);
       } catch (err) {
@@ -252,9 +268,7 @@ export class CourtReserveService {
     const diffInDays = currentDate.diff(matchDate, 'days').days;
 
     if (diffInDays > 2) {
-      throw new BadRequestException(
-        'No se puede actualizar el resultado. El plazo para hacerlo ha expirado (2 días después del partido).',
-      );
+      throw new BadRequestException('No se puede actualizar el resultado. El plazo para hacerlo ha expirado (2 días después del partido).');
     }
 
     if (reserves) {
@@ -290,28 +304,50 @@ export class CourtReserveService {
   }
 
   async updateResultMatch(idCourtReserve: string) {
-    const updatedReserve = await this.courtReserveModel.findOneAndUpdate(
-      { idCourtReserve: idCourtReserve },
-      { resultMatchUpdated: true },
-      { new: true },
-    );
+    const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { resultMatchUpdated: true }, { new: true });
     if (!updatedReserve) {
       throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
     }
+
+    // ✅ AUDITORÍA: Registrar actualización de resultado
+    try {
+      await this.auditLogService.logMatchResultUpdate(idCourtReserve, updatedReserve.player1);
+    } catch (auditErr) {
+      this.logger.error('[updateResultMatch] Error logging audit', auditErr);
+    }
+
     this.logger.log(`Match result updated for reserve: ${idCourtReserve}`);
     return updatedReserve;
   }
 
   async updateStateReserve(idCourtReserve: string) {
+    const currentReserve = await this.courtReserveModel.findOne({ idCourtReserve }).exec();
+    const oldState = currentReserve?.state || false;
+
     const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: true, wasPaid: true });
     if (!updatedReserve) {
       throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
     }
+
+    // ✅ AUDITORÍA: Registrar cambio de estado
+    try {
+      await this.auditLogService.logStateChange(idCourtReserve, oldState, true, true, 'SYSTEM');
+    } catch (auditErr) {
+      this.logger.error('[updateStateReserve] Error logging audit', auditErr);
+    }
+
     this.logger.log(`reserve state has been updated for reserve: ${idCourtReserve}`);
     return updatedReserve;
   }
 
   async sendEmailConfirmation(idCourtReserve: string, paymentStatus: string) {
+    // ✅ AUDITORÍA: Registrar confirmación de pago
+    try {
+      await this.auditLogService.logPaymentConfirmation(idCourtReserve, paymentStatus);
+    } catch (auditErr) {
+      this.logger.error('[sendEmailConfirmation] Error logging audit', auditErr);
+    }
+
     const reserve = await this.getCourtReserveById(idCourtReserve);
     if (!reserve) {
       throw new NotFoundException(`[sendEmailConfirmation] Reserve with idCourtReserve ${idCourtReserve} not found`);
@@ -381,12 +417,18 @@ export class CourtReserveService {
 
   async remove(idCourtReserve: string) {
     const reserve = await this.getCourtReserveById(idCourtReserve);
+
+    // ✅ AUDITORÍA: Registrar cancelación antes de eliminar
+    try {
+      await this.auditLogService.logReserveCancellation(idCourtReserve, reserve, reserve.isBlockedByAdmin ? 'ADMIN' : 'USER', reserve.player1, reserve.blockedMotive);
+    } catch (auditErr) {
+      this.logger.error('[remove] Error logging audit', auditErr);
+    }
+
     if (!reserve.isBlockedByAdmin) {
       this.sendEmailRemove(idCourtReserve);
     }
-    const updatedRegister = await this.courtReserveModel
-      .findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: false }, { new: true })
-      .exec();
+    const updatedRegister = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: false }, { new: true }).exec();
     if (!updatedRegister) {
       throw new NotFoundException(`Register with idCourtReserve ${idCourtReserve} not found`);
     }
@@ -408,20 +450,7 @@ export class CourtReserveService {
 
     const activeReserves = await this.courtReserveModel
       .find({ dateToPlay: selectedDate, state: true })
-      .select([
-        'dateToPlay',
-        'court',
-        'turn',
-        'player1',
-        'player2',
-        'player3',
-        'player4',
-        'isDouble',
-        'isVisit',
-        'visitName',
-        'isBlockedByAdmin',
-        'blockedMotive',
-      ])
+      .select(['dateToPlay', 'court', 'turn', 'player1', 'player2', 'player3', 'player4', 'isDouble', 'isVisit', 'visitName', 'isBlockedByAdmin', 'blockedMotive'])
       .exec();
     // this.logger.log(activeReserves);
     const AllTimeSlotsAvailable: TimeSlot[] = [
@@ -531,10 +560,7 @@ export class CourtReserveService {
         .find({
           $or: [{ player1: namePlayer }, { player2: namePlayer }, { player3: namePlayer }, { player4: namePlayer }],
         })
-        .select(
-          'dateToPlay court turn player1 player2 player3 player4 ' +
-            'visitName idCourtReserve state passCourtReserve isForRanking resultMatchUpdated',
-        )
+        .select('dateToPlay court turn player1 player2 player3 player4 ' + 'visitName idCourtReserve state passCourtReserve isForRanking resultMatchUpdated')
         .sort({
           dateToPlay: 'desc',
           turn: 'asc',
