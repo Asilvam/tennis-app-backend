@@ -10,7 +10,7 @@ LABEL fly_launch_runtime="NestJS"
 WORKDIR /app
 
 # Set production environment
-ENV NODE_ENV="production"
+ENV NODE_ENV="develop"
 
 
 # Throw-away build stage to reduce size of final image
@@ -45,4 +45,4 @@ COPY --from=build /app /app
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
 ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
-CMD [ "npm", "run", "start" ]
+CMD [ "npm", "run", "start:prod" ]
