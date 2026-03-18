@@ -17,12 +17,7 @@ export class AuditLogService {
    */
   async logReserveCreation(reserveData: any, performedBy: 'USER' | 'ADMIN' | 'SYSTEM', userName?: string, email?: string) {
     try {
-      const players = [
-        reserveData.player1,
-        reserveData.player2,
-        reserveData.player3,
-        reserveData.player4,
-      ].filter(Boolean);
+      const players = [reserveData.player1, reserveData.player2, reserveData.player3, reserveData.player4].filter(Boolean);
 
       const audit = new this.auditLogModel({
         entityType: 'COURT_RESERVE',
@@ -80,20 +75,9 @@ export class AuditLogService {
   /**
    * Registra la cancelación de una reserva
    */
-  async logReserveCancellation(
-    reserveId: string,
-    reserveData: any,
-    performedBy: 'USER' | 'ADMIN' | 'SYSTEM',
-    userName?: string,
-    reason?: string,
-  ) {
+  async logReserveCancellation(reserveId: string, reserveData: any, performedBy: 'USER' | 'ADMIN' | 'SYSTEM', userName?: string, reason?: string) {
     try {
-      const players = [
-        reserveData.player1,
-        reserveData.player2,
-        reserveData.player3,
-        reserveData.player4,
-      ].filter(Boolean);
+      const players = [reserveData.player1, reserveData.player2, reserveData.player3, reserveData.player4].filter(Boolean);
 
       const audit = new this.auditLogModel({
         entityType: 'COURT_RESERVE',
@@ -198,10 +182,7 @@ export class AuditLogService {
    * Obtiene todos los logs de una reserva específica
    */
   async getAuditsByReserve(reserveId: string) {
-    return this.auditLogModel
-      .find({ entityId: reserveId })
-      .sort({ timestamp: -1 })
-      .exec();
+    return this.auditLogModel.find({ entityId: reserveId }).sort({ timestamp: -1 }).exec();
   }
 
   /**
@@ -220,21 +201,14 @@ export class AuditLogService {
    * Obtiene logs por tipo de acción
    */
   async getAuditsByAction(action: string) {
-    return this.auditLogModel
-      .find({ action })
-      .sort({ timestamp: -1 })
-      .limit(100)
-      .exec();
+    return this.auditLogModel.find({ action }).sort({ timestamp: -1 }).limit(100).exec();
   }
 
   /**
    * Obtiene logs por usuario
    */
   async getAuditsByUser(userName: string) {
-    return this.auditLogModel
-      .find({ performedByUser: userName })
-      .sort({ timestamp: -1 })
-      .exec();
+    return this.auditLogModel.find({ performedByUser: userName }).sort({ timestamp: -1 }).exec();
   }
 
   /**
@@ -242,7 +216,7 @@ export class AuditLogService {
    */
   async getCancellationReport(startDate?: Date, endDate?: Date) {
     const query: any = { action: 'DELETE' };
-    
+
     if (startDate || endDate) {
       query.timestamp = {};
       if (startDate) query.timestamp.$gte = startDate;
@@ -253,10 +227,10 @@ export class AuditLogService {
 
     return {
       total: logs.length,
-      byAdmin: logs.filter(l => l.performedBy === 'ADMIN').length,
-      byUser: logs.filter(l => l.performedBy === 'USER').length,
-      bySystem: logs.filter(l => l.performedBy === 'SYSTEM').length,
-      withReason: logs.filter(l => l.metadata?.reason).length,
+      byAdmin: logs.filter((l) => l.performedBy === 'ADMIN').length,
+      byUser: logs.filter((l) => l.performedBy === 'USER').length,
+      bySystem: logs.filter((l) => l.performedBy === 'SYSTEM').length,
+      withReason: logs.filter((l) => l.metadata?.reason).length,
       logs,
     };
   }
@@ -266,7 +240,7 @@ export class AuditLogService {
    */
   async getCreationReport(startDate?: Date, endDate?: Date) {
     const query: any = { action: { $in: ['CREATE', 'ADMIN_CREATE', 'ADMIN_BULK_CREATE'] } };
-    
+
     if (startDate || endDate) {
       query.timestamp = {};
       if (startDate) query.timestamp.$gte = startDate;
@@ -277,11 +251,11 @@ export class AuditLogService {
 
     return {
       total: logs.length,
-      byAdmin: logs.filter(l => l.performedBy === 'ADMIN').length,
-      byUser: logs.filter(l => l.performedBy === 'USER').length,
-      paidNight: logs.filter(l => l.metadata?.isPaidNight).length,
-      withVisit: logs.filter(l => l.metadata?.isVisit).length,
-      doubles: logs.filter(l => l.metadata?.isDouble).length,
+      byAdmin: logs.filter((l) => l.performedBy === 'ADMIN').length,
+      byUser: logs.filter((l) => l.performedBy === 'USER').length,
+      paidNight: logs.filter((l) => l.metadata?.isPaidNight).length,
+      withVisit: logs.filter((l) => l.metadata?.isVisit).length,
+      doubles: logs.filter((l) => l.metadata?.isDouble).length,
       logs,
     };
   }
@@ -293,23 +267,24 @@ export class AuditLogService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const logs = await this.auditLogModel.find({
-      timestamp: { $gte: startDate }
-    }).exec();
+    const logs = await this.auditLogModel
+      .find({
+        timestamp: { $gte: startDate },
+      })
+      .exec();
 
     return {
       period: `Last ${days} days`,
       total: logs.length,
-      creates: logs.filter(l => l.action === 'CREATE' || l.action === 'ADMIN_CREATE').length,
-      deletes: logs.filter(l => l.action === 'DELETE').length,
-      stateChanges: logs.filter(l => l.action === 'STATE_CHANGE').length,
-      paymentConfirmations: logs.filter(l => l.action === 'PAYMENT_CONFIRMATION').length,
+      creates: logs.filter((l) => l.action === 'CREATE' || l.action === 'ADMIN_CREATE').length,
+      deletes: logs.filter((l) => l.action === 'DELETE').length,
+      stateChanges: logs.filter((l) => l.action === 'STATE_CHANGE').length,
+      paymentConfirmations: logs.filter((l) => l.action === 'PAYMENT_CONFIRMATION').length,
       byPerformer: {
-        user: logs.filter(l => l.performedBy === 'USER').length,
-        admin: logs.filter(l => l.performedBy === 'ADMIN').length,
-        system: logs.filter(l => l.performedBy === 'SYSTEM').length,
+        user: logs.filter((l) => l.performedBy === 'USER').length,
+        admin: logs.filter((l) => l.performedBy === 'ADMIN').length,
+        system: logs.filter((l) => l.performedBy === 'SYSTEM').length,
       },
     };
   }
 }
-
