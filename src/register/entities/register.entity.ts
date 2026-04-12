@@ -40,32 +40,11 @@ export class Register {
   @Prop({ required: false, enum: Object.values(TipoSocio), default: TipoSocio.TITULAR })
   montoPagar: TipoSocio;
 
-  @Prop({
-    type: String,
-    enum: [
-      '1',
-      '2',
-      '3',
-      '4',
-      'Damas',
-      'Menores',
-      'Menores - Cancha Amarilla',
-      'Menores - Cancha Verde',
-      'Menores - Cancha Naranja',
-      'Menores - Cancha Roja',
-    ],
-    default: '4',
-  })
-  category: string;
+  // ❌ ELIMINADOS: category, points, pointsDoubles
+  // Ahora las categorías y puntos están en la tabla player_category_points
 
   @Prop({ default: false })
   isLigthNigth: boolean;
-
-  @Prop({ required: true, default: '0' })
-  points: string;
-
-  @Prop({ required: true, default: '0' })
-  pointsDoubles: string;
 
   @Prop({ default: false })
   statePlayer: boolean;

@@ -1,17 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  Logger,
-  HttpCode,
-  HttpStatus,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Logger, HttpCode, HttpStatus, Res } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
@@ -60,6 +47,11 @@ export class CourtReserveController {
   @Get('history/:namePlayer')
   findHistoryReserve(@Param('namePlayer') namePlayer: string) {
     return this.courtReserveService.getAllHistoryReservesFor(namePlayer);
+  }
+
+  @Get('isForRankingHistory/:namePlayer')
+  findIsforRankingHistoryReserve(@Param('namePlayer') namePlayer: string) {
+    return this.courtReserveService.getAllIsForRankingReservesFor(namePlayer);
   }
 
   @Get('filtered-reserves/excel')

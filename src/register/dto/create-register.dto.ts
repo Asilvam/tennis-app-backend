@@ -1,8 +1,21 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEmail, IsOptional, IsString, MinLength, IsIn } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, MinLength, IsIn, IsArray, ValidateNested, ArrayMinSize } from 'class-validator';
+import { Type } from 'class-transformer';
 import { EstadoPago } from '../enums/estado-pago.enum';
 import { TipoSocio } from '../enums/tipo-socio.enum';
-import { Category } from '../enums/category.enum';
+import { Category, MatchType } from '../enums/category.enum';
+
+// DTO para las categorías del jugador
+export class PlayerCategoryDto {
+  @IsString()
+  @IsIn(Object.values(Category))
+  category: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsIn(Object.values(MatchType), { each: true })
+  matchTypes: string[]; // ['singles', 'doubles']
+}
 
 export class CreateRegisterDto {
   @Transform(({ value }) => value.trim())
@@ -16,18 +29,16 @@ export class CreateRegisterDto {
   @IsString()
   cellular: string;
 
+  // ✅ NUEVO: Array de categorías con sus tipos de partido
   @IsOptional()
-  @IsString()
-  @IsIn(Object.values(Category))
-  category?: Category;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PlayerCategoryDto)
+  @ArrayMinSize(1, { message: 'El jugador debe tener al menos una categoría' })
+  categories?: PlayerCategoryDto[];
 
-  @IsOptional()
-  @IsString()
-  points?: string;
-
-  @IsOptional()
-  @IsString()
-  pointsDoubles?: string;
+  // ❌ ELIMINADOS: category, points, pointsDoubles
+  // Ahora se manejan a través del array categories
 
   @Transform(({ value }) => value.trim())
   @IsString()

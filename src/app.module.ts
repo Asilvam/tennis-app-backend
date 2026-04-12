@@ -16,6 +16,7 @@ import { MatchRankingModule } from './match-ranking/match-ranking.module';
 import { BookingModule } from './booking/booking.module';
 import { MpModule } from './mp/mp.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
+import { PlayerCategoryPointsModule } from './player-category-points/player-category-points.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AuditLogModule } from './audit-log/audit-log.module';
     BookingModule,
     MpModule,
     AuditLogModule,
+    PlayerCategoryPointsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

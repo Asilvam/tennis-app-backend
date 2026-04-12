@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateMatchRankingDto } from './dto/create-match-ranking.dto';
 import { UpdateMatchRankingDto } from './dto/update-match-ranking.dto';
 import { ValidateMatchDto } from './dto/validate-match.dto';
@@ -7,15 +7,19 @@ import { MatchRanking, MatchResultDocument } from './entities/match-ranking.enti
 import { Model } from 'mongoose';
 import { CourtReserveService } from '../court-reserve/court-reserve.service';
 import { RegisterService } from '../register/register.service';
+import { PlayerCategoryPointsService } from '../player-category-points/player-category-points.service';
 import { CourtReserve, CourtReserveDocument } from '../court-reserve/entities/court-reserve.entity';
 import { Register, RegisterDocument } from '../register/entities/register.entity';
 import { PlayerCategory, RankingPorCategoria, Resultado } from './interfaces/tennis.types';
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { DOUBLES_CATEGORY, MAIN_SINGLES_CATEGORIES } from '../register/enums/category.enum';
 
 @Injectable()
 export class MatchRankingService {
   logger = new Logger('MatchRankingService');
+  private readonly MAIN_SINGLES_CATEGORIES = MAIN_SINGLES_CATEGORIES;
+  private readonly DOUBLES_CATEGORY = DOUBLES_CATEGORY;
 
   constructor(
     @InjectModel(MatchRanking.name) private readonly matchRankingModel: Model<MatchResultDocument>,
@@ -23,18 +27,25 @@ export class MatchRankingService {
     @InjectModel(Register.name) private readonly registerModel: Model<RegisterDocument>,
     private readonly courtReserveService: CourtReserveService,
     private readonly registerService: RegisterService,
+    private readonly playerCategoryPointsService: PlayerCategoryPointsService, // ✅ PASO 5: Nuevo servicio
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
   ) {}
 
-  calculateSinglesValidPoints(createMatchRankingDto: CreateMatchRankingDto) {
+  // ✅ PASO 5: Método actualizado para usar PlayerCategoryPointsService
+  async calculateSinglesValidPoints(createMatchRankingDto: CreateMatchRankingDto) {
     this.logger.log(createMatchRankingDto);
     const winnerData = createMatchRankingDto.winner[0];
     const looserData = createMatchRankingDto.looser[0];
-    const winnerPts = typeof winnerData.points === 'string' ? parseInt(winnerData.points, 10) : winnerData.points;
-    const looserPts = typeof looserData.points === 'string' ? parseInt(looserData.points, 10) : looserData.points;
-    const winnerCat = winnerData.category;
-    const looserCat = looserData.category;
+    const { winnerCategory, looserCategory } = this._resolveSinglesCategories(winnerData, looserData);
+
+    // Obtener puntos actuales desde player_category_points
+    const winnerPts = await this.playerCategoryPointsService.getPoints(winnerData.email, winnerCategory);
+    const looserPts = await this.playerCategoryPointsService.getPoints(looserData.email, looserCategory);
+
+    const winnerCat = winnerCategory;
+    const looserCat = looserCategory;
+    const isSpecialCategorySingles = !this.MAIN_SINGLES_CATEGORIES.includes(winnerCat) || !this.MAIN_SINGLES_CATEGORIES.includes(looserCat);
 
     let winnerPointChange = 0;
     let looserPointChange = 0;
@@ -42,10 +53,30 @@ export class MatchRankingService {
     const baseLose = 50;
     let detail: string;
 
+    // Categorías especiales (+55, +65, etc.) usan fórmula fija
+    if (isSpecialCategorySingles) {
+      if (winnerCat !== looserCat) {
+        throw new BadRequestException(`Partido inválido: categorías especiales distintas (${winnerCat} vs ${looserCat})`);
+      }
+      winnerPointChange = baseWin;
+      looserPointChange = baseLose;
+      detail = `Cat especial (${winnerCat}): +${baseWin}/+${baseLose}`;
+
+      return {
+        winnerPointChange,
+        looserPointChange,
+        winnerPoints: winnerPts + winnerPointChange,
+        looserPoints: looserPts + looserPointChange,
+        detail: detail,
+        winnerCategory: winnerCat,
+        looserCategory: looserCat,
+      };
+    }
+
     if (winnerCat === looserCat) {
       winnerPointChange = baseWin;
       looserPointChange = baseLose;
-      if (parseInt(String(winnerPts)) < parseInt(String(looserPts))) {
+      if (winnerPts < looserPts) {
         const diff = looserPts - winnerPts;
         const bonus = Math.floor(diff / 5);
         winnerPointChange += bonus;
@@ -66,34 +97,49 @@ export class MatchRankingService {
       }
     }
     return {
+      winnerPointChange, // Devuelve el cambio, no el total
+      looserPointChange, // Devuelve el cambio, no el total
       winnerPoints: winnerPts + winnerPointChange,
       looserPoints: looserPts + looserPointChange,
       detail: detail,
+      winnerCategory: winnerCat,
+      looserCategory: looserCat,
     };
   }
 
   async create(createMatchRankingDto: CreateMatchRankingDto) {
     this.logger.log({ createMatchRankingDto });
     if (createMatchRankingDto.winner.length === 1) {
-      // Lógica para singles
+      // ✅ PASO 5: Lógica para singles usando PlayerCategoryPointsService
       const winnerData = createMatchRankingDto.winner[0];
       const looserData = createMatchRankingDto.looser[0];
 
-      const { winnerPoints, looserPoints, detail } = this.calculateSinglesValidPoints(createMatchRankingDto);
+      const { winnerPointChange, looserPointChange, winnerPoints, looserPoints, detail, winnerCategory, looserCategory } =
+        await this.calculateSinglesValidPoints(createMatchRankingDto);
+
+      this.logger.log({
+        categoryResolved: 'singles',
+        winner: { email: winnerData.email, category: winnerCategory },
+        looser: { email: looserData.email, category: looserCategory },
+      });
+
       this.logger.log({ winnerPoints, looserPoints, detail });
-      await this.registerService.updateByEmail(winnerData.email, {
-        points: winnerPoints.toString(),
-      });
-      await this.registerService.updateByEmail(looserData.email, {
-        points: looserPoints.toString(),
-      });
+
+      // Actualizar puntos en player_category_points
+      await this.playerCategoryPointsService.upsertPoints(winnerData.email, winnerCategory, winnerPointChange);
+      await this.playerCategoryPointsService.upsertPoints(looserData.email, looserCategory, looserPointChange);
+
+      // Obtener puntos actuales para el email
+      const winnerOldPoints = winnerPoints - winnerPointChange;
+      const looserOldPoints = looserPoints - looserPointChange;
+
       this._sendPointsUpdateEmail(
         winnerData.email,
         winnerData.name,
         true, // isWinner
         looserData.name,
         createMatchRankingDto.result,
-        typeof winnerData.points === 'string' ? parseInt(winnerData.points, 10) : winnerData.points,
+        winnerOldPoints,
         winnerPoints,
       );
       this._sendPointsUpdateEmail(
@@ -102,44 +148,51 @@ export class MatchRankingService {
         false, // isWinner
         winnerData.name,
         createMatchRankingDto.result,
-        typeof looserData.points === 'string' ? parseInt(looserData.points, 10) : looserData.points,
+        looserOldPoints,
         looserPoints,
       );
     } else if (createMatchRankingDto.winner.length === 2) {
-      // Lógica para doubles - usa pointsDoubles
+      // ✅ PASO 5: Lógica para doubles usando PlayerCategoryPointsService
       const winner1 = createMatchRankingDto.winner[0];
       const winner2 = createMatchRankingDto.winner[1];
       const looser1 = createMatchRankingDto.looser[0];
       const looser2 = createMatchRankingDto.looser[1];
+      const winner1Category = this._resolveDoublesCategory(winner1);
+      const winner2Category = this._resolveDoublesCategory(winner2);
+      const looser1Category = this._resolveDoublesCategory(looser1);
+      const looser2Category = this._resolveDoublesCategory(looser2);
+
+      this.logger.log({
+        categoryResolved: 'doubles',
+        winner: [
+          { email: winner1.email, category: winner1Category },
+          { email: winner2.email, category: winner2Category },
+        ],
+        looser: [
+          { email: looser1.email, category: looser1Category },
+          { email: looser2.email, category: looser2Category },
+        ],
+      });
 
       const pointsToWin = 300;
       const pointsToLose = 50;
 
-      // Calcular nuevos puntos para ganadores usando pointsDoubles
-      const winner1OldPoints = typeof winner1.pointsDoubles === 'string' ? parseInt(winner1.pointsDoubles, 10) : winner1.pointsDoubles;
-      const winner2OldPoints = typeof winner2.pointsDoubles === 'string' ? parseInt(winner2.pointsDoubles, 10) : winner2.pointsDoubles;
+      // Obtener puntos actuales de doubles
+      const winner1OldPoints = await this.playerCategoryPointsService.getPoints(winner1.email, winner1Category);
+      const winner2OldPoints = await this.playerCategoryPointsService.getPoints(winner2.email, winner2Category);
+      const looser1OldPoints = await this.playerCategoryPointsService.getPoints(looser1.email, looser1Category);
+      const looser2OldPoints = await this.playerCategoryPointsService.getPoints(looser2.email, looser2Category);
+
+      // Actualizar puntos en player_category_points
+      await this.playerCategoryPointsService.upsertPoints(winner1.email, winner1Category, pointsToWin);
+      await this.playerCategoryPointsService.upsertPoints(winner2.email, winner2Category, pointsToWin);
+      await this.playerCategoryPointsService.upsertPoints(looser1.email, looser1Category, pointsToLose);
+      await this.playerCategoryPointsService.upsertPoints(looser2.email, looser2Category, pointsToLose);
+
       const winner1NewPoints = winner1OldPoints + pointsToWin;
       const winner2NewPoints = winner2OldPoints + pointsToWin;
-
-      // Calcular nuevos puntos para perdedores usando pointsDoubles
-      const looser1OldPoints = typeof looser1.pointsDoubles === 'string' ? parseInt(looser1.pointsDoubles, 10) : looser1.pointsDoubles;
-      const looser2OldPoints = typeof looser2.pointsDoubles === 'string' ? parseInt(looser2.pointsDoubles, 10) : looser2.pointsDoubles;
       const looser1NewPoints = looser1OldPoints + pointsToLose;
       const looser2NewPoints = looser2OldPoints + pointsToLose;
-
-      // Actualizar pointsDoubles de los 4 jugadores
-      await this.registerService.updateByEmail(winner1.email, {
-        pointsDoubles: winner1NewPoints.toString(),
-      });
-      await this.registerService.updateByEmail(winner2.email, {
-        pointsDoubles: winner2NewPoints.toString(),
-      });
-      await this.registerService.updateByEmail(looser1.email, {
-        pointsDoubles: looser1NewPoints.toString(),
-      });
-      await this.registerService.updateByEmail(looser2.email, {
-        pointsDoubles: looser2NewPoints.toString(),
-      });
 
       // Enviar emails a los ganadores
       const losersNames = `${looser1.name} y ${looser2.name}`;
@@ -151,7 +204,7 @@ export class MatchRankingService {
       this._sendPointsUpdateEmail(looser1.email, looser1.name, false, winnersNames, createMatchRankingDto.result, looser1OldPoints, looser1NewPoints);
       this._sendPointsUpdateEmail(looser2.email, looser2.name, false, winnersNames, createMatchRankingDto.result, looser2OldPoints, looser2NewPoints);
 
-      this.logger.log('Doubles match processed: Winners +300, Losers +50 (pointsDoubles)');
+      this.logger.log('Doubles match processed: Winners +300, Losers +50 (using PlayerCategoryPoints)');
     }
     await this.courtReserveService.updateResultMatch(createMatchRankingDto.matchId);
     const newMatchRanking = new this.matchRankingModel(createMatchRankingDto);
@@ -165,40 +218,51 @@ export class MatchRankingService {
     return response;
   }
 
+  // ✅ PASO 5: Método actualizado para usar PlayerCategoryPointsService
   async getRanking(): Promise<RankingPorCategoria> {
     try {
-      // 1. Obtener TODOS los jugadores activos en una sola consulta.
+      // 1. Obtener TODOS los jugadores activos
       const activePlayers = await this.registerModel.find({ statePlayer: true }).exec();
 
-      // 2. Agrupar los jugadores por categoría usando un objeto.
-      const groupedByCategoria: Record<string, RegisterDocument[]> = activePlayers.reduce((acc, player) => {
-        const categoria = player.category;
-        if (!acc[categoria]) {
-          acc[categoria] = []; // Si la categoría no existe en el acumulador, la inicializamos.
-        }
-        acc[categoria].push(player); // Agregamos el jugador a su categoría correspondiente.
-        return acc;
-      }, {});
+      // 2. Obtener todas las categorías de puntos
+      // Si no hay filtro de email, obtener todos los registros activos
+      const allPlayerCategories = await this.playerCategoryPointsService['playerCategoryPointsModel'].find({ isActive: true }).exec();
 
-      // 3. Procesar cada categoría para ordenar y asignar el ranking.
+      // 3. Agrupar por categoría y matchType
+      const groupedByCategory: Record<string, any[]> = {};
+
+      for (const playerCat of allPlayerCategories) {
+        const player = activePlayers.find((p) => p.email === playerCat.playerEmail);
+        if (!player) continue; // Skip si el jugador no está activo
+
+        // Crear key única: "categoria_matchType" (ej: "1_singles", "1_doubles")
+        const key = `${playerCat.category}`;
+
+        if (!groupedByCategory[key]) {
+          groupedByCategory[key] = [];
+        }
+
+        groupedByCategory[key].push({
+          id: player.email,
+          nombre: player.namePlayer,
+          puntos: playerCat.points,
+          categoria: playerCat.category as PlayerCategory,
+          rank: 0, // Se asignará después
+          cellular: player.cellular,
+          imageUrlProfile: player.imageUrlProfile,
+        });
+      }
+
+      // 4. Ordenar cada grupo y asignar ranking
       const finalRanking: RankingPorCategoria = {};
 
-      for (const categoria in groupedByCategoria) {
-        const jugadoresDeCategoria = groupedByCategoria[categoria];
+      for (const key in groupedByCategory) {
+        const [categoria] = key.split('_');
+        const categoryKey = `${categoria}`; // ✅ Formato: "1-singles", "Damas-doubles", "+55-singles"
 
-        // Mapeamos, ordenamos por puntos y asignamos el rank DENTRO de la categoría.
-        finalRanking[categoria] = jugadoresDeCategoria
-          .map((p) => ({
-            id: p.email,
-            nombre: p.namePlayer,
-            puntos: parseInt(p.points, 10) || 0,
-            categoria: p.category as PlayerCategory,
-            rank: 0, // Placeholder, se asignará en el siguiente paso.
-            cellular: p.cellular,
-            imageUrlProfile: p.imageUrlProfile,
-          }))
-          .sort((a, b) => b.puntos - a.puntos) // Ordenar de mayor a menor por puntos.
-          .map((p, index) => ({ ...p, rank: index + 1 })); // Asignar el ranking secuencial.
+        finalRanking[categoryKey] = groupedByCategory[key]
+          .sort((a, b) => b.puntos - a.puntos) // Ordenar de mayor a menor
+          .map((p, index) => ({ ...p, rank: index + 1 })); // Asignar ranking
       }
 
       return finalRanking;
@@ -272,7 +336,7 @@ export class MatchRankingService {
           // Si es un partido individual, el rival es el otro jugador
           // Si es un partido de dobles, los rivales son los otros dos jugadores
           // Esto es una simplificación, podrías necesitar más lógica para dobles vs individuales
-          rivalName = playersInMatch.join(' y ');
+          rivalName = playersInMatch.join(' , ');
         }
 
         results.push({
@@ -312,6 +376,53 @@ export class MatchRankingService {
 
   remove(id: number) {
     return `This action removes a #${id} matchRanking`;
+  }
+
+  private _getActiveCategories(categories: Array<{ category: string; points: number; isActive: boolean }>) {
+    return (categories || []).filter((item) => item?.isActive);
+  }
+
+  /**
+   * Por ahora singles se resuelve SIEMPRE desde la categoría principal 1-4 de cada jugador.
+   * Las categorías especiales (+55, +65, Damas, Menores, etc.) quedan para una integración futura del frontend.
+   */
+  private _resolveSinglesCategories(
+    winnerData: { email: string; categories: Array<{ category: string; points: number; isActive: boolean }> },
+    looserData: { email: string; categories: Array<{ category: string; points: number; isActive: boolean }> },
+  ): { winnerCategory: string; looserCategory: string } {
+    const winnerCategory = this._getMainSinglesCategory(winnerData.categories, winnerData.email);
+    const looserCategory = this._getMainSinglesCategory(looserData.categories, looserData.email);
+
+    if (winnerCategory !== looserCategory) {
+      // Solo permitir distinta categoría entre jugadores 1-4 (distinto nivel)
+      const bothMain = this.MAIN_SINGLES_CATEGORIES.includes(winnerCategory) && this.MAIN_SINGLES_CATEGORIES.includes(looserCategory);
+      if (!bothMain) {
+        throw new BadRequestException(`Partido inválido: categorías especiales distintas (${winnerCategory} vs ${looserCategory})`);
+      }
+    }
+
+    return { winnerCategory, looserCategory };
+  }
+
+  private _getMainSinglesCategory(categories: Array<{ category: string; points: number; isActive: boolean }>, email: string): string {
+    const activeMainCategories = this._getActiveCategories(categories).filter((item) => this.MAIN_SINGLES_CATEGORIES.includes(item.category));
+
+    if (activeMainCategories.length !== 1) {
+      throw new BadRequestException(`Jugador ${email} debe tener exactamente una categoría principal activa (1, 2, 3 o 4). Encontradas: ${activeMainCategories.length}`);
+    }
+
+    return activeMainCategories[0].category;
+  }
+
+  private _resolveDoublesCategory(playerData: { email: string; categories: Array<{ category: string; points: number; isActive: boolean }> }): string {
+    const activeCategories = this._getActiveCategories(playerData.categories);
+    const doublesCategory = activeCategories.find((item) => item.category === this.DOUBLES_CATEGORY);
+
+    if (!doublesCategory) {
+      throw new BadRequestException(`Jugador ${playerData.email} no tiene categoría Dobles activa`);
+    }
+
+    return doublesCategory.category;
   }
 
   private async _sendPointsUpdateEmail(playerEmail: string, playerName: string, isWinner: boolean, opponentName: string, score: string, oldPoints: number, newPoints: number) {
