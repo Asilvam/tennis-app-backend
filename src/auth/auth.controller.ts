@@ -1,4 +1,4 @@
-import { Query, Controller, Post, Body, Logger, Get, BadRequestException, Res } from '@nestjs/common';
+import { Query, Controller, Post, Body, Get, BadRequestException, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { TokenDto } from './dto/token.dto';
@@ -7,7 +7,6 @@ import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  logger = new Logger(AuthController.name);
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')

@@ -7,7 +7,7 @@ import { Turn } from './entities/turn.entity';
 
 @Injectable()
 export class TurnService {
-  logger = new Logger('TurnService');
+  private readonly logger = new Logger(TurnService.name);
 
   constructor(
     @InjectModel('Turn')

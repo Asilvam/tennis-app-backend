@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx';
 
 @Injectable()
 export class CourtReserveService {
-  logger = new Logger(CourtReserveService.name);
+  private readonly logger = new Logger(CourtReserveService.name);
 
   constructor(
     @InjectModel('CourtReserve')
@@ -835,10 +835,7 @@ export class CourtReserveService {
   }
 
   private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
-    const reserve = await this.courtReserveModel
-      .findOne({ idCourtReserve })
-      .select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin')
-      .exec();
+    const reserve = await this.courtReserveModel.findOne({ idCourtReserve }).select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin').exec();
 
     if (!reserve) {
       throw new NotFoundException(`Reserva ${idCourtReserve} no encontrada`);

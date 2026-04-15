@@ -31,6 +31,7 @@ export interface Resultado {
   rival: string; // Nombre del rival (playerX de CourtReserve)
   score: string; // result de MatchRanking
   ganador: boolean; // true si el jugador ganó el partido
+  isDouble: boolean; // true si fue un partido de dobles
   torneo?: string; // Podrías añadir un campo para el nombre del torneo en CourtReserve si lo necesitas
 }
 

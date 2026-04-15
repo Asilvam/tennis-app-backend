@@ -7,7 +7,6 @@ import { CreateRegisterDto } from './dto/create-register.dto';
 import { EmailService } from '../email/email.service';
 import { UpdateRegisterDto } from './dto/update-register.dto';
 import { PlayerCategoryPointsService } from '../player-category-points/player-category-points.service';
-import { MAIN_SINGLES_CATEGORIES } from './enums/category.enum';
 
 interface PlayerData {
   email: string;
@@ -18,8 +17,7 @@ interface PlayerData {
 
 @Injectable()
 export class RegisterService {
-  logger = new Logger(RegisterService.name);
-  private readonly MAIN_SINGLES_CATEGORIES = MAIN_SINGLES_CATEGORIES;
+  private readonly logger = new Logger(RegisterService.name);
 
   constructor(
     @InjectModel('Register')
@@ -161,8 +159,6 @@ export class RegisterService {
     }
     const hashedPassword = await this.hashPassword(registerDto.pwd);
 
-    this._validateMainSinglesCategoryRuleOnCreate(registerDto);
-
     // ❌ Ya no incluimos category, points, pointsDoubles (eliminados del DTO)
     const registerEntity = {
       ...registerDto,
@@ -190,18 +186,6 @@ export class RegisterService {
       await this.emailService.sendVerificationEmail(registerDto.email, verificationLink);
     }
     return response;
-  }
-
-  private _validateMainSinglesCategoryRuleOnCreate(registerDto: CreateRegisterDto): void {
-    if (!registerDto.categories || registerDto.categories.length === 0) {
-      return;
-    }
-
-    const mainSinglesCategories = registerDto.categories.filter((item) => this.MAIN_SINGLES_CATEGORIES.includes(item.category));
-
-    if (mainSinglesCategories.length > 1) {
-      throw new BadRequestException('Un jugador solo puede tener una categoría principal activa entre 1, 2, 3 o 4.');
-    }
   }
 
   async remove(id: number) {

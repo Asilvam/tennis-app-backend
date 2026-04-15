@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { RegisterService } from '../register/register.service';
 import { JwtService } from '@nestjs/jwt';
@@ -14,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
-  logger = new Logger(AuthService.name);
+  private readonly logger = new Logger(AuthService.name);
   secretKey = this.configService.get('SECRET_KEY');
   expiresIn = this.configService.get('TOKEN_EXPIRE_TIME');
 
@@ -67,10 +60,7 @@ export class AuthService {
     this.logger.log('Try refresh token');
     try {
       const payload = await this.jwtService.decode(refreshToken);
-      const newAccessToken = await this.jwtService.signAsync(
-        { email: payload.email, role: payload.role },
-        { secret: this.secretKey, expiresIn: this.expiresIn },
-      );
+      const newAccessToken = await this.jwtService.signAsync({ email: payload.email, role: payload.role }, { secret: this.secretKey, expiresIn: this.expiresIn });
       return {
         token: newAccessToken,
         username: payload.email,

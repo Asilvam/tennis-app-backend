@@ -9,17 +9,13 @@ import { Subscription } from './entities/notification-subscription';
 @Injectable()
 export class NotificationService {
   private subscriptions: any[] = [];
-  logger = new Logger('NotificationService');
+  private readonly logger = new Logger(NotificationService.name);
 
   constructor(
     @InjectModel('Subscription')
     private readonly subscriptionModel: Model<Subscription>,
   ) {
-    webpush.setVapidDetails(
-      `mailto:${process.env.MAIL_USER}`,
-      process.env.VAPID_PUBLIC_KEY,
-      process.env.VAPID_PRIVATE_KEY,
-    );
+    webpush.setVapidDetails(`mailto:${process.env.MAIL_USER}`, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
   }
 
   saveSubscription(subscription: any) {
@@ -42,7 +38,7 @@ export class NotificationService {
       await Promise.all(sendPromises);
       return { message: 'Notifications sent.' };
     } catch (error) {
-      console.error('Error sending notification', error);
+      this.logger.error('Error sending notification', error);
       return { message: 'Error sending notifications', error };
     }
   }
@@ -54,15 +50,13 @@ export class NotificationService {
       body: payload.body || 'Default Body',
     };
 
-    const sendPromises = this.subscriptions.map((sub) =>
-      webpush.sendNotification(sub, JSON.stringify(notificationPayload)),
-    );
+    const sendPromises = this.subscriptions.map((sub) => webpush.sendNotification(sub, JSON.stringify(notificationPayload)));
 
     try {
       await Promise.all(sendPromises);
       return { message: 'Notifications sent to all users.' };
     } catch (error) {
-      console.error('Error sending notifications', error);
+      this.logger.error('Error sending notifications', error);
       return { message: 'Error sending notifications', error };
     }
   }
@@ -78,7 +72,7 @@ export class NotificationService {
       await webpush.sendNotification(subscription, JSON.stringify(notificationPayload));
       return { message: 'Notification sent.' };
     } catch (error) {
-      console.error('Error sending notification', error);
+      this.logger.error('Error sending notification', error);
       return { message: 'Error sending notification', error };
     }
   }

@@ -17,7 +17,7 @@ import { DOUBLES_CATEGORY, MAIN_SINGLES_CATEGORIES } from '../register/enums/cat
 
 @Injectable()
 export class MatchRankingService {
-  logger = new Logger('MatchRankingService');
+  private readonly logger = new Logger(MatchRankingService.name);
   private readonly MAIN_SINGLES_CATEGORIES = MAIN_SINGLES_CATEGORIES;
   private readonly DOUBLES_CATEGORY = DOUBLES_CATEGORY;
 
@@ -114,8 +114,7 @@ export class MatchRankingService {
       const winnerData = createMatchRankingDto.winner[0];
       const looserData = createMatchRankingDto.looser[0];
 
-      const { winnerPointChange, looserPointChange, winnerPoints, looserPoints, detail, winnerCategory, looserCategory } =
-        await this.calculateSinglesValidPoints(createMatchRankingDto);
+      const { winnerPointChange, looserPointChange, winnerPoints, looserPoints, detail, winnerCategory, looserCategory } = await this.calculateSinglesValidPoints(createMatchRankingDto);
 
       this.logger.log({
         categoryResolved: 'singles',
@@ -272,7 +271,7 @@ export class MatchRankingService {
     }
   }
 
-  async getPlayerResults(email: string, periodo: string): Promise<Resultado[]> {
+  async getPlayerResults(email: string): Promise<Resultado[]> {
     try {
       const player = await this.registerModel.findOne({ email }).exec();
       if (!player) {
@@ -281,28 +280,17 @@ export class MatchRankingService {
 
       const playerName = player.namePlayer; // Nombre del jugador para buscar en CourtReserve
 
-      let startDate: Date | null = null;
-      const endDate = new Date(); // Hoy
-
-      if (periodo === 'semana') {
-        startDate = new Date();
-        startDate.setDate(endDate.getDate() - 7);
-      } else if (periodo === 'mes') {
-        startDate = new Date();
-        startDate.setMonth(endDate.getMonth() - 1);
-      }
+      const currentYear = new Date().getFullYear();
+      const yearStart = `${currentYear}-01-01`;
+      const yearEnd = `${currentYear}-12-31`;
 
       const courtReservesQuery: any = {
+        resultMatchUpdated: true,
+        state: true,
         isForRanking: true,
+        dateToPlay: { $gte: yearStart, $lte: yearEnd },
         $or: [{ player1: playerName }, { player2: playerName }, { player3: playerName }, { player4: playerName }],
       };
-
-      if (startDate) {
-        courtReservesQuery.dateToPlay = {
-          $gte: startDate.toISOString().split('T')[0],
-          $lte: endDate.toISOString().split('T')[0],
-        };
-      }
 
       const playerCourtReserves = await this.courtReserveModel.find(courtReservesQuery).exec();
 
@@ -318,7 +306,7 @@ export class MatchRankingService {
       const matchResults = await this.matchRankingModel
         .find({
           matchId: { $in: relevantMatchIds },
-          'winner.email': email, // Filtra solo los resultados donde este jugador fue el ganador
+          $or: [{ 'winner.email': email }, { 'looser.email': email }],
         })
         .exec();
 
@@ -344,9 +332,9 @@ export class MatchRankingService {
           jugadorId: email,
           fecha: courtReserve.dateToPlay,
           rival: rivalName,
-          score: matchResult ? matchResult.result : 'N/A', // Si no hay MatchResult, no hay score
+          score: matchResult ? matchResult.result : 'N/A',
           ganador: isWinner,
-          // torneo: courtReserve.tournamentName // Si tu CourtReserve tuviera un campo de torneo
+          isDouble: courtReserve.isDouble ?? false,
         });
       }
 
