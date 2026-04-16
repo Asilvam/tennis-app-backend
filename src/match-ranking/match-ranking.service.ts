@@ -32,7 +32,6 @@ export class MatchRankingService {
     private readonly configService: ConfigService,
   ) {}
 
-  // ✅ PASO 5: Método actualizado para usar PlayerCategoryPointsService
   async calculateSinglesValidPoints(createMatchRankingDto: CreateMatchRankingDto) {
     this.logger.log(createMatchRankingDto);
     const winnerData = createMatchRankingDto.winner[0];
@@ -151,7 +150,6 @@ export class MatchRankingService {
         looserPoints,
       );
     } else if (createMatchRankingDto.winner.length === 2) {
-      // ✅ PASO 5: Lógica para doubles usando PlayerCategoryPointsService
       const winner1 = createMatchRankingDto.winner[0];
       const winner2 = createMatchRankingDto.winner[1];
       const looser1 = createMatchRankingDto.looser[0];
@@ -217,7 +215,6 @@ export class MatchRankingService {
     return response;
   }
 
-  // ✅ PASO 5: Método actualizado para usar PlayerCategoryPointsService
   async getRanking(): Promise<RankingPorCategoria> {
     try {
       // 1. Obtener TODOS los jugadores activos
@@ -348,8 +345,8 @@ export class MatchRankingService {
     }
   }
 
-  findAll() {
-    return `This action returns all matchRanking`;
+  async findAll(): Promise<MatchResultDocument[]> {
+    return this.matchRankingModel.find().sort({ createdAt: -1 }).exec();
   }
 
   findOne(id: string) {

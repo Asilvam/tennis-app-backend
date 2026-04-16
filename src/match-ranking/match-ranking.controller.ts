@@ -4,6 +4,7 @@ import { CreateMatchRankingDto } from './dto/create-match-ranking.dto';
 import { UpdateMatchRankingDto } from './dto/update-match-ranking.dto';
 import { ValidateMatchDto } from './dto/validate-match.dto';
 import { RankingPorCategoria, Resultado } from './interfaces/tennis.types';
+import { MatchResultDocument } from './entities/match-ranking.entity';
 
 @Controller('match-ranking')
 export class MatchRankingController {
@@ -32,7 +33,7 @@ export class MatchRankingController {
   }
 
   @Get()
-  findAll() {
+  findAll(): Promise<MatchResultDocument[]> {
     return this.matchRankingService.findAll();
   }
 
