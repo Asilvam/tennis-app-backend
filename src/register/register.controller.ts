@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, Delete, Logger, Patch, HttpStatus, 
 import { RegisterService } from './register.service';
 import { CreateRegisterDto } from './dto/create-register.dto';
 import { UpdateRegisterDto } from './dto/update-register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
@@ -39,8 +40,8 @@ export class RegisterController {
   }
 
   @Post('resetpass')
-  resetPassword(@Body() email: any) {
-    return this.registerService.resetPassword(email);
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.registerService.resetPassword(resetPasswordDto);
   }
 
   @Post('updateLightNigths')

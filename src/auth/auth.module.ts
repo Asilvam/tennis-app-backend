@@ -16,7 +16,7 @@ import { AuthService } from './auth.service';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('SECRET_KEY'),
-        signOptions: { expiresIn: '60s' }, // Token expires in 60 seconds
+        signOptions: { expiresIn: configService.get<string>('TOKEN_EXPIRE_TIME', '1h') },
       }),
     }),
   ],

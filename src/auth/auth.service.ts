@@ -8,8 +8,6 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  secretKey = this.configService.get('SECRET_KEY');
-  expiresIn = this.configService.get('TOKEN_EXPIRE_TIME');
 
   constructor(
     private readonly registerService: RegisterService,
@@ -40,10 +38,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
     };
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.secretKey,
-      expiresIn: this.expiresIn,
-    });
+    const accessToken = await this.jwtService.signAsync(payload);
     return {
       accessToken,
       username,
@@ -60,7 +55,7 @@ export class AuthService {
     this.logger.log('Try refresh token');
     try {
       const payload = await this.jwtService.decode(refreshToken);
-      const newAccessToken = await this.jwtService.signAsync({ email: payload.email, role: payload.role }, { secret: this.secretKey, expiresIn: this.expiresIn });
+      const newAccessToken = await this.jwtService.signAsync({ email: payload.email, role: payload.role });
       return {
         token: newAccessToken,
         username: payload.email,
@@ -72,9 +67,7 @@ export class AuthService {
 
   async validateToken({ token }): Promise<any> {
     try {
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: this.secretKey,
-      });
+      const payload = await this.jwtService.verifyAsync(token);
       return payload;
     } catch (err) {
       throw new UnauthorizedException('Token is wrong');

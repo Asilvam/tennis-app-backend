@@ -99,17 +99,14 @@ export class RegisterService {
     return { plainPassword, hashedPassword };
   }
 
-  async resetPassword({ email }): Promise<{ success: boolean; message: string; newPassword?: string }> {
-    // this.logger.log(email.email);
+  async resetPassword({ email }: { email: string }): Promise<{ success: boolean; message: string; newPassword?: string }> {
     const emailLowerCase = email.toLowerCase();
     try {
-      const user = this.registerModel.findOne({ email: emailLowerCase });
+      const user = await this.registerModel.findOne({ email: emailLowerCase }).exec();
       if (!user) {
         return { success: false, message: 'Usuario no encontrado' };
       }
       const { plainPassword, hashedPassword } = await this.createNewPassword();
-      // this.logger.log('Nueva contraseña generada:', plainPassword);
-      // this.logger.log('Contraseña encriptada (hash):', hashedPassword);
       await this.registerModel.updateOne({ email: emailLowerCase }, { pwd: hashedPassword });
       await this.emailService.sendResetPasswordEmail(emailLowerCase, plainPassword);
       this.logger.log(`Contraseña actualizada para el usuario con email ${emailLowerCase}`);
