@@ -74,4 +74,45 @@ export class NewsCTQService {
       })),
     };
   }
+
+  /**
+   * Retorna noticias filtradas por rango de fechas.
+   * Query acepta `from` y/o `to` en formato ISO (YYYY-MM-DD o full ISO). Si ninguno se entrega, devuelve todas (limit 100).
+   */
+  async getNewsByDate(from?: string, to?: string) {
+    const query: any = {};
+
+    if (from || to) {
+      query.fecha = {};
+      if (from) {
+        const fromDate = new Date(from);
+        if (!isNaN(fromDate.getTime())) {
+          query.fecha.$gte = fromDate;
+        }
+      }
+      if (to) {
+        const toDate = new Date(to);
+        if (!isNaN(toDate.getTime())) {
+          // include end of day when only date string provided
+          if (to.length === 10) {
+            toDate.setHours(23, 59, 59, 999);
+          }
+          query.fecha.$lte = toDate;
+        }
+      }
+    }
+
+    const data = await this.newsModel.find(query).sort({ fecha: -1 }).limit(100).exec();
+
+    return {
+      noticias: data.map((n) => ({
+        titulo: n.titulo,
+        url: n.url,
+        resumen: n.resumen,
+        es_local: n.es_local,
+        fecha: n.fecha.toISOString(),
+        fuente: n.fuente,
+      })),
+    };
+  }
 }
