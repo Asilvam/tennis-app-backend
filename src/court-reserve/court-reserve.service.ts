@@ -71,8 +71,7 @@ export class CourtReserveService {
 
   validateDateTurn = async (dateToPlay: string, court: string, turn: string): Promise<boolean> => {
     const timezone = 'America/Santiago'; // Chile timezone
-    const currentTimeFull = DateTime.now().setZone(timezone); // Current time in the specified timezone
-    const currentTime = DateTime.fromFormat(currentTimeFull.toString(), 'HH:mm', { zone: timezone });
+    const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
     const playDate = DateTime.fromFormat(dateToPlay, 'yyyy-MM-dd');
     const today = DateTime.now().startOf('day');
     if (playDate < today) {
@@ -168,18 +167,41 @@ export class CourtReserveService {
 
   async create(createCourtReserveDto: CreateCourtReserveDto) {
     const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
-    // const courtNumber = court.match(/\d+/);
-    // this.logger.log('createCourtReserveDto--> ', { createCourtReserveDto });
+    if (isDouble) {
+      if (isVisit) {
+        throw new BadRequestException('Doubles reserves cannot be marked as visit');
+      }
+      if (!player1 || !player2 || !player3 || !player4) {
+        throw new BadRequestException('Doubles reserves require player1, player2, player3, and player4');
+      }
+    } else if (isVisit) {
+      if (!player1 || !createCourtReserveDto.visitName) {
+        throw new BadRequestException('Visit reserves require player1 and visitName');
+      }
+      if (player2 || player3 || player4) {
+        throw new BadRequestException('Visit reserves cannot include player2, player3, or player4');
+      }
+    } else {
+      if (!player1 || !player2) {
+        throw new BadRequestException('Singles reserves require player1 and player2');
+      }
+      if (player3 || player4 || createCourtReserveDto.visitName) {
+        throw new BadRequestException('Singles reserves cannot include player3, player4, or visitName');
+      }
+    }
     const validateDateTurn = await this.validateDateTurn(dateToPlay, court, turn);
-    // this.logger.log('validateDateTurn--> ', validateDateTurn);
     if (validateDateTurn) {
+      const existingReserve = await this.courtReserveModel.findOne({ dateToPlay, turn, court, state: true }).select('idCourtReserve').exec();
+      if (existingReserve) {
+        throw new BadRequestException('This court is already reserved for this time');
+      }
       const activeReserves = await this.getAllCourtReserves();
       if (activeReserves) {
         let playersToCheck: string[];
         if (isVisit) {
           playersToCheck = [player1];
         } else if (isDouble) {
-          playersToCheck = [player1, player3, player4];
+          playersToCheck = [player1, player2, player3, player4];
         } else {
           playersToCheck = [player1, player2];
         }
@@ -201,11 +223,9 @@ export class CourtReserveService {
           throw new BadRequestException('This court is already reserved for this time');
         }
       }
-      // await this.registerService.findOneAndUpdate(player1, { isLigthNigth: true });
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
 
-      // ✅ AUDITORÍA: Registrar creación de reserva
       try {
         const playerEmail = await this.findOneEmail(player1);
         await this.auditLogService.logReserveCreation(response.toObject(), 'USER', player1, playerEmail?.email);
