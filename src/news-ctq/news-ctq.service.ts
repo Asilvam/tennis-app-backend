@@ -14,7 +14,7 @@ export class NewsCTQService {
     this.parser = new Parser();
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_6PM) // Ajustado para revisar cambios frecuentemente
+  @Cron(CronExpression.EVERY_DAY_AT_6AM, { timeZone: 'America/Santiago' }) // Ajustado para revisar cambios frecuentemente
   async syncTennisNews() {
     this.logger.log('Iniciando sincronización de NewsCTQ...');
 
