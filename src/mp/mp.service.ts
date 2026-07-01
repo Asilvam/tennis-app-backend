@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreateMpDto } from './dto/create-mp.dto';
-import { UpdateMpDto } from './dto/update-mp.dto';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
@@ -14,21 +13,5 @@ export class MpService {
     const initPoint = await axios.post(`${mpApiUrl}/create-preference`, createMpDto);
     this.logger.log(initPoint.data);
     return initPoint.data;
-  }
-
-  findAll() {
-    return `This action returns all mp`;
-  }
-
-  findOne(id: string) {
-    return `This action returns a #${id} mp`;
-  }
-
-  update(id: number, updateMpDto: UpdateMpDto) {
-    return `This action updates a #${id} mp`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} mp`;
   }
 }
