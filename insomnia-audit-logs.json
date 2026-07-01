@@ -1,0 +1,239 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-04-15T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.1.0",
+  "resources": [
+    {
+      "_id": "wrk_audit_logs",
+      "_type": "workspace",
+      "name": "Audit Logs - Tennis App",
+      "description": "Logs de auditoría para eventos de reservas",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_audit_base",
+      "_type": "environment",
+      "parentId": "wrk_audit_logs",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3500",
+        "token": ""
+      }
+    },
+
+    {
+      "_id": "fld_audit_queries",
+      "_type": "request_group",
+      "parentId": "wrk_audit_logs",
+      "name": "Queries - Consultas"
+    },
+    {
+      "_id": "req_al_by_reserve",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by Reserve ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/reserve/ID_RESERVA_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_date_range",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by Date Range",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/date-range?start=2026-04-01&end=2026-04-30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_action_create",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by Action - CREATE",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/CREATE",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_action_delete",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by Action - DELETE",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/DELETE",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_action_state",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by Action - STATE_CHANGE",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/STATE_CHANGE",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_action_payment",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by Action - PAYMENT_CONFIRMATION",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/PAYMENT_CONFIRMATION",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_action_result",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by Action - RESULT_MATCH_UPDATED",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/RESULT_MATCH_UPDATED",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_by_user",
+      "_type": "request",
+      "parentId": "fld_audit_queries",
+      "name": "Get Audits by User",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/user/Juan%20Perez",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_audit_reports",
+      "_type": "request_group",
+      "parentId": "wrk_audit_logs",
+      "name": "Reports - Reportes"
+    },
+    {
+      "_id": "req_al_cancel_all",
+      "_type": "request",
+      "parentId": "fld_audit_reports",
+      "name": "Cancellation Report",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/report/cancellations",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_cancel_range",
+      "_type": "request",
+      "parentId": "fld_audit_reports",
+      "name": "Cancellation Report (Date Range)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/report/cancellations?start=2026-04-01&end=2026-04-30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_create_all",
+      "_type": "request",
+      "parentId": "fld_audit_reports",
+      "name": "Creation Report",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/report/creations",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_create_range",
+      "_type": "request",
+      "parentId": "fld_audit_reports",
+      "name": "Creation Report (Date Range)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/report/creations?start=2026-04-01&end=2026-04-30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_stats_30",
+      "_type": "request",
+      "parentId": "fld_audit_reports",
+      "name": "General Stats (30 days)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/stats?days=30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_stats_7",
+      "_type": "request",
+      "parentId": "fld_audit_reports",
+      "name": "General Stats (7 days)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/stats?days=7",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_stats_90",
+      "_type": "request",
+      "parentId": "fld_audit_reports",
+      "name": "General Stats (90 days)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/stats?days=90",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_audit_testing",
+      "_type": "request_group",
+      "parentId": "wrk_audit_logs",
+      "name": "Testing - Pruebas"
+    },
+    {
+      "_id": "req_al_test_create",
+      "_type": "request",
+      "parentId": "fld_audit_testing",
+      "name": "Create Reserve (Test Audit)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/court-reserve",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"court\": \"Cancha 1\",\n  \"dateToPlay\": \"2026-04-25\",\n  \"turn\": \"18:15-20:00\",\n  \"player1\": \"Test Usuario Audit\",\n  \"player2\": \"Test Usuario 2\",\n  \"player3\": null,\n  \"player4\": null,\n  \"isDouble\": false,\n  \"isVisit\": false,\n  \"visitName\": null,\n  \"isPaidNight\": false,\n  \"wasPaid\": false,\n  \"isForRanking\": false,\n  \"isBlockedByAdmin\": false,\n  \"state\": true,\n  \"resultMatchUpdated\": false\n}"
+      }
+    },
+    {
+      "_id": "req_al_test_delete",
+      "_type": "request",
+      "parentId": "fld_audit_testing",
+      "name": "Cancel Reserve (Test Audit)",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/court-reserve/ID_RESERVA_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_test_verify_create",
+      "_type": "request",
+      "parentId": "fld_audit_testing",
+      "name": "Verify Audit After Create",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/CREATE",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_al_test_verify_cancel",
+      "_type": "request",
+      "parentId": "fld_audit_testing",
+      "name": "Verify Audit After Cancel",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/reserve/ID_RESERVA_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    }
+  ]
+}

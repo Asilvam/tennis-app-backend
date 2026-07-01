@@ -1,0 +1,1230 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-04-15T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_tennis_complete",
+      "_type": "workspace",
+      "name": "Tennis App - Backend Completo",
+      "description": "Colección completa de todos los endpoints del backend Tennis App",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_tennis_complete",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3500",
+        "token": ""
+      }
+    },
+
+    {
+      "_id": "fld_health",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Health",
+      "description": "Endpoints de salud del servidor"
+    },
+    {
+      "_id": "req_health_root",
+      "_type": "request",
+      "parentId": "fld_health",
+      "name": "GET / - Raíz",
+      "method": "GET",
+      "url": "{{ _.base_url }}/",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_healthz",
+      "_type": "request",
+      "parentId": "fld_health",
+      "name": "GET /healthz - Health Check",
+      "method": "GET",
+      "url": "{{ _.base_url }}/healthz",
+      "headers": [],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Auth",
+      "description": "Autenticación y manejo de tokens JWT"
+    },
+    {
+      "_id": "req_auth_login",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "POST /auth/login - Login",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"jugador@ejemplo.com\",\n  \"password\": \"password123\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_refresh",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "POST /auth/refreshToken - Renovar Token",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/refreshToken",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"token\": \"{{ _.token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_validate",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "POST /auth/validateToken - Validar Token",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/validateToken",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"token\": \"{{ _.token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_check_blocked",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "POST /auth/checkBlocked - Verificar Bloqueo",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/checkBlocked",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"jugador@ejemplo.com\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_verify_email",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "GET /auth/verify-email - Verificar Email",
+      "method": "GET",
+      "url": "{{ _.base_url }}/auth/verify-email?token=TOKEN_DE_VERIFICACION_AQUI",
+      "headers": [],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_register",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Register (Jugadores)",
+      "description": "Gestión de identidad y perfil de jugadores"
+    },
+    {
+      "_id": "req_register_get_all",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "GET /register - Todos los Jugadores",
+      "method": "GET",
+      "url": "{{ _.base_url }}/register",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_register_get_names",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "GET /register/names - Nombres de Jugadores",
+      "method": "GET",
+      "url": "{{ _.base_url }}/register/names",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_register_get_profile",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "GET /register/profile/:email - Perfil por Email",
+      "method": "GET",
+      "url": "{{ _.base_url }}/register/profile/jugador@ejemplo.com",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_register_get_active",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "GET /register/active/:namePlayer - Reservas Nocturnas del Jugador",
+      "method": "GET",
+      "url": "{{ _.base_url }}/register/active/Juan%20Perez",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_register_create",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "POST /register - Crear Jugador",
+      "method": "POST",
+      "url": "{{ _.base_url }}/register",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"namePlayer\": \"Juan Perez\",\n  \"email\": \"juan.perez@ejemplo.com\",\n  \"cellular\": \"+56912345678\",\n  \"pwd\": \"password123\",\n  \"partnerType\": \"Titular\",\n  \"categories\": [\n    {\n      \"category\": \"3\",\n      \"matchTypes\": [\"singles\"]\n    },\n    {\n      \"category\": \"Dobles\",\n      \"matchTypes\": [\"doubles\"]\n    }\n  ],\n  \"statePlayer\": true,\n  \"updatePayment\": true,\n  \"estadoPago\": \"Pagado\",\n  \"socioPrincipal\": true,\n  \"urlEmail\": \"https://mi-app.com\"\n}"
+      }
+    },
+    {
+      "_id": "req_register_resetpass",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "POST /register/resetpass - Reset Password",
+      "method": "POST",
+      "url": "{{ _.base_url }}/register/resetpass",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"juan.perez@ejemplo.com\"\n}"
+      }
+    },
+    {
+      "_id": "req_register_update_light_nights",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "POST /register/updateLightNigths - Activar Noches de Luz",
+      "method": "POST",
+      "url": "{{ _.base_url }}/register/updateLightNigths",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"players\": [\"juan.perez@ejemplo.com\", \"maria.garcia@ejemplo.com\"]\n}"
+      }
+    },
+    {
+      "_id": "req_register_profile_image",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "POST /register/profile - Subir Imagen de Perfil (multipart)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/register/profile",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [{ "name": "image", "type": "file", "fileName": "/ruta/a/foto.jpg" }]
+      }
+    },
+    {
+      "_id": "req_register_patch",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "PATCH /register/:email - Actualizar Jugador",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/register/juan.perez@ejemplo.com",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"cellular\": \"+56987654321\",\n  \"estadoPago\": \"Pagado\"\n}"
+      }
+    },
+    {
+      "_id": "req_register_payment_enable",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "PATCH /register/payment/enable/:email - Habilitar Pago",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/register/payment/enable/juan.perez@ejemplo.com",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_register_payment_block",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "PATCH /register/payment/block/:email - Bloquear Pago",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/register/payment/block/juan.perez@ejemplo.com",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_register_delete",
+      "_type": "request",
+      "parentId": "fld_register",
+      "name": "DELETE /register/:id - Eliminar Jugador",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/register/1",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_court_reserve",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Court Reserve (Reservas)",
+      "description": "Ciclo de vida de reservas de cancha"
+    },
+    {
+      "_id": "req_cr_get_all",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve - Todas las Reservas",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_available",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve/available/:date - Slots Disponibles por Fecha",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/available/2026-04-20",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_active_player",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve/active/:namePlayer - Reservas Activas del Jugador",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/active/Juan%20Perez",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_history",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve/history/:namePlayer - Historial de Reservas",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/history/Juan%20Perez",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_ranking_history",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve/isForRankingHistory/:namePlayer - Historial para Ranking",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/isForRankingHistory/Juan%20Perez",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_filtered",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve/filtered-reserves - Reservas Filtradas",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/filtered-reserves",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_filtered_excel",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve/filtered-reserves/excel - Exportar Excel",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/filtered-reserves/excel",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_protected",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "GET /court-reserve/protected - Ruta Protegida (JWT)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/protected",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_cr_create",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "POST /court-reserve - Crear Reserva",
+      "method": "POST",
+      "url": "{{ _.base_url }}/court-reserve",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"court\": \"Cancha 1\",\n  \"dateToPlay\": \"2026-04-20\",\n  \"turn\": \"18:15-20:00\",\n  \"player1\": \"Juan Perez\",\n  \"player2\": \"Maria Garcia\",\n  \"player3\": null,\n  \"player4\": null,\n  \"isDouble\": false,\n  \"isVisit\": false,\n  \"visitName\": null,\n  \"isPaidNight\": false,\n  \"wasPaid\": false,\n  \"isForRanking\": true,\n  \"isBlockedByAdmin\": false,\n  \"blockedMotive\": null,\n  \"state\": true,\n  \"resultMatchUpdated\": false\n}"
+      }
+    },
+    {
+      "_id": "req_cr_admin_create",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "POST /court-reserve/admincreate - Crear Reserva (Admin)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/court-reserve/admincreate",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"court\": \"Cancha 2\",\n  \"dateToPlay\": \"2026-04-20\",\n  \"turn\": \"10:00-11:30\",\n  \"player1\": \"Juan Perez\",\n  \"player2\": \"Maria Garcia\",\n  \"isDouble\": false,\n  \"isVisit\": false,\n  \"isPaidNight\": false,\n  \"wasPaid\": false,\n  \"isForRanking\": false,\n  \"isBlockedByAdmin\": false,\n  \"state\": true\n}"
+      }
+    },
+    {
+      "_id": "req_cr_admin_reserve",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "POST /court-reserve/adminreserve - Reserva Masiva (Admin)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/court-reserve/adminreserve",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "[\n  {\n    \"court\": \"Cancha 1\",\n    \"dateToPlay\": \"2026-04-21\",\n    \"turn\": \"08:00-09:30\",\n    \"player1\": \"MANTENIMIENTO\",\n    \"isBlockedByAdmin\": true,\n    \"blockedMotive\": \"Mantenimiento programado\",\n    \"state\": true\n  },\n  {\n    \"court\": \"Cancha 2\",\n    \"dateToPlay\": \"2026-04-21\",\n    \"turn\": \"08:00-09:30\",\n    \"player1\": \"MANTENIMIENTO\",\n    \"isBlockedByAdmin\": true,\n    \"blockedMotive\": \"Mantenimiento programado\",\n    \"state\": true\n  }\n]"
+      }
+    },
+    {
+      "_id": "req_cr_update_state",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "POST /court-reserve/UpdateStateReserve/:id - Cambiar Estado Reserva",
+      "method": "POST",
+      "url": "{{ _.base_url }}/court-reserve/UpdateStateReserve/ID_RESERVA_AQUI",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"state\": false\n}"
+      }
+    },
+    {
+      "_id": "req_cr_email_confirmation",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "POST /court-reserve/emailconfirmation - Confirmar Pago (Callback)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/court-reserve/emailconfirmation",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"reservationId\": \"ID_RESERVA_AQUI\",\n  \"paymentStatus\": \"approved\"\n}"
+      }
+    },
+    {
+      "_id": "req_cr_patch",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "PATCH /court-reserve/:id - Actualizar Reserva",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/court-reserve/ID_RESERVA_AQUI",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"wasPaid\": true,\n  \"resultMatchUpdated\": true\n}"
+      }
+    },
+    {
+      "_id": "req_cr_delete",
+      "_type": "request",
+      "parentId": "fld_court_reserve",
+      "name": "DELETE /court-reserve/:id - Eliminar Reserva",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/court-reserve/ID_RESERVA_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_court",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Court (Canchas)",
+      "description": "Catálogo de canchas de tenis"
+    },
+    {
+      "_id": "req_court_get_all",
+      "_type": "request",
+      "parentId": "fld_court",
+      "name": "GET /court - Todas las Canchas (raw)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_court_get_courts",
+      "_type": "request",
+      "parentId": "fld_court",
+      "name": "GET /court/courts - Todas las Canchas (named)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court/courts",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_court_get_one",
+      "_type": "request",
+      "parentId": "fld_court",
+      "name": "GET /court/:id - Cancha por ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court/1",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_court_create",
+      "_type": "request",
+      "parentId": "fld_court",
+      "name": "POST /court - Crear Cancha",
+      "method": "POST",
+      "url": "{{ _.base_url }}/court",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"courtNumber\": 3,\n  \"courtName\": \"Cancha 3\",\n  \"state\": true,\n  \"courtScheduleTurns\": [\"08:00-09:30\", \"09:30-11:00\", \"18:15-20:00\"]\n}"
+      }
+    },
+    {
+      "_id": "req_court_patch",
+      "_type": "request",
+      "parentId": "fld_court",
+      "name": "PATCH /court/:id - Actualizar Cancha",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/court/1",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"state\": false\n}"
+      }
+    },
+    {
+      "_id": "req_court_delete",
+      "_type": "request",
+      "parentId": "fld_court",
+      "name": "DELETE /court/:id - Eliminar Cancha",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/court/1",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_turn",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Turn (Turnos/Horarios)",
+      "description": "Catálogo de turnos/horarios disponibles"
+    },
+    {
+      "_id": "req_turn_get_all",
+      "_type": "request",
+      "parentId": "fld_turn",
+      "name": "GET /turn - Todos los Turnos (raw)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/turn",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_turn_get_turns",
+      "_type": "request",
+      "parentId": "fld_turn",
+      "name": "GET /turn/turns - Todos los Turnos (named)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/turn/turns",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_turn_get_one",
+      "_type": "request",
+      "parentId": "fld_turn",
+      "name": "GET /turn/:id - Turno por ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/turn/1",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_turn_create",
+      "_type": "request",
+      "parentId": "fld_turn",
+      "name": "POST /turn - Crear Turno",
+      "method": "POST",
+      "url": "{{ _.base_url }}/turn",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"turnNumber\": 5,\n  \"schedule\": \"20:00-21:30\",\n  \"state\": true,\n  \"isPayed\": false\n}"
+      }
+    },
+    {
+      "_id": "req_turn_patch",
+      "_type": "request",
+      "parentId": "fld_turn",
+      "name": "PATCH /turn/:id - Actualizar Turno",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/turn/1",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"state\": false\n}"
+      }
+    },
+    {
+      "_id": "req_turn_delete",
+      "_type": "request",
+      "parentId": "fld_turn",
+      "name": "DELETE /turn/:id - Eliminar Turno",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/turn/1",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_booking",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Booking (Bloqueos Admin)",
+      "description": "Bloqueos masivos de canchas por administrador"
+    },
+    {
+      "_id": "req_booking_multiple",
+      "_type": "request",
+      "parentId": "fld_booking",
+      "name": "POST /booking/multiple - Bloqueo Masivo de Canchas",
+      "method": "POST",
+      "url": "{{ _.base_url }}/booking/multiple",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"courts\": [\"Cancha 1\", \"Cancha 2\", \"Cancha 3\"],\n  \"dates\": [\"2026-04-22\", \"2026-04-23\"],\n  \"turns\": [\"08:00-09:30\", \"09:30-11:00\", \"11:00-12:30\"],\n  \"motive\": \"Torneo Interno Club\"\n}"
+      }
+    },
+
+    {
+      "_id": "fld_match_ranking",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Match Ranking (Partidos y Ranking)",
+      "description": "Registro de resultados de partidos y cálculo de ranking"
+    },
+    {
+      "_id": "req_mr_get_all",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "GET /match-ranking - Todos los Partidos",
+      "method": "GET",
+      "url": "{{ _.base_url }}/match-ranking",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_mr_get_ranking",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "GET /match-ranking/ranking - Ranking por Categoría",
+      "method": "GET",
+      "url": "{{ _.base_url }}/match-ranking/ranking",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_mr_get_player_results",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "GET /match-ranking/jugadores/:email/resultados - Resultados del Jugador",
+      "method": "GET",
+      "url": "{{ _.base_url }}/match-ranking/jugadores/juan.perez@ejemplo.com/resultados?periodo=todos",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_mr_get_one",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "GET /match-ranking/:id - Partido por ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/match-ranking/ID_PARTIDO_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_mr_create_singles",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "POST /match-ranking - Registrar Partido Singles",
+      "method": "POST",
+      "url": "{{ _.base_url }}/match-ranking",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"matchId\": \"ID_RESERVA_AQUI\",\n  \"result\": \"6-3, 6-4\",\n  \"winner\": [\n    {\n      \"email\": \"juan.perez@ejemplo.com\",\n      \"name\": \"Juan Perez\",\n      \"cellular\": \"+56912345678\",\n      \"categories\": [\n        { \"category\": \"3\", \"points\": 1200, \"isActive\": true }\n      ]\n    }\n  ],\n  \"looser\": [\n    {\n      \"email\": \"carlos.lopez@ejemplo.com\",\n      \"name\": \"Carlos Lopez\",\n      \"cellular\": \"+56911111111\",\n      \"categories\": [\n        { \"category\": \"3\", \"points\": 950, \"isActive\": true }\n      ]\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_mr_create_doubles",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "POST /match-ranking - Registrar Partido Dobles",
+      "method": "POST",
+      "url": "{{ _.base_url }}/match-ranking",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"matchId\": \"ID_RESERVA_AQUI\",\n  \"result\": \"6-2, 7-5\",\n  \"winner\": [\n    {\n      \"email\": \"juan.perez@ejemplo.com\",\n      \"name\": \"Juan Perez\",\n      \"cellular\": \"+56912345678\",\n      \"categories\": [\n        { \"category\": \"Dobles\", \"points\": 800, \"isActive\": true }\n      ]\n    },\n    {\n      \"email\": \"pedro.silva@ejemplo.com\",\n      \"name\": \"Pedro Silva\",\n      \"cellular\": \"+56922222222\",\n      \"categories\": [\n        { \"category\": \"Dobles\", \"points\": 750, \"isActive\": true }\n      ]\n    }\n  ],\n  \"looser\": [\n    {\n      \"email\": \"carlos.lopez@ejemplo.com\",\n      \"name\": \"Carlos Lopez\",\n      \"cellular\": \"+56911111111\",\n      \"categories\": [\n        { \"category\": \"Dobles\", \"points\": 600, \"isActive\": true }\n      ]\n    },\n    {\n      \"email\": \"mario.rojas@ejemplo.com\",\n      \"name\": \"Mario Rojas\",\n      \"cellular\": \"+56933333333\",\n      \"categories\": [\n        { \"category\": \"Dobles\", \"points\": 550, \"isActive\": true }\n      ]\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_mr_create_special",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "POST /match-ranking - Registrar Partido Singles +55",
+      "method": "POST",
+      "url": "{{ _.base_url }}/match-ranking",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"matchId\": \"ID_RESERVA_AQUI\",\n  \"result\": \"6-1, 6-0\",\n  \"winner\": [\n    {\n      \"email\": \"roberto.fernandez@ejemplo.com\",\n      \"name\": \"Roberto Fernandez\",\n      \"cellular\": \"+56944444444\",\n      \"categories\": [\n        { \"category\": \"+55\", \"points\": 1500, \"isActive\": true }\n      ]\n    }\n  ],\n  \"looser\": [\n    {\n      \"email\": \"alfredo.nunez@ejemplo.com\",\n      \"name\": \"Alfredo Nunez\",\n      \"cellular\": \"+56955555555\",\n      \"categories\": [\n        { \"category\": \"+55\", \"points\": 1100, \"isActive\": true }\n      ]\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_mr_validate",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "POST /match-ranking/validate-match - Validar Partido",
+      "method": "POST",
+      "url": "{{ _.base_url }}/match-ranking/validate-match",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"id\": \"ID_PARTIDO_AQUI\",\n  \"pass\": \"CLAVE_DE_VALIDACION\"\n}"
+      }
+    },
+    {
+      "_id": "req_mr_patch",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "PATCH /match-ranking/:id - Actualizar Partido",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/match-ranking/ID_PARTIDO_AQUI",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"result\": \"6-4, 6-3\"\n}"
+      }
+    },
+    {
+      "_id": "req_mr_delete",
+      "_type": "request",
+      "parentId": "fld_match_ranking",
+      "name": "DELETE /match-ranking/:id - Eliminar Partido",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/match-ranking/ID_PARTIDO_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_pcp",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Player Category Points (Puntos por Categoría)",
+      "description": "Gestión de puntos por categoría para cada jugador"
+    },
+    {
+      "_id": "req_pcp_get_all",
+      "_type": "request",
+      "parentId": "fld_pcp",
+      "name": "GET /player-category-points/:email - Categorías del Jugador",
+      "method": "GET",
+      "url": "{{ _.base_url }}/player-category-points/juan.perez@ejemplo.com",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_pcp_get_one",
+      "_type": "request",
+      "parentId": "fld_pcp",
+      "name": "GET /player-category-points/:email/:category - Puntos en Categoría Específica",
+      "method": "GET",
+      "url": "{{ _.base_url }}/player-category-points/juan.perez@ejemplo.com/3",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_pcp_update_points",
+      "_type": "request",
+      "parentId": "fld_pcp",
+      "name": "PUT /player-category-points/:email/points - Actualizar Puntos Masivo",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/player-category-points/juan.perez@ejemplo.com/points",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"categories\": [\n    { \"category\": \"3\", \"points\": 1500, \"isActive\": true },\n    { \"category\": \"Dobles\", \"points\": 900, \"isActive\": true }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_pcp_add_category",
+      "_type": "request",
+      "parentId": "fld_pcp",
+      "name": "POST /player-category-points/:email/add-category - Agregar Categoría",
+      "method": "POST",
+      "url": "{{ _.base_url }}/player-category-points/juan.perez@ejemplo.com/add-category",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"category\": \"Dobles\"\n}"
+      }
+    },
+    {
+      "_id": "req_pcp_deactivate",
+      "_type": "request",
+      "parentId": "fld_pcp",
+      "name": "PATCH /player-category-points/:email/deactivate - Desactivar Categoría",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/player-category-points/juan.perez@ejemplo.com/deactivate",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"category\": \"3\"\n}"
+      }
+    },
+    {
+      "_id": "req_pcp_delete",
+      "_type": "request",
+      "parentId": "fld_pcp",
+      "name": "DELETE /player-category-points/:email/:category - Eliminar Categoría",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/player-category-points/juan.perez@ejemplo.com/3",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_mp",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Mercado Pago (Pagos MP)",
+      "description": "Integración con Mercado Pago para pagos de reservas"
+    },
+    {
+      "_id": "req_mp_get_all",
+      "_type": "request",
+      "parentId": "fld_mp",
+      "name": "GET /mp - Todos los Pagos MP",
+      "method": "GET",
+      "url": "{{ _.base_url }}/mp",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_mp_get_payment",
+      "_type": "request",
+      "parentId": "fld_mp",
+      "name": "GET /mp/payment/:id - Pago MP por ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/mp/payment/ID_PAGO_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_mp_init_point",
+      "_type": "request",
+      "parentId": "fld_mp",
+      "name": "POST /mp/init-point - Crear Preferencia de Pago",
+      "method": "POST",
+      "url": "{{ _.base_url }}/mp/init-point",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"courtId\": \"cancha-1\",\n  \"date\": \"2026-04-20\",\n  \"time\": \"18:15-20:00\",\n  \"player1\": \"Juan Perez\",\n  \"amount\": 5000,\n  \"idCourtReserve\": \"ID_RESERVA_AQUI\"\n}"
+      }
+    },
+    {
+      "_id": "req_mp_patch",
+      "_type": "request",
+      "parentId": "fld_mp",
+      "name": "PATCH /mp/:id - Actualizar Pago MP",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/mp/1",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"courtId\": \"cancha-1\"\n}"
+      }
+    },
+    {
+      "_id": "req_mp_delete",
+      "_type": "request",
+      "parentId": "fld_mp",
+      "name": "DELETE /mp/:id - Eliminar Pago MP",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/mp/1",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_email",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Email",
+      "description": "Envío de correos transaccionales via proxy"
+    },
+    {
+      "_id": "req_email_send",
+      "_type": "request",
+      "parentId": "fld_email",
+      "name": "POST /email/send - Enviar Email",
+      "method": "POST",
+      "url": "{{ _.base_url }}/email/send",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"to\": \"destinatario@ejemplo.com\",\n  \"subject\": \"Confirmación de Reserva\",\n  \"html\": \"<h1>Tu reserva fue confirmada</h1><p>Cancha 1 - 20 Abril 2026 - 18:15 a 20:00</p>\"\n}"
+      }
+    },
+
+    {
+      "_id": "fld_cloudinary",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Cloudinary (Imágenes)",
+      "description": "Carga de imágenes a Cloudinary"
+    },
+    {
+      "_id": "req_cloudinary_upload",
+      "_type": "request",
+      "parentId": "fld_cloudinary",
+      "name": "POST /cloudinary - Subir Imagen",
+      "method": "POST",
+      "url": "{{ _.base_url }}/cloudinary",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [{ "name": "file", "type": "file", "fileName": "/ruta/a/imagen.jpg" }]
+      }
+    },
+
+    {
+      "_id": "fld_notifications",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Notifications (Notificaciones Push)",
+      "description": "Suscripciones y envío de notificaciones Web Push"
+    },
+    {
+      "_id": "req_notif_subscribe",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "POST /notifications/subscribe - Suscribir",
+      "method": "POST",
+      "url": "{{ _.base_url }}/notifications/subscribe",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"endpoint\": \"https://fcm.googleapis.com/fcm/send/TOKEN_DEL_DISPOSITIVO\",\n  \"keys\": {\n    \"p256dh\": \"CLAVE_P256DH_AQUI\",\n    \"auth\": \"CLAVE_AUTH_AQUI\"\n  }\n}"
+      }
+    },
+    {
+      "_id": "req_notif_send",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "POST /notifications/send - Enviar a Suscripción Específica",
+      "method": "POST",
+      "url": "{{ _.base_url }}/notifications/send",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"subscription\": {\n    \"endpoint\": \"https://fcm.googleapis.com/fcm/send/TOKEN_DEL_DISPOSITIVO\",\n    \"keys\": {\n      \"p256dh\": \"CLAVE_P256DH_AQUI\",\n      \"auth\": \"CLAVE_AUTH_AQUI\"\n    }\n  },\n  \"payload\": {\n    \"title\": \"Nueva Reserva\",\n    \"body\": \"Tu reserva en Cancha 1 fue confirmada para el 20 Abril 2026.\"\n  }\n}"
+      }
+    },
+    {
+      "_id": "req_notif_send_all",
+      "_type": "request",
+      "parentId": "fld_notifications",
+      "name": "POST /notifications/send-to-all - Broadcast a Todos",
+      "method": "POST",
+      "url": "{{ _.base_url }}/notifications/send-to-all",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"title\": \"Aviso del Club\",\n  \"body\": \"Las canchas estarán cerradas el 22 y 23 de Abril por mantenimiento.\"\n}"
+      }
+    },
+
+    {
+      "_id": "fld_info_items",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Info Items (Noticias del Club)",
+      "description": "Gestión de noticias e items informativos del club"
+    },
+    {
+      "_id": "req_info_get_all",
+      "_type": "request",
+      "parentId": "fld_info_items",
+      "name": "GET /info-items - Todas las Noticias",
+      "method": "GET",
+      "url": "{{ _.base_url }}/info-items",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_info_get_one",
+      "_type": "request",
+      "parentId": "fld_info_items",
+      "name": "GET /info-items/:id - Noticia por ID",
+      "method": "GET",
+      "url": "{{ _.base_url }}/info-items/1",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_info_upload",
+      "_type": "request",
+      "parentId": "fld_info_items",
+      "name": "POST /info-items/upload - Crear Noticia con Imagen (multipart)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/info-items/upload",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {
+        "mimeType": "multipart/form-data",
+        "params": [
+          { "name": "image", "type": "file", "fileName": "/ruta/a/imagen-noticia.jpg" },
+          { "name": "title", "value": "Torneo de Verano 2026" },
+          { "name": "text", "value": "Inscripciones abiertas para el torneo anual de verano del club." }
+        ]
+      }
+    },
+    {
+      "_id": "req_info_patch",
+      "_type": "request",
+      "parentId": "fld_info_items",
+      "name": "PATCH /info-items/:id - Actualizar Noticia",
+      "method": "PATCH",
+      "url": "{{ _.base_url }}/info-items/1",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ _.token }}" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"title\": \"Torneo de Verano 2026 - ACTUALIZADO\",\n  \"state\": false\n}"
+      }
+    },
+    {
+      "_id": "req_info_delete",
+      "_type": "request",
+      "parentId": "fld_info_items",
+      "name": "DELETE /info-items/:id - Eliminar Noticia",
+      "method": "DELETE",
+      "url": "{{ _.base_url }}/info-items/1",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+
+    {
+      "_id": "fld_audit_logs",
+      "_type": "request_group",
+      "parentId": "wrk_tennis_complete",
+      "name": "Audit Logs (Auditoría)",
+      "description": "Logs de auditoría para eventos de reservas (requiere JWT)"
+    },
+    {
+      "_id": "req_audit_by_reserve",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/reserve/:reserveId - Auditoría por Reserva",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/reserve/ID_RESERVA_AQUI",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_date_range",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/date-range - Auditoría por Rango de Fechas",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/date-range?start=2026-04-01&end=2026-04-30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_action_create",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/action/CREATE - Acciones CREATE",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/CREATE",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_action_delete",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/action/DELETE - Acciones DELETE",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/DELETE",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_action_state",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/action/STATE_CHANGE - Cambios de Estado",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/STATE_CHANGE",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_action_payment",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/action/PAYMENT_CONFIRMATION - Confirmaciones de Pago",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/PAYMENT_CONFIRMATION",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_action_result",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/action/RESULT_MATCH_UPDATED - Resultados Actualizados",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/action/RESULT_MATCH_UPDATED",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_by_user",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/user/:userName - Auditoría por Usuario",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/user/Juan%20Perez",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_report_cancellations",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/report/cancellations - Reporte Cancelaciones",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/report/cancellations?start=2026-04-01&end=2026-04-30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_report_creations",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/report/creations - Reporte Creaciones",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/report/creations?start=2026-04-01&end=2026-04-30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_stats_30",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/stats?days=30 - Estadísticas 30 días",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/stats?days=30",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_stats_7",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/stats?days=7 - Estadísticas 7 días",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/stats?days=7",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_audit_stats_90",
+      "_type": "request",
+      "parentId": "fld_audit_logs",
+      "name": "GET /audit-logs/stats?days=90 - Estadísticas 90 días",
+      "method": "GET",
+      "url": "{{ _.base_url }}/audit-logs/stats?days=90",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    }
+  ]
+}

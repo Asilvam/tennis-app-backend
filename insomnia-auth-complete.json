@@ -1,0 +1,155 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-04-15T00:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_auth",
+      "_type": "workspace",
+      "name": "Tennis App - Auth & Token Tests",
+      "description": "Pruebas de autenticación JWT y manejo de tokens",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_auth_base",
+      "_type": "environment",
+      "parentId": "wrk_auth",
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3500",
+        "token": "",
+        "email_active": "usuario-activo@ejemplo.com",
+        "email_blocked": "usuario-bloqueado@ejemplo.com"
+      }
+    },
+
+    {
+      "_id": "fld_authentication",
+      "_type": "request_group",
+      "parentId": "wrk_auth",
+      "name": "Authentication"
+    },
+    {
+      "_id": "req_auth_check_active",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Check Blocked - Usuario Activo",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/checkBlocked",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email_active }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_check_blocked",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Check Blocked - Usuario Bloqueado",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/checkBlocked",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.email_blocked }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_check_noexist",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Check Blocked - Usuario No Existe",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/checkBlocked",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"noexiste@ejemplo.com\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_login",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Login - Obtener Token",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/login",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"tu-email@ejemplo.com\",\n  \"password\": \"tu-password\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_validate_immediate",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Validar Token (Inmediato)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/validateToken",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"token\": \"{{ _.token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_validate_expired",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Validar Token (Después 1min) — espera 401",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/validateToken",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"token\": \"{{ _.token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_refresh",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Refresh Token - Renovar",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/refreshToken",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"token\": \"{{ _.token }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_auth_verify_email",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Verify Email - Verificar Cuenta",
+      "method": "GET",
+      "url": "{{ _.base_url }}/auth/verify-email?token=TOKEN_DE_VERIFICACION_AQUI",
+      "headers": [],
+      "body": {}
+    },
+    {
+      "_id": "req_auth_protected_valid",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Endpoint Protegido (Token Válido)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/protected",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ _.token }}" }],
+      "body": {}
+    },
+    {
+      "_id": "req_auth_protected_expired",
+      "_type": "request",
+      "parentId": "fld_authentication",
+      "name": "Endpoint Protegido (Token Expirado) — espera 401",
+      "method": "GET",
+      "url": "{{ _.base_url }}/court-reserve/protected",
+      "headers": [{ "name": "Authorization", "value": "Bearer TOKEN_EXPIRADO_AQUI" }],
+      "body": {}
+    }
+  ]
+}
