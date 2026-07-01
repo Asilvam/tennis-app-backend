@@ -45,6 +45,45 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## New Relic
+
+This service is configured to preload the New Relic Node.js agent on startup.
+
+Required environment variables:
+
+```bash
+NEW_RELIC_APP_NAME=tennis-app-backend
+NEW_RELIC_LICENSE_KEY=your_license_key
+```
+
+Optional environment variables:
+
+```bash
+NEW_RELIC_ENABLED=true
+NEW_RELIC_LOG_LEVEL=info
+```
+
+Notes:
+- If `NEW_RELIC_LICENSE_KEY` is missing, the agent stays disabled.
+- If `NEW_RELIC_ENABLED=false`, the agent is explicitly disabled.
+- The agent config lives in `newrelic.js` at the project root.
+
+Smoke test:
+
+```bash
+NEW_RELIC_APP_NAME=tennis-app-backend \
+NEW_RELIC_LICENSE_KEY=your_license_key \
+NEW_RELIC_ENABLED=true \
+npm run newrelic:smoke
+```
+
+What to check in New Relic:
+- APM application named `tennis-app-backend`
+- A non-web/background transaction named `newrelic_smoke_test`
+- Custom events named `SmokeTestEvent`
+
+If the backend cannot reach MongoDB in your local environment, this smoke test still lets you verify that the New Relic agent is correctly loaded and can emit telemetry.
+
 ## Test
 
 ```bash
