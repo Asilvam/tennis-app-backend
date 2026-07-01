@@ -733,7 +733,16 @@ export class CourtReserveService {
         to: email.email,
         subject: 'Confirmación de Reserva',
         html: `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+<div style="
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #333;
+  max-width: 600px;
+  margin: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+">
   
   <h2 style="color: #0d47a1; text-align: center; margin-top: 0; border-bottom: 2px solid #0d47a1; padding-bottom: 15px;">
     🎾 Reserva Confirmada 🎾
@@ -746,21 +755,27 @@ export class CourtReserveService {
       ? `
   <div style="margin: 20px 0; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 5px;">
     <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #e65100;">
-      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno con visita está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
+      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno con visita está
+      <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez
+      que completes el pago a través de Mercado Pago.
     </p>
   </div>`
       : courtReserve.isPaidNight
         ? `
   <div style="margin: 20px 0; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 5px;">
     <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #e65100;">
-      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
+      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno está
+      <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez
+      que completes el pago a través de Mercado Pago.
     </p>
   </div>`
         : courtReserve.isVisit
           ? `
   <div style="margin: 20px 0; padding: 15px; background-color: #f3e5f5; border-left: 5px solid #9c27b0; border-radius: 5px;">
     <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6a1b9a;">
-      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva con visita está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
+      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva con visita está
+      <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez
+      que completes el pago a través de Mercado Pago.
     </p>
   </div>`
           : ''
@@ -855,7 +870,10 @@ export class CourtReserveService {
   }
 
   private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
-    const reserve = await this.courtReserveModel.findOne({ idCourtReserve }).select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin').exec();
+    const reserve = await this.courtReserveModel
+      .findOne({ idCourtReserve })
+      .select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin')
+      .exec();
 
     if (!reserve) {
       throw new NotFoundException(`Reserva ${idCourtReserve} no encontrada`);
@@ -875,7 +893,15 @@ export class CourtReserveService {
       to: emailAddress,
       subject: 'Reserva Cancelada',
       html: `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#333; max-width:600px; margin:auto; padding:20px; border:1px solid #e0e0e0; border-radius:8px;">
+<div style="
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color:#333;
+  max-width:600px;
+  margin:auto;
+  padding:20px;
+  border:1px solid #e0e0e0;
+  border-radius:8px;
+">
   <h2 style="color:#c62828; margin:0 0 12px 0;">Reserva Cancelada</h2>
   <p style="font-size:15px; margin:0 0 8px 0;">La siguiente reserva ha sido cancelada:</p>
   <ul style="font-size:15px; margin:8px 0 12px 0; padding-left:16px;">

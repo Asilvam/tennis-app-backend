@@ -11,9 +11,9 @@ export class AuditLog {
   @Prop({ required: true })
   entityId: string; // ID de la reserva (idCourtReserve)
 
-  @Prop({ 
-    required: true, 
-    enum: ['CREATE', 'UPDATE', 'DELETE', 'STATE_CHANGE', 'PAYMENT_CONFIRMATION', 'ADMIN_CREATE', 'ADMIN_BULK_CREATE'] 
+  @Prop({
+    required: true,
+    enum: ['CREATE', 'UPDATE', 'DELETE', 'STATE_CHANGE', 'PAYMENT_CONFIRMATION', 'ADMIN_CREATE', 'ADMIN_BULK_CREATE'],
   })
   action: string;
 
@@ -57,4 +57,3 @@ export class AuditLog {
 }
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
-

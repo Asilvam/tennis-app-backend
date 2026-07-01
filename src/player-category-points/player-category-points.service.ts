@@ -167,9 +167,7 @@ export class PlayerCategoryPointsService {
     });
 
     if (activeMainCategory && activeMainCategory.category !== category) {
-      throw new BadRequestException(
-        `El jugador ya tiene categoría principal activa (${activeMainCategory.category}). Debe desactivarla antes de activar ${category}.`,
-      );
+      throw new BadRequestException(`El jugador ya tiene categoría principal activa (${activeMainCategory.category}). Debe desactivarla antes de activar ${category}.`);
     }
   }
 
@@ -191,9 +189,7 @@ export class PlayerCategoryPointsService {
       });
     }
 
-    const activeMainCount = Array.from(projectedState.values()).filter(
-      (item) => this.MAIN_SINGLES_CATEGORIES.includes(item.category) && item.isActive,
-    ).length;
+    const activeMainCount = Array.from(projectedState.values()).filter((item) => this.MAIN_SINGLES_CATEGORIES.includes(item.category) && item.isActive).length;
 
     if (activeMainCount > 1) {
       throw new BadRequestException('Un jugador solo puede tener una categoría principal activa entre 1, 2, 3 o 4.');

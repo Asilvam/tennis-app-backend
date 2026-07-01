@@ -36,7 +36,7 @@ export class TurnService {
     return `This action returns a #${id} turn`;
   }
 
-  update(id: number, updateTurnDto: UpdateTurnDto) {
+  update(id: number, _updateTurnDto: UpdateTurnDto) {
     return `This action updates a #${id} turn`;
   }
 
