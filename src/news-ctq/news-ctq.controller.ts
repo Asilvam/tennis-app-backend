@@ -1,6 +1,8 @@
 import { Controller, Get, Query, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { NewsCTQService } from './news-ctq.service';
 
+@ApiTags('news-ctq')
 @Controller('news-ctq')
 export class NewsCTQController {
   private readonly logger = new Logger(NewsCTQController.name);
@@ -22,4 +24,3 @@ export class NewsCTQController {
     return this.newsService.getNewsByDate(from, to);
   }
 }
-

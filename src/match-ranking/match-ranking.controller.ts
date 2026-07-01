@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { MatchRankingService } from './match-ranking.service';
 import { CreateMatchRankingDto } from './dto/create-match-ranking.dto';
 import { UpdateMatchRankingDto } from './dto/update-match-ranking.dto';
@@ -6,6 +7,7 @@ import { ValidateMatchDto } from './dto/validate-match.dto';
 import { RankingPorCategoria, Resultado } from './interfaces/tennis.types';
 import { MatchResultDocument } from './entities/match-ranking.entity';
 
+@ApiTags('match-ranking')
 @Controller('match-ranking')
 export class MatchRankingController {
   constructor(private readonly matchRankingService: MatchRankingService) {}

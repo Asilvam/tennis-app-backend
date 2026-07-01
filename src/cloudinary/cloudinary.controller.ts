@@ -1,8 +1,10 @@
 import { Controller, Post, UploadedFile, UseInterceptors, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from './cloudinary.service';
 import { Express } from 'express'; // Ensure Express is imported to use its types
 
+@ApiTags('cloudinary')
 @Controller('cloudinary')
 export class CloudinaryController {
   private readonly logger = new Logger(CloudinaryController.name);

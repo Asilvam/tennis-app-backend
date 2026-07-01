@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { TurnService } from './turn.service';
 import { CreateTurnDto } from './dto/create-turn.dto';
 import { UpdateTurnDto } from './dto/update-turn.dto';
 
+@ApiTags('turn')
 @Controller('turn')
 export class TurnController {
   constructor(private readonly turnService: TurnService) {}

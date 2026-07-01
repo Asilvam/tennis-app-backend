@@ -1,7 +1,9 @@
 import { Controller, Get, Param, Query, UseGuards, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AuditLogService } from './audit-log.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@ApiTags('audit-logs')
 @Controller('audit-logs')
 @UseGuards(JwtAuthGuard) // Proteger todos los endpoints
 export class AuditLogController {
@@ -24,15 +26,9 @@ export class AuditLogController {
    * Obtiene logs por rango de fechas
    */
   @Get('date-range')
-  async getAuditsByDateRange(
-    @Query('start') start: string,
-    @Query('end') end: string,
-  ) {
+  async getAuditsByDateRange(@Query('start') start: string, @Query('end') end: string) {
     this.logger.log(`[getAuditsByDateRange] Fetching audits from ${start} to ${end}`);
-    return this.auditLogService.getAuditsByDateRange(
-      new Date(start),
-      new Date(end),
-    );
+    return this.auditLogService.getAuditsByDateRange(new Date(start), new Date(end));
   }
 
   /**
@@ -60,10 +56,7 @@ export class AuditLogController {
    * Reporte de cancelaciones
    */
   @Get('report/cancellations')
-  async getCancellationReport(
-    @Query('start') start?: string,
-    @Query('end') end?: string,
-  ) {
+  async getCancellationReport(@Query('start') start?: string, @Query('end') end?: string) {
     this.logger.log('[getCancellationReport] Generating cancellation report');
     const startDate = start ? new Date(start) : undefined;
     const endDate = end ? new Date(end) : undefined;
@@ -75,10 +68,7 @@ export class AuditLogController {
    * Reporte de creaciones
    */
   @Get('report/creations')
-  async getCreationReport(
-    @Query('start') start?: string,
-    @Query('end') end?: string,
-  ) {
+  async getCreationReport(@Query('start') start?: string, @Query('end') end?: string) {
     this.logger.log('[getCreationReport] Generating creation report');
     const startDate = start ? new Date(start) : undefined;
     const endDate = end ? new Date(end) : undefined;
@@ -95,4 +85,3 @@ export class AuditLogController {
     return this.auditLogService.getGeneralStats(parseInt(days, 10));
   }
 }
-

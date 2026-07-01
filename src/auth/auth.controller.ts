@@ -1,10 +1,12 @@
 import { Query, Controller, Post, Body, Get, BadRequestException, Res } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { TokenDto } from './dto/token.dto';
 import { CheckBlockedDto } from './dto/check-blocked.dto';
 import { Response } from 'express';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

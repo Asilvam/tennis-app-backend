@@ -1,9 +1,11 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { InfoItemsService } from './info-items.service';
 import { UpdateInfoItemDto } from './dto/update-info-item.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 
+@ApiTags('info-items')
 @Controller('info-items')
 export class InfoItemsController {
   constructor(
@@ -13,11 +15,7 @@ export class InfoItemsController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('image'))
-  async uploadImage(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('title') title: string,
-    @Body('text') text: string,
-  ) {
+  async uploadImage(@UploadedFile() file: Express.Multer.File, @Body('title') title: string, @Body('text') text: string) {
     if (!file) {
       throw new Error('No file uploaded');
     }

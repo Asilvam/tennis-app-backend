@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Put, Body, Param, Patch, Delete, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { PlayerCategoryPointsService } from './player-category-points.service';
 
+@ApiTags('player-category-points')
 @Controller('player-category-points')
 export class PlayerCategoryPointsController {
   private readonly logger = new Logger(PlayerCategoryPointsController.name);
