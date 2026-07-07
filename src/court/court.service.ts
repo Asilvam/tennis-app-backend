@@ -7,7 +7,7 @@ import { Model } from 'mongoose';
 
 @Injectable()
 export class CourtService {
-  logger = new Logger('CourtService');
+  private readonly logger = new Logger(CourtService.name);
   constructor(@InjectModel(Court.name) private readonly courtModel: Model<Court>) {}
 
   async create(createCourtDto: CreateCourtDto): Promise<Court> {

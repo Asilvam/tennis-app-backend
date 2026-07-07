@@ -5,10 +5,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MatchRanking, MatchResultSchema } from './entities/match-ranking.entity';
 import { CourtReserveModule } from '../court-reserve/court-reserve.module';
 import { RegisterModule } from '../register/register.module';
-import { CourtReserve, CourtReserveSchema } from '../court-reserve/entities/court-reserve.entity';
+import { PlayerCategoryPointsModule } from '../player-category-points/player-category-points.module';
 import { Register, RegisterSchema } from '../register/entities/register.entity';
 // import { EmailModule } from '../email/email.module';
 import { EmailService } from '../email/email.service';
+import { CourtReserve, CourtReserveSchema } from '../court-reserve/entities/court-reserve.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { EmailService } from '../email/email.service';
     CourtReserveModule,
     RegisterModule,
     // EmailModule,
+    PlayerCategoryPointsModule, // ✅ PASO 5: Nuevo módulo
   ],
   providers: [MatchRankingService, EmailService],
   controllers: [MatchRankingController],

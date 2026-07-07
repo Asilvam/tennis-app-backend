@@ -13,19 +13,12 @@ class WinnerDto {
 
   @IsString()
   @IsNotEmpty()
-  points: string;
-
-  @IsString()
-  @IsNotEmpty()
-  pointsDoubles: string;
-
-  @IsString()
-  @IsNotEmpty()
-  category: string;
-
-  @IsString()
-  @IsNotEmpty()
   cellular: string;
+
+  @IsArray()
+  @ValidateNested({ each: true }) // Valida cada objeto dentro del arreglo
+  @IsNotEmpty()
+  categories: [{ category: string; points: number; isActive: boolean }];
 }
 
 class LooserDto {
@@ -39,19 +32,12 @@ class LooserDto {
 
   @IsString()
   @IsNotEmpty()
-  points: string;
-
-  @IsString()
-  @IsNotEmpty()
-  pointsDoubles: string;
-
-  @IsString()
-  @IsNotEmpty()
-  category: string;
-
-  @IsString()
-  @IsNotEmpty()
   cellular: string;
+
+  @IsArray()
+  @ValidateNested({ each: true }) // Valida cada objeto dentro del arreglo
+  @IsNotEmpty()
+  categories: [{ category: string; points: number; isActive: boolean }];
 }
 
 export class CreateMatchRankingDto {

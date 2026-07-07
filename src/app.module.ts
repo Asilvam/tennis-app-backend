@@ -16,6 +16,9 @@ import { MatchRankingModule } from './match-ranking/match-ranking.module';
 import { BookingModule } from './booking/booking.module';
 import { MpModule } from './mp/mp.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
+import { PlayerCategoryPointsModule } from './player-category-points/player-category-points.module';
+import { NewsCTQModule } from './news-ctq/news-ctq.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -36,6 +39,9 @@ import { AuditLogModule } from './audit-log/audit-log.module';
     BookingModule,
     MpModule,
     AuditLogModule,
+    PlayerCategoryPointsModule,
+    NewsCTQModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],

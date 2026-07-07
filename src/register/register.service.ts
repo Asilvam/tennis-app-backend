@@ -6,24 +6,24 @@ import { Register } from './entities/register.entity';
 import { CreateRegisterDto } from './dto/create-register.dto';
 import { EmailService } from '../email/email.service';
 import { UpdateRegisterDto } from './dto/update-register.dto';
+import { PlayerCategoryPointsService } from '../player-category-points/player-category-points.service';
 
 interface PlayerData {
   email: string;
   name: string;
-  points: string;
-  pointsDoubles: string;
-  category: string;
   cellular: string;
+  categories: { category: string; points: number; isActive: boolean }[];
 }
 
 @Injectable()
 export class RegisterService {
-  logger = new Logger(RegisterService.name);
+  private readonly logger = new Logger(RegisterService.name);
 
   constructor(
     @InjectModel('Register')
     private readonly registerModel: Model<Register>,
     private readonly emailService: EmailService,
+    private readonly playerCategoryPointsService: PlayerCategoryPointsService,
   ) {}
 
   async hashPassword(password: string): Promise<string> {
@@ -99,17 +99,14 @@ export class RegisterService {
     return { plainPassword, hashedPassword };
   }
 
-  async resetPassword({ email }): Promise<{ success: boolean; message: string; newPassword?: string }> {
-    // this.logger.log(email.email);
+  async resetPassword({ email }: { email: string }): Promise<{ success: boolean; message: string; newPassword?: string }> {
     const emailLowerCase = email.toLowerCase();
     try {
-      const user = this.registerModel.findOne({ email: emailLowerCase });
+      const user = await this.registerModel.findOne({ email: emailLowerCase }).exec();
       if (!user) {
         return { success: false, message: 'Usuario no encontrado' };
       }
       const { plainPassword, hashedPassword } = await this.createNewPassword();
-      // this.logger.log('Nueva contraseña generada:', plainPassword);
-      // this.logger.log('Contraseña encriptada (hash):', hashedPassword);
       await this.registerModel.updateOne({ email: emailLowerCase }, { pwd: hashedPassword });
       await this.emailService.sendResetPasswordEmail(emailLowerCase, plainPassword);
       this.logger.log(`Contraseña actualizada para el usuario con email ${emailLowerCase}`);
@@ -158,12 +155,29 @@ export class RegisterService {
       throw new BadRequestException('Phone number already exists.');
     }
     const hashedPassword = await this.hashPassword(registerDto.pwd);
+
+    // ❌ Ya no incluimos category, points, pointsDoubles (eliminados del DTO)
     const registerEntity = {
       ...registerDto,
       pwd: hashedPassword,
+      categories: undefined, // Eliminar categories del DTO antes de guardar en Register
     };
+
     const newRegister = new this.registerModel(registerEntity);
     const response = await newRegister.save();
+
+    // ✅ NUEVO: Inicializar categorías en la tabla player_category_points
+    if (response && registerDto.categories && registerDto.categories.length > 0) {
+      try {
+        await this.playerCategoryPointsService.initializePlayerCategories(registerDto.email, registerDto.categories);
+        this.logger.log(`Categorías inicializadas para ${registerDto.email}: ${registerDto.categories.map((c) => `${c.category}(${c.matchTypes.join(',')})`).join(', ')}`);
+      } catch (error) {
+        this.logger.error(`Error al inicializar categorías para ${registerDto.email}:`, error);
+        // No lanzamos error para no bloquear el registro
+        // Las categorías pueden agregarse después
+      }
+    }
+
     if (response) {
       const verificationLink = `${registerDto.urlEmail}/verify-email?token=${newRegister.verificationToken}`;
       await this.emailService.sendVerificationEmail(registerDto.email, verificationLink);
@@ -175,6 +189,7 @@ export class RegisterService {
     return `This action removes a #${id} register`;
   }
 
+  // Reemplaza el método findOneEmail completo (línea 199 en adelante)
   async findOneEmail(player: string): Promise<PlayerData | null> {
     try {
       const response: Register = await this.registerModel.findOne({ $or: [{ email: player }, { namePlayer: player }] }).exec();
@@ -182,13 +197,19 @@ export class RegisterService {
         this.logger.error('Email Player not found', player);
         throw new NotFoundException('Name Player Register not found');
       }
+
+      const categoryRecords = await this.playerCategoryPointsService.getPlayerCategories(response.email);
+      const categories = categoryRecords.map((c) => ({
+        category: c.category,
+        points: c.points,
+        isActive: c.isActive,
+      }));
+
       return {
         email: response.email,
         name: response.namePlayer,
-        points: response.points,
-        pointsDoubles: response.pointsDoubles,
-        category: response.category,
         cellular: response.cellular,
+        categories,
       };
     } catch (error) {
       this.logger.error('Error:', error.message);

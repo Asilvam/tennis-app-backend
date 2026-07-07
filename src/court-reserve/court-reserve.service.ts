@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx';
 
 @Injectable()
 export class CourtReserveService {
-  logger = new Logger(CourtReserveService.name);
+  private readonly logger = new Logger(CourtReserveService.name);
 
   constructor(
     @InjectModel('CourtReserve')
@@ -71,8 +71,7 @@ export class CourtReserveService {
 
   validateDateTurn = async (dateToPlay: string, court: string, turn: string): Promise<boolean> => {
     const timezone = 'America/Santiago'; // Chile timezone
-    const currentTimeFull = DateTime.now().setZone(timezone); // Current time in the specified timezone
-    const currentTime = DateTime.fromFormat(currentTimeFull.toString(), 'HH:mm', { zone: timezone });
+    const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
     const playDate = DateTime.fromFormat(dateToPlay, 'yyyy-MM-dd');
     const today = DateTime.now().startOf('day');
     if (playDate < today) {
@@ -168,18 +167,41 @@ export class CourtReserveService {
 
   async create(createCourtReserveDto: CreateCourtReserveDto) {
     const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
-    // const courtNumber = court.match(/\d+/);
-    // this.logger.log('createCourtReserveDto--> ', { createCourtReserveDto });
+    if (isDouble) {
+      if (isVisit) {
+        throw new BadRequestException('Doubles reserves cannot be marked as visit');
+      }
+      if (!player1 || !player2 || !player3 || !player4) {
+        throw new BadRequestException('Doubles reserves require player1, player2, player3, and player4');
+      }
+    } else if (isVisit) {
+      if (!player1 || !createCourtReserveDto.visitName) {
+        throw new BadRequestException('Visit reserves require player1 and visitName');
+      }
+      if (player2 || player3 || player4) {
+        throw new BadRequestException('Visit reserves cannot include player2, player3, or player4');
+      }
+    } else {
+      if (!player1 || !player2) {
+        throw new BadRequestException('Singles reserves require player1 and player2');
+      }
+      if (player3 || player4 || createCourtReserveDto.visitName) {
+        throw new BadRequestException('Singles reserves cannot include player3, player4, or visitName');
+      }
+    }
     const validateDateTurn = await this.validateDateTurn(dateToPlay, court, turn);
-    // this.logger.log('validateDateTurn--> ', validateDateTurn);
     if (validateDateTurn) {
+      const existingReserve = await this.courtReserveModel.findOne({ dateToPlay, turn, court, state: true }).select('idCourtReserve').exec();
+      if (existingReserve) {
+        throw new BadRequestException('This court is already reserved for this time');
+      }
       const activeReserves = await this.getAllCourtReserves();
       if (activeReserves) {
         let playersToCheck: string[];
         if (isVisit) {
           playersToCheck = [player1];
         } else if (isDouble) {
-          playersToCheck = [player1, player3, player4];
+          playersToCheck = [player1, player2, player3, player4];
         } else {
           playersToCheck = [player1, player2];
         }
@@ -201,11 +223,9 @@ export class CourtReserveService {
           throw new BadRequestException('This court is already reserved for this time');
         }
       }
-      // await this.registerService.findOneAndUpdate(player1, { isLigthNigth: true });
       const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
       const response = await newCourtReserve.save();
 
-      // ✅ AUDITORÍA: Registrar creación de reserva
       try {
         const playerEmail = await this.findOneEmail(player1);
         await this.auditLogService.logReserveCreation(response.toObject(), 'USER', player1, playerEmail?.email);
@@ -497,9 +517,9 @@ export class CourtReserveService {
       {
         time: '18:15-20:00',
         slots: [
-          { available: true, court: 'Cancha 1', isPayed: false, isBlockedByAdmin: false, data: null },
-          { available: true, court: 'Cancha 2', isPayed: false, isBlockedByAdmin: false, data: null },
-          { available: true, court: 'Cancha 3', isPayed: false, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 1', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 2', isPayed: true, isBlockedByAdmin: false, data: null },
+          { available: true, court: 'Cancha 3', isPayed: true, isBlockedByAdmin: false, data: null },
         ],
       },
       {
@@ -569,6 +589,48 @@ export class CourtReserveService {
         .exec();
     } catch (error) {
       this.logger.error(error);
+    }
+  }
+
+  async getAllIsForRankingReservesFor(namePlayer: string): Promise<CourtReserve[] | null> {
+    const timezone = 'America/Santiago';
+    const currentDate = DateTime.now().setZone(timezone).startOf('day');
+
+    try {
+      const reserves = await this.courtReserveModel
+        .find({
+          state: true,
+          isForRanking: true,
+          resultMatchUpdated: false,
+          $or: [{ player1: namePlayer }, { player2: namePlayer }, { player3: namePlayer }, { player4: namePlayer }],
+        })
+        .select('dateToPlay court turn player1 player2 player3 player4 visitName idCourtReserve state passCourtReserve isForRanking resultMatchUpdated')
+        .sort({
+          dateToPlay: 'desc',
+          turn: 'asc',
+          court: 'asc',
+        })
+        .exec();
+
+      if (!reserves.length) {
+        return [];
+      }
+
+      const filteredReserves = reserves.filter((reserve) => {
+        const matchDate = DateTime.fromISO(reserve.dateToPlay, { zone: timezone }).startOf('day');
+
+        if (!matchDate.isValid) {
+          return false;
+        }
+
+        const diffDays = currentDate.diff(matchDate, 'days').days;
+        return diffDays >= 0 && diffDays <= 1;
+      });
+
+      return filteredReserves.length > 0 ? filteredReserves : null;
+    } catch (error) {
+      this.logger.error('Error retrieving ranking reserves:', error);
+      return null;
     }
   }
 
@@ -671,7 +733,7 @@ export class CourtReserveService {
         to: email.email,
         subject: 'Confirmación de Reserva',
         html: `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
   
   <h2 style="color: #0d47a1; text-align: center; margin-top: 0; border-bottom: 2px solid #0d47a1; padding-bottom: 15px;">
     🎾 Reserva Confirmada 🎾
@@ -715,13 +777,13 @@ export class CourtReserveService {
       <div style="text-align: center; padding: 15px; background-color: #ffffff; border: 1px dashed #ccc; border-radius: 8px; font-size: 18px;">
         <div style="margin-bottom: 8px; color: #1e88e5;">
           <strong>
-            ${courtReserve.isDouble ? `${courtReserve.player1} y ${courtReserve.player2}` : `${courtReserve.player1}`}
+            ${courtReserve.isDouble ? `${courtReserve.player1} - ${courtReserve.player2}` : `${courtReserve.player1}`}
           </strong>
         </div>
         <div style="color: #757575; font-style: italic; font-weight: bold; margin: 8px 0;">vs</div>
         <div style="margin-top: 8px; color: #d32f2f;">
           <strong>
-            ${courtReserve.isDouble ? `${courtReserve.player3} y ${courtReserve.player4}` : `${courtReserve.player2 || courtReserve.visitName}`}
+            ${courtReserve.isDouble ? `${courtReserve.player3} - ${courtReserve.player4}` : `${courtReserve.player2 || courtReserve.visitName}`}
           </strong>
         </div>
       </div>
@@ -741,12 +803,8 @@ export class CourtReserveService {
     !courtReserve.isVisit && courtReserve.isForRanking
       ? `
   <div style="margin-top: 25px; padding: 20px; background-color: #e7f3ff; border-left: 5px solid #0056b3; border-radius: 5px;">
-    <h3 style="margin-top: 0; color: #004085;">🏆 Actualiza tu Ranking</h3>
-    <p style="font-size: 15px; line-height: 1.6;">No olvides registrar el resultado del partido para actualizar tu ranking. Usa los siguientes datos:</p>
-    <ul style="font-size: 15px; list-style-type: none; padding-left: 0;">
-      <li style="margin-bottom: 8px;"><strong>🔑 ID de Reserva:</strong> ${courtReserve.idCourtReserve}</li>
-      <li><strong>🔒 Clave de Reserva:</strong> ${courtReserve.passCourtReserve}</li>
-    </ul>
+    <h3 style="margin-top: 0; color: #004085;">🏆 ¡Actualiza tu Ranking!</h3>
+    <p style="font-size: 15px; line-height: 1.6;">Agrega tus resultados en <strong>Agregar Resultados</strong> de la APP.</p>
   </div>`
       : ''
   }
@@ -797,10 +855,7 @@ export class CourtReserveService {
   }
 
   private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
-    const reserve = await this.courtReserveModel
-      .findOne({ idCourtReserve })
-      .select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin')
-      .exec();
+    const reserve = await this.courtReserveModel.findOne({ idCourtReserve }).select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin').exec();
 
     if (!reserve) {
       throw new NotFoundException(`Reserva ${idCourtReserve} no encontrada`);
