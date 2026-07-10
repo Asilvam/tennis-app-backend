@@ -1,17 +1,19 @@
-import { Controller, Post, UploadedFile, UseInterceptors, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, UploadedFile, UseInterceptors, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from './cloudinary.service';
 import { Express } from 'express'; // Ensure Express is imported to use its types
 
 @Controller('cloudinary')
 export class CloudinaryController {
+  private readonly logger = new Logger(CloudinaryController.name);
+
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     // Multer.File should now be recognized
-    console.log(file);
+    this.logger.debug(JSON.stringify(file));
     if (!file) {
       throw new HttpException('File must be provided', HttpStatus.BAD_REQUEST);
     }

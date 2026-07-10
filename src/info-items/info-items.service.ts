@@ -7,7 +7,7 @@ import { InfoItem } from './entities/info-item.entity';
 
 @Injectable()
 export class InfoItemsService {
-  logger = new Logger('InfoItemsService');
+  private readonly logger = new Logger(InfoItemsService.name);
 
   constructor(
     @InjectModel('InfoItem')
@@ -33,7 +33,7 @@ export class InfoItemsService {
   }
 
   async remove(id: string) {
-    console.log(id);
+    this.logger.log(id);
     const updatedRegister = await this.itemModel.findOneAndUpdate({ _id: id }, { state: false }, { new: true }).exec();
     if (!updatedRegister) {
       throw new NotFoundException(`Register with idCourtReserve ${id} not found`);

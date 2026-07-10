@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { MatchRankingService } from './match-ranking.service';
 import { CreateMatchRankingDto } from './dto/create-match-ranking.dto';
 import { UpdateMatchRankingDto } from './dto/update-match-ranking.dto';
 import { ValidateMatchDto } from './dto/validate-match.dto';
 import { RankingPorCategoria, Resultado } from './interfaces/tennis.types';
+import { MatchResultDocument } from './entities/match-ranking.entity';
 
 @Controller('match-ranking')
 export class MatchRankingController {
@@ -26,17 +27,13 @@ export class MatchRankingController {
     return this.matchRankingService.getRanking();
   }
 
-  @Get('jugadores/:email/resultados')
-  async getPlayerResults(
-    @Param('email') email: string,
-    @Query('periodo') periodo: string = 'todos', // Por defecto 'todos'
-  ): Promise<Resultado[]> {
-    // Aquí puedes añadir validación adicional para el parámetro 'periodo' si lo deseas
-    return this.matchRankingService.getPlayerResults(email, periodo);
+  @Get('history/:email')
+  async getPlayerResults(@Param('email') email: string): Promise<Resultado[]> {
+    return this.matchRankingService.getPlayerResults(email);
   }
 
   @Get()
-  findAll() {
+  findAll(): Promise<MatchResultDocument[]> {
     return this.matchRankingService.findAll();
   }
 

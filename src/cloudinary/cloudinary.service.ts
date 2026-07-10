@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 
 @Injectable()
 export class CloudinaryService {
+  private readonly logger = new Logger(CloudinaryService.name);
+
   constructor(private readonly configService: ConfigService) {
     cloudinary.config({
       cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
@@ -14,17 +16,17 @@ export class CloudinaryService {
   }
 
   async uploadImage(filePath: string): Promise<any> {
-    console.log('uploading image to cloudinary');
-    console.log(filePath);
+    this.logger.log('uploading image to cloudinary');
+    this.logger.log(filePath);
     try {
       const result = await cloudinary.uploader.upload(filePath, {
         folder: 'quintero_tennis', // Optional: specify folder for image storage in Cloudinary
       });
       fs.unlink(filePath, (err) => {
         if (err) {
-          console.error(`Failed to delete file: ${filePath}`, err);
+          this.logger.error(`Failed to delete file: ${filePath}`, err);
         } else {
-          console.log(`Successfully deleted file: ${filePath}`);
+          this.logger.log(`Successfully deleted file: ${filePath}`);
         }
       });
       return result;

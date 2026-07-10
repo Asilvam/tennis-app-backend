@@ -1,13 +1,15 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Logger } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 
 @Controller('notifications')
 export class NotificationController {
+  private readonly logger = new Logger(NotificationController.name);
+
   constructor(private readonly notificationService: NotificationService) {}
 
   @Post('subscribe')
   async subscribe(@Body() subscription: any) {
-    console.log('subscription', subscription);
+    this.logger.log(`subscription: ${JSON.stringify(subscription)}`);
     return this.notificationService.saveSubscription(subscription);
   }
 
