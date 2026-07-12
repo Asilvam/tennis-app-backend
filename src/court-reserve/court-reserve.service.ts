@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
@@ -11,6 +11,19 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 // import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 import * as XLSX from 'xlsx';
+import { buildReservationCancellationEmail, buildReservationConfirmationEmail } from '../email/templates/reservation-email.templates';
+
+const getTurnDateRange = (dateToPlay: string, turn: string, timezone: string) => {
+  const [start, end] = turn.split('-').map((value) => value.trim());
+  const startTime = DateTime.fromISO(`${dateToPlay}T${start}`, { zone: timezone });
+  let endTime = DateTime.fromISO(`${dateToPlay}T${end}`, { zone: timezone });
+
+  if (endTime <= startTime) {
+    endTime = endTime.plus({ days: 1 });
+  }
+
+  return { startTime, endTime };
+};
 
 @Injectable()
 export class CourtReserveService {
@@ -72,19 +85,14 @@ export class CourtReserveService {
   validateDateTurn = async (dateToPlay: string, court: string, turn: string): Promise<boolean> => {
     const timezone = 'America/Santiago'; // Chile timezone
     const currentTime = DateTime.now().setZone(timezone); // Current time in the specified timezone
-    const playDate = DateTime.fromFormat(dateToPlay, 'yyyy-MM-dd');
-    const today = DateTime.now().startOf('day');
+    const playDate = DateTime.fromISO(dateToPlay, { zone: timezone }).startOf('day');
+    const today = currentTime.startOf('day');
     if (playDate < today) {
       return false;
     }
     if (playDate.hasSame(today, 'day')) {
-      this.logger.log(currentTime);
-      const [turnStart, turnEnd] = turn.split('-'); // Split turn into start and end times
-      const turnStartTime = DateTime.fromFormat(turnStart, 'HH:mm', { zone: timezone });
-      this.logger.log(turnStartTime);
-      const turnEndTime = DateTime.fromFormat(turnEnd, 'HH:mm', { zone: timezone });
-      this.logger.log(turnEndTime);
-      if (currentTime > turnEndTime) {
+      const { endTime } = getTurnDateRange(dateToPlay, turn, timezone);
+      if (currentTime >= endTime) {
         this.logger.log('Current time is after the turn.');
         return false;
       }
@@ -278,7 +286,7 @@ export class CourtReserveService {
     }
 
     if (reserves.resultMatchUpdated) {
-      throw new BadRequestException('Reserva ya fue actualizada');
+      throw new ConflictException('Otro jugador ya registró el resultado de este partido.');
     }
 
     const timezone = 'America/Santiago';
@@ -323,21 +331,37 @@ export class CourtReserveService {
     return `This action updates a #${id} courtReserve`;
   }
 
-  async updateResultMatch(idCourtReserve: string) {
-    const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { resultMatchUpdated: true }, { new: true });
+  async claimResultMatch(idCourtReserve: string): Promise<CourtReserve> {
+    const updatedReserve = await this.courtReserveModel.findOneAndUpdate(
+      {
+        idCourtReserve,
+        state: true,
+        isForRanking: true,
+        resultMatchUpdated: false,
+      },
+      { resultMatchUpdated: true },
+      { new: true },
+    );
+
     if (!updatedReserve) {
-      throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
+      throw new ConflictException('Otro jugador ya registró el resultado de este partido.');
     }
 
-    // ✅ AUDITORÍA: Registrar actualización de resultado
+    return updatedReserve;
+  }
+
+  async releaseResultMatch(idCourtReserve: string): Promise<void> {
+    await this.courtReserveModel.updateOne({ idCourtReserve, resultMatchUpdated: true }, { resultMatchUpdated: false }).exec();
+  }
+
+  async logResultMatchUpdate(idCourtReserve: string, playerName?: string): Promise<void> {
     try {
-      await this.auditLogService.logMatchResultUpdate(idCourtReserve, updatedReserve.player1);
+      await this.auditLogService.logMatchResultUpdate(idCourtReserve, playerName);
     } catch (auditErr) {
-      this.logger.error('[updateResultMatch] Error logging audit', auditErr);
+      this.logger.error('[logResultMatchUpdate] Error logging audit', auditErr);
     }
 
     this.logger.log(`Match result updated for reserve: ${idCourtReserve}`);
-    return updatedReserve;
   }
 
   async updateStateReserve(idCourtReserve: string) {
@@ -654,18 +678,12 @@ export class CourtReserveService {
         .exec();
       if (courtReserves.length > 0) {
         const filteredReserves = courtReserves.filter((reserve) => {
-          const [start, end] = reserve.turn.split('-');
-          // Parse start, end, and current times using Luxon
-          const startTime = DateTime.fromFormat(start, 'HH:mm', { zone: timezone });
-          const endTime = DateTime.fromFormat(end, 'HH:mm', { zone: timezone });
           const reservationDate = DateTime.fromISO(reserve.dateToPlay, { zone: timezone });
-          // Condition 1: Check if today is the same as the reservation date
           const isToday = reservationDate.hasSame(today, 'day');
-          // Condition 2: Check if the current time is within the time range
-          const isWithinTimeRange = (currentTime >= startTime && currentTime < endTime) || currentTime < startTime;
-          // Condition 3: Check if the reservation is active (state is true)
+          const { endTime } = getTurnDateRange(reserve.dateToPlay, reserve.turn, timezone);
+          const hasNotEnded = currentTime < endTime;
           const isFutureDate = reservationDate > today;
-          return (isToday && isWithinTimeRange) || isFutureDate;
+          return (isToday && hasNotEnded) || isFutureDate;
         });
         // this.logger.log(filteredReserves);
         return filteredReserves.length > 0 ? filteredReserves : null;
@@ -693,15 +711,13 @@ export class CourtReserveService {
         .exec();
       if (courtReserves.length > 0) {
         const filteredReserves = courtReserves.filter((reserve) => {
-          const [start, end] = reserve.turn.split('-');
-          const startTime = DateTime.fromFormat(start, 'HH:mm', { zone: timezone });
-          const endTime = DateTime.fromFormat(end, 'HH:mm', { zone: timezone });
           const reservationDate = DateTime.fromISO(reserve.dateToPlay, { zone: timezone });
           const isToday = reservationDate.hasSame(today, 'day');
-          const isWithinTimeRange = (currentTime >= startTime && currentTime < endTime) || currentTime < startTime;
+          const { endTime } = getTurnDateRange(reserve.dateToPlay, reserve.turn, timezone);
+          const hasNotEnded = currentTime < endTime;
           const isActive = reserve.state === true;
           const isFutureDate = reservationDate > today;
-          return (isToday && isWithinTimeRange && isActive) || (isFutureDate && isActive);
+          return (isToday && hasNotEnded && isActive) || (isFutureDate && isActive);
         });
         return filteredReserves.length > 0 ? filteredReserves : null;
       } else {
@@ -731,103 +747,13 @@ export class CourtReserveService {
 
       return {
         to: email.email,
-        subject: 'Confirmación de Reserva',
-        html: `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-  
-  <h2 style="color: #0d47a1; text-align: center; margin-top: 0; border-bottom: 2px solid #0d47a1; padding-bottom: 15px;">
-    🎾 Reserva Confirmada 🎾
-  </h2>
-  
-  <p style="font-size: 16px;">¡Hola!</p>
-
-  ${
-    courtReserve.isPaidNight && courtReserve.isVisit
-      ? `
-  <div style="margin: 20px 0; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 5px;">
-    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #e65100;">
-      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno con visita está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
-    </p>
-  </div>`
-      : courtReserve.isPaidNight
-        ? `
-  <div style="margin: 20px 0; padding: 15px; background-color: #fff3e0; border-left: 5px solid #ff9800; border-radius: 5px;">
-    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #e65100;">
-      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva de turno nocturno está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
-    </p>
-  </div>`
-        : courtReserve.isVisit
-          ? `
-  <div style="margin: 20px 0; padding: 15px; background-color: #f3e5f5; border-left: 5px solid #9c27b0; border-radius: 5px;">
-    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6a1b9a;">
-      ⚠️ <strong>Reserva Temporal:</strong> Tu reserva con visita está <strong>temporalmente aprobada</strong> y se confirmará definitivamente una vez que completes el pago a través de Mercado Pago.
-    </p>
-  </div>`
-          : ''
-  }
-
-  <p style="font-size: 16px; line-height: 1.6;">
-    ${courtReserve.isPaidNight || courtReserve.isVisit ? 'Aquí tienes los detalles:' : 'Tu reserva ha sido confirmada con éxito. Aquí tienes los detalles:'}
-  </p>
-  
-  <div style="background-color: #f5f8fa; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e0e0e0;">
-        <!-- SECCIÓN DE PARTIDO MEJORADA -->
-    <div style="font-size: 16px; margin: 20px 0;">
-      <strong style="display: block; margin-bottom: 10px;">👥 Partido:</strong>
-      <div style="text-align: center; padding: 15px; background-color: #ffffff; border: 1px dashed #ccc; border-radius: 8px; font-size: 18px;">
-        <div style="margin-bottom: 8px; color: #1e88e5;">
-          <strong>
-            ${courtReserve.isDouble ? `${courtReserve.player1} - ${courtReserve.player2}` : `${courtReserve.player1}`}
-          </strong>
-        </div>
-        <div style="color: #757575; font-style: italic; font-weight: bold; margin: 8px 0;">vs</div>
-        <div style="margin-top: 8px; color: #d32f2f;">
-          <strong>
-            ${courtReserve.isDouble ? `${courtReserve.player3} - ${courtReserve.player4}` : `${courtReserve.player2 || courtReserve.visitName}`}
-          </strong>
-        </div>
-      </div>
-    </div>
-    <p style="font-size: 16px; margin: 12px 0;">
-      <strong>📅 Fecha:</strong> ${formattedDate}
-    </p>
-    <p style="font-size: 16px; margin: 12px 0;">
-      <strong>⏰ Turno:</strong> ${courtReserve.turn}
-    </p>
-    <p style="font-size: 16px; margin: 12px 0;">
-      <strong>📍 Cancha:</strong> ${courtNumber}
-    </p>
-  </div>
-
-  ${
-    !courtReserve.isVisit && courtReserve.isForRanking
-      ? `
-  <div style="margin-top: 25px; padding: 20px; background-color: #e7f3ff; border-left: 5px solid #0056b3; border-radius: 5px;">
-    <h3 style="margin-top: 0; color: #004085;">🏆 ¡Actualiza tu Ranking!</h3>
-    <p style="font-size: 15px; line-height: 1.6;">Agrega tus resultados en <strong>Agregar Resultados</strong> de la APP.</p>
-  </div>`
-      : ''
-  }
-
-  ${
-    requiresMaintenance
-      ? `
-  <div style="margin-top: 25px; padding: 15px; background-color: #e8f5e9; border-left: 5px solid #4caf50; color: #2e7d32; border-radius: 5px;">
-    <h3 style="margin-top: 0; color: #1b5e20;">🧹 Mantenimiento de la Cancha</h3>
-    <p style="margin: 0; font-size: 15px; line-height: 1.6;">
-      <strong>¡Importante!</strong> En este horario no hay canchero disponible.
-      Te pedimos tu colaboración para dejar la cancha en óptimas condiciones para los siguientes jugadores: <strong>pasando el paño y regando</strong> al finalizar tu partido.
-      <br><br>
-      ¡Agradecemos de antemano tu ayuda!
-    </p>
-  </div>`
-      : ''
-  }
-
-  <p style="margin-top: 30px; font-size: 16px;">¡Que tengas un excelente partido!</p>
-  <p style="margin-top: 10px; font-size: 16px; line-height: 1.6;">Atentamente,<br><strong>Club de Tenis Quintero</strong></p>
-</div>
-  `,
+        subject: courtReserve.isPaidNight || courtReserve.isVisit ? 'Reserva recibida - Pago pendiente' : 'Reserva confirmada',
+        html: buildReservationConfirmationEmail({
+          reserve: courtReserve,
+          formattedDate,
+          courtNumber,
+          requiresMaintenance,
+        }),
       };
     };
 
@@ -873,33 +799,13 @@ export class CourtReserveService {
 
     const buildCancellationEmail = (emailAddress: string) => ({
       to: emailAddress,
-      subject: 'Reserva Cancelada',
-      html: `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#333; max-width:600px; margin:auto; padding:20px; border:1px solid #e0e0e0; border-radius:8px;">
-  <h2 style="color:#c62828; margin:0 0 12px 0;">Reserva Cancelada</h2>
-  <p style="font-size:15px; margin:0 0 8px 0;">La siguiente reserva ha sido cancelada:</p>
-  <ul style="font-size:15px; margin:8px 0 12px 0; padding-left:16px;">
-    <li><strong>📅 Fecha:</strong> ${formattedDate}</li>
-    <li><strong>⏰ Turno:</strong> ${courtReserve.turn}</li>
-    <li><strong>📍 Cancha:</strong> ${courtNumber}</li>
-    <li><strong>👥 Jugadores:</strong>
-    ${
-      courtReserve.isDouble
-        ? `${courtReserve.player1} y ${courtReserve.player2} vs ${courtReserve.player3} y ${courtReserve.player4}`
-        : courtReserve.isVisit
-          ? `${courtReserve.player1} vs ${courtReserve.visitName}`
-          : `${courtReserve.player1} vs ${courtReserve.player2}`
-    }
-  </li>
-  ${courtReserve.isVisit ? `<li><strong>👤 Visita:</strong> ${courtReserve.visitName}</li>` : ''}
-  ${courtReserve.isPaidNight ? '<li><strong>💰 Turno:</strong> Nocturno Pagado</li>' : ''}
-  ${courtReserve.isDouble ? '<li><strong>🎾 Modalidad:</strong> Dobles</li>' : '<li><strong>🎾 Modalidad:</strong> Singles</li>'}
-  </ul>
-  ${reason ? `<p style="background:#fff3f3; padding:10px; border-left:4px solid #f44336;"><strong>Motivo:</strong> ${reason}</p>` : ''}
-  <p style="margin-top:12px; font-size:15px;">Si tienes dudas, contacta con administración.</p>
-  <p style="margin-top:12px; font-size:15px;">Atentamente,<br><strong>Club de Tenis Quintero</strong></p>
-</div>
-    `,
+      subject: 'Reserva anulada',
+      html: buildReservationCancellationEmail({
+        reserve: courtReserve,
+        formattedDate,
+        courtNumber,
+        reason,
+      }),
     });
 
     const notifyPlayer = async (playerName: string | null) => {

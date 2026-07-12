@@ -108,104 +108,113 @@ export class MatchRankingService {
 
   async create(createMatchRankingDto: CreateMatchRankingDto) {
     this.logger.log({ createMatchRankingDto });
-    if (createMatchRankingDto.winner.length === 1) {
-      // ✅ PASO 5: Lógica para singles usando PlayerCategoryPointsService
-      const winnerData = createMatchRankingDto.winner[0];
-      const looserData = createMatchRankingDto.looser[0];
+    const claimedReserve = await this.courtReserveService.claimResultMatch(createMatchRankingDto.matchId);
 
-      const { winnerPointChange, looserPointChange, winnerPoints, looserPoints, detail, winnerCategory, looserCategory } = await this.calculateSinglesValidPoints(createMatchRankingDto);
+    try {
+      if (createMatchRankingDto.winner.length === 1) {
+        // ✅ PASO 5: Lógica para singles usando PlayerCategoryPointsService
+        const winnerData = createMatchRankingDto.winner[0];
+        const looserData = createMatchRankingDto.looser[0];
 
-      this.logger.log({
-        categoryResolved: 'singles',
-        winner: { email: winnerData.email, category: winnerCategory },
-        looser: { email: looserData.email, category: looserCategory },
-      });
+        const { winnerPointChange, looserPointChange, winnerPoints, looserPoints, detail, winnerCategory, looserCategory } = await this.calculateSinglesValidPoints(createMatchRankingDto);
 
-      this.logger.log({ winnerPoints, looserPoints, detail });
+        this.logger.log({
+          categoryResolved: 'singles',
+          winner: { email: winnerData.email, category: winnerCategory },
+          looser: { email: looserData.email, category: looserCategory },
+        });
 
-      // Actualizar puntos en player_category_points
-      await this.playerCategoryPointsService.upsertPoints(winnerData.email, winnerCategory, winnerPointChange);
-      await this.playerCategoryPointsService.upsertPoints(looserData.email, looserCategory, looserPointChange);
+        this.logger.log({ winnerPoints, looserPoints, detail });
 
-      // Obtener puntos actuales para el email
-      const winnerOldPoints = winnerPoints - winnerPointChange;
-      const looserOldPoints = looserPoints - looserPointChange;
+        // Actualizar puntos en player_category_points
+        await this.playerCategoryPointsService.upsertPoints(winnerData.email, winnerCategory, winnerPointChange);
+        await this.playerCategoryPointsService.upsertPoints(looserData.email, looserCategory, looserPointChange);
 
-      this._sendPointsUpdateEmail(
-        winnerData.email,
-        winnerData.name,
-        true, // isWinner
-        looserData.name,
-        createMatchRankingDto.result,
-        winnerOldPoints,
-        winnerPoints,
-      );
-      this._sendPointsUpdateEmail(
-        looserData.email,
-        looserData.name,
-        false, // isWinner
-        winnerData.name,
-        createMatchRankingDto.result,
-        looserOldPoints,
-        looserPoints,
-      );
-    } else if (createMatchRankingDto.winner.length === 2) {
-      const winner1 = createMatchRankingDto.winner[0];
-      const winner2 = createMatchRankingDto.winner[1];
-      const looser1 = createMatchRankingDto.looser[0];
-      const looser2 = createMatchRankingDto.looser[1];
-      const winner1Category = this._resolveDoublesCategory(winner1);
-      const winner2Category = this._resolveDoublesCategory(winner2);
-      const looser1Category = this._resolveDoublesCategory(looser1);
-      const looser2Category = this._resolveDoublesCategory(looser2);
+        // Obtener puntos actuales para el email
+        const winnerOldPoints = winnerPoints - winnerPointChange;
+        const looserOldPoints = looserPoints - looserPointChange;
 
-      this.logger.log({
-        categoryResolved: 'doubles',
-        winner: [
-          { email: winner1.email, category: winner1Category },
-          { email: winner2.email, category: winner2Category },
-        ],
-        looser: [
-          { email: looser1.email, category: looser1Category },
-          { email: looser2.email, category: looser2Category },
-        ],
-      });
+        this._sendPointsUpdateEmail(
+          winnerData.email,
+          winnerData.name,
+          true, // isWinner
+          looserData.name,
+          createMatchRankingDto.result,
+          winnerOldPoints,
+          winnerPoints,
+        );
+        this._sendPointsUpdateEmail(
+          looserData.email,
+          looserData.name,
+          false, // isWinner
+          winnerData.name,
+          createMatchRankingDto.result,
+          looserOldPoints,
+          looserPoints,
+        );
+      } else if (createMatchRankingDto.winner.length === 2) {
+        const winner1 = createMatchRankingDto.winner[0];
+        const winner2 = createMatchRankingDto.winner[1];
+        const looser1 = createMatchRankingDto.looser[0];
+        const looser2 = createMatchRankingDto.looser[1];
+        const winner1Category = this._resolveDoublesCategory(winner1);
+        const winner2Category = this._resolveDoublesCategory(winner2);
+        const looser1Category = this._resolveDoublesCategory(looser1);
+        const looser2Category = this._resolveDoublesCategory(looser2);
 
-      const pointsToWin = 300;
-      const pointsToLose = 50;
+        this.logger.log({
+          categoryResolved: 'doubles',
+          winner: [
+            { email: winner1.email, category: winner1Category },
+            { email: winner2.email, category: winner2Category },
+          ],
+          looser: [
+            { email: looser1.email, category: looser1Category },
+            { email: looser2.email, category: looser2Category },
+          ],
+        });
 
-      // Obtener puntos actuales de doubles
-      const winner1OldPoints = await this.playerCategoryPointsService.getPoints(winner1.email, winner1Category);
-      const winner2OldPoints = await this.playerCategoryPointsService.getPoints(winner2.email, winner2Category);
-      const looser1OldPoints = await this.playerCategoryPointsService.getPoints(looser1.email, looser1Category);
-      const looser2OldPoints = await this.playerCategoryPointsService.getPoints(looser2.email, looser2Category);
+        const pointsToWin = 300;
+        const pointsToLose = 50;
 
-      // Actualizar puntos en player_category_points
-      await this.playerCategoryPointsService.upsertPoints(winner1.email, winner1Category, pointsToWin);
-      await this.playerCategoryPointsService.upsertPoints(winner2.email, winner2Category, pointsToWin);
-      await this.playerCategoryPointsService.upsertPoints(looser1.email, looser1Category, pointsToLose);
-      await this.playerCategoryPointsService.upsertPoints(looser2.email, looser2Category, pointsToLose);
+        // Obtener puntos actuales de doubles
+        const winner1OldPoints = await this.playerCategoryPointsService.getPoints(winner1.email, winner1Category);
+        const winner2OldPoints = await this.playerCategoryPointsService.getPoints(winner2.email, winner2Category);
+        const looser1OldPoints = await this.playerCategoryPointsService.getPoints(looser1.email, looser1Category);
+        const looser2OldPoints = await this.playerCategoryPointsService.getPoints(looser2.email, looser2Category);
 
-      const winner1NewPoints = winner1OldPoints + pointsToWin;
-      const winner2NewPoints = winner2OldPoints + pointsToWin;
-      const looser1NewPoints = looser1OldPoints + pointsToLose;
-      const looser2NewPoints = looser2OldPoints + pointsToLose;
+        // Actualizar puntos en player_category_points
+        await this.playerCategoryPointsService.upsertPoints(winner1.email, winner1Category, pointsToWin);
+        await this.playerCategoryPointsService.upsertPoints(winner2.email, winner2Category, pointsToWin);
+        await this.playerCategoryPointsService.upsertPoints(looser1.email, looser1Category, pointsToLose);
+        await this.playerCategoryPointsService.upsertPoints(looser2.email, looser2Category, pointsToLose);
 
-      // Enviar emails a los ganadores
-      const losersNames = `${looser1.name} y ${looser2.name}`;
-      this._sendPointsUpdateEmail(winner1.email, winner1.name, true, losersNames, createMatchRankingDto.result, winner1OldPoints, winner1NewPoints);
-      this._sendPointsUpdateEmail(winner2.email, winner2.name, true, losersNames, createMatchRankingDto.result, winner2OldPoints, winner2NewPoints);
+        const winner1NewPoints = winner1OldPoints + pointsToWin;
+        const winner2NewPoints = winner2OldPoints + pointsToWin;
+        const looser1NewPoints = looser1OldPoints + pointsToLose;
+        const looser2NewPoints = looser2OldPoints + pointsToLose;
 
-      // Enviar emails a los perdedores
-      const winnersNames = `${winner1.name} y ${winner2.name}`;
-      this._sendPointsUpdateEmail(looser1.email, looser1.name, false, winnersNames, createMatchRankingDto.result, looser1OldPoints, looser1NewPoints);
-      this._sendPointsUpdateEmail(looser2.email, looser2.name, false, winnersNames, createMatchRankingDto.result, looser2OldPoints, looser2NewPoints);
+        // Enviar emails a los ganadores
+        const losersNames = `${looser1.name} y ${looser2.name}`;
+        this._sendPointsUpdateEmail(winner1.email, winner1.name, true, losersNames, createMatchRankingDto.result, winner1OldPoints, winner1NewPoints);
+        this._sendPointsUpdateEmail(winner2.email, winner2.name, true, losersNames, createMatchRankingDto.result, winner2OldPoints, winner2NewPoints);
 
-      this.logger.log('Doubles match processed: Winners +300, Losers +50 (using PlayerCategoryPoints)');
+        // Enviar emails a los perdedores
+        const winnersNames = `${winner1.name} y ${winner2.name}`;
+        this._sendPointsUpdateEmail(looser1.email, looser1.name, false, winnersNames, createMatchRankingDto.result, looser1OldPoints, looser1NewPoints);
+        this._sendPointsUpdateEmail(looser2.email, looser2.name, false, winnersNames, createMatchRankingDto.result, looser2OldPoints, looser2NewPoints);
+
+        this.logger.log('Doubles match processed: Winners +300, Losers +50 (using PlayerCategoryPoints)');
+      }
+
+      const newMatchRanking = new this.matchRankingModel(createMatchRankingDto);
+      const savedMatchRanking = await newMatchRanking.save();
+      await this.courtReserveService.logResultMatchUpdate(createMatchRankingDto.matchId, claimedReserve.player1);
+      return savedMatchRanking;
+    } catch (error) {
+      await this.courtReserveService.releaseResultMatch(createMatchRankingDto.matchId);
+      throw error;
     }
-    await this.courtReserveService.updateResultMatch(createMatchRankingDto.matchId);
-    const newMatchRanking = new this.matchRankingModel(createMatchRankingDto);
-    return newMatchRanking.save();
   }
 
   async validateMatch(validateMatchDto: ValidateMatchDto) {
