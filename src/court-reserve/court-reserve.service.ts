@@ -12,6 +12,7 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 import * as XLSX from 'xlsx';
 import { buildReservationCancellationEmail, buildReservationConfirmationEmail } from '../email/templates/reservation-email.templates';
+import { buildPaymentStatusEmail } from '../email/templates/transactional-email.templates';
 
 const getTurnDateRange = (dateToPlay: string, turn: string, timezone: string) => {
   const [start, end] = turn.split('-').map((value) => value.trim());
@@ -403,57 +404,15 @@ export class CourtReserveService {
     if (paymentStatus === 'approved') {
       const buildEmailData = {
         to: email.email,
-        subject: '✅ Pago Confirmado - Reserva Aprobada',
-        html: `
-<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
-  
-  <h2 style="color: #2e7d32; text-align: center; margin: 0 0 20px 0; border-bottom: 2px solid #4caf50; padding-bottom: 12px;">
-    ✅ Pago Confirmado
-  </h2>
-  
-  <p style="font-size: 15px; margin: 0 0 15px 0;">Hola ${reserve.player1},</p>
-  
-  <div style="background: #e8f5e9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-    <p style="margin: 0; font-size: 15px; color: #1b5e20;">
-      <strong>✓ Tu pago fue confirmado</strong> y tu reserva está definitivamente aprobada.
-    </p>
-  </div>
-
-  <p style="margin-top: 20px; font-size: 15px;">¡Nos vemos en la cancha!</p>
-  <p style="margin: 5px 0 0 0; font-size: 15px;"><strong>Club de Tenis Quintero</strong></p>
-</div>
-        `,
+        subject: 'Pago confirmado - Reserva aprobada',
+        html: buildPaymentStatusEmail({ playerName: reserve.player1, approved: true }),
       };
       await this.emailService.sendEmail(buildEmailData);
     } else {
       const buildEmailData = {
         to: email.email,
-        subject: '❌ Pago Rechazado - Reserva Cancelada',
-        html: `
-<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
-  
-  <h2 style="color: #c62828; text-align: center; margin: 0 0 20px 0; border-bottom: 2px solid #d32f2f; padding-bottom: 12px;">
-    ❌ Pago Rechazado
-  </h2>
-  
-  <p style="font-size: 15px; margin: 0 0 15px 0;">Hola ${reserve.player1},</p>
-  
-  <div style="background: #ffebee; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-    <p style="margin: 0; font-size: 15px; color: #c62828;">
-      <strong>✗ Tu pago no fue aprobado</strong> y tu reserva ha sido cancelada automáticamente.
-    </p>
-  </div>
-
-  <div style="background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #ff9800;">
-    <p style="margin: 0; font-size: 15px; line-height: 1.6;">
-      💡 <strong>¿Qué puedes hacer?</strong> Si deseas reservar nuevamente, puedes intentarlo con otro método de pago o contactar con la administración del club.
-    </p>
-  </div>
-
-  <p style="margin-top: 20px; font-size: 15px;">Si tienes dudas, no dudes en contactarnos.</p>
-  <p style="margin: 5px 0 0 0; font-size: 15px;"><strong>Club de Tenis Quintero</strong></p>
-</div>
-        `,
+        subject: 'Pago rechazado - Reserva anulada',
+        html: buildPaymentStatusEmail({ playerName: reserve.player1, approved: false }),
       };
       await this.emailService.sendEmail(buildEmailData);
     }

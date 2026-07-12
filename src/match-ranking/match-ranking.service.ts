@@ -14,6 +14,7 @@ import { PlayerCategory, RankingPorCategoria, Resultado } from './interfaces/ten
 import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { DOUBLES_CATEGORY, MAIN_SINGLES_CATEGORIES } from '../register/enums/category.enum';
+import { buildRankingPointsEmail } from '../email/templates/transactional-email.templates';
 
 @Injectable()
 export class MatchRankingService {
@@ -420,46 +421,8 @@ export class MatchRankingService {
   }
 
   private async _sendPointsUpdateEmail(playerEmail: string, playerName: string, isWinner: boolean, opponentName: string, score: string, oldPoints: number, newPoints: number) {
-    const subject = '🏆 Actualización de Puntaje de Ranking';
-    const pointChange = newPoints - oldPoints;
-    const changeSymbol = pointChange >= 0 ? '+' : '';
-    const changeColor = pointChange >= 0 ? '#4caf50' : '#d32f2f'; // Verde para ganar, rojo para perder
-
-    const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-        <h2 style="color: #0d47a1; text-align: center; margin-top: 0; border-bottom: 2px solid #0d47a1; padding-bottom: 15px;">
-        Actualización de Puntaje
-        </h2>
-        <p style="font-size: 16px;">¡Hola, ${playerName}!</p>
-        <p style="font-size: 16px; line-height: 1.6;">Se ha actualizado tu puntaje de ranking tras tu último partido.</p>
-        
-        <div style="background-color: #f5f8fa; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #e0e0e0;">
-            <p style="font-size: 16px; margin: 12px 0;">
-                <strong>Resultado:</strong> 
-                <span style="color: ${isWinner ? '#4caf50' : '#d32f2f'}; font-weight: bold;">${isWinner ? 'Victoria' : 'Derrota'}</span>
-            </p>
-            <p style="font-size: 16px; margin: 12px 0;">
-                <strong>Rival:</strong> ${opponentName}
-            </p>
-            <p style="font-size: 16px; margin: 12px 0;">
-                <strong>Marcador:</strong> ${score}
-            </p>
-            <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
-            <div style="text-align: center;">
-                <p style="font-size: 16px; margin: 10px 0;">Puntaje Anterior: ${oldPoints}</p>
-                <p style="font-size: 20px; margin: 10px 0; font-weight: bold; color: ${changeColor};">
-                    ${changeSymbol}${pointChange} Puntos
-                </p>
-                <p style="font-size: 22px; margin: 10px 0; font-weight: bold; color: #0d47a1;">
-                    Nuevo Puntaje: ${newPoints}
-                </p>
-            </div>
-        </div>
-
-        <p style="margin-top: 30px; font-size: 16px;">¡Sigue jugando y mejorando tu ranking!</p>
-        <p style="margin-top: 10px; font-size: 16px; line-height: 1.6;">Atentamente,<br><strong>Club de Tenis Quintero</strong></p>
-    </div>
-    `;
+    const subject = 'Actualización de puntaje de ranking';
+    const html = buildRankingPointsEmail({ playerName, isWinner, opponentName, score, oldPoints, newPoints });
 
     try {
       await this.emailService.sendEmail({ to: playerEmail, subject, html });
