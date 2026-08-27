@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
@@ -11,6 +11,9 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 // import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 import * as XLSX from 'xlsx';
+import { PaymentCallbackEffectService } from './payment-callback-effect.service';
+import { MercadoPagoPaymentStatus } from './dto/payment-confirmation.dto';
+import { PaymentCallbackEffectStatus } from './entities/payment-callback-effect.entity';
 
 @Injectable()
 export class CourtReserveService {
@@ -22,6 +25,7 @@ export class CourtReserveService {
     private readonly registerService: RegisterService,
     private readonly emailService: EmailService,
     private readonly auditLogService: AuditLogService,
+    private readonly paymentCallbackEffectService: PaymentCallbackEffectService,
   ) {}
 
   async exportFilteredReservesToExcelBuffer(): Promise<Buffer> {
@@ -340,99 +344,122 @@ export class CourtReserveService {
     return updatedReserve;
   }
 
-  async updateStateReserve(idCourtReserve: string) {
-    const currentReserve = await this.courtReserveModel.findOne({ idCourtReserve }).exec();
-    const oldState = currentReserve?.state || false;
+  async updateStateReserve(idCourtReserve: string, idempotencyKey: string) {
+    this.validateIdempotencyKey(idempotencyKey);
 
-    const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: true, wasPaid: true });
-    if (!updatedReserve) {
-      throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
+    const result = await this.paymentCallbackEffectService.executeOnce(
+      idempotencyKey,
+      'RESERVATION_UPDATE',
+      idCourtReserve,
+      MercadoPagoPaymentStatus.APPROVED,
+      async () => {
+        const currentReserve = await this.courtReserveModel.findOne({ idCourtReserve }).exec();
+        if (!currentReserve) {
+          throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found`);
+        }
+        if (currentReserve.wasPaid && currentReserve.paymentIdempotencyKey && currentReserve.paymentIdempotencyKey !== idempotencyKey) {
+          throw new ConflictException(`Reserve ${idCourtReserve} was already paid by another payment`);
+        }
+
+        return this.courtReserveModel
+          .findOneAndUpdate(
+            { idCourtReserve },
+            {
+              $set: {
+                state: true,
+                wasPaid: true,
+                paymentStatus: MercadoPagoPaymentStatus.APPROVED,
+                paymentIdempotencyKey: idempotencyKey,
+                paidAt: currentReserve.paidAt || new Date(),
+              },
+            },
+            { new: true },
+          )
+          .exec();
+      },
+    );
+
+    if (result.status === PaymentCallbackEffectStatus.PROCESSED) {
+      await this.auditLogService.logPaymentEffect(
+        idCourtReserve,
+        idempotencyKey,
+        'STATE_CHANGE',
+        MercadoPagoPaymentStatus.APPROVED,
+        result.processed ? 'PROCESSED' : 'SKIPPED_DUPLICATE',
+      );
     }
 
-    // ✅ AUDITORÍA: Registrar cambio de estado
-    try {
-      await this.auditLogService.logStateChange(idCourtReserve, oldState, true, true, 'SYSTEM');
-    } catch (auditErr) {
-      this.logger.error('[updateStateReserve] Error logging audit', auditErr);
-    }
-
-    this.logger.log(`reserve state has been updated for reserve: ${idCourtReserve}`);
-    return updatedReserve;
+    return result.value ?? { idCourtReserve, duplicate: true };
   }
 
-  async sendEmailConfirmation(idCourtReserve: string, paymentStatus: string) {
-    // ✅ AUDITORÍA: Registrar confirmación de pago
-    try {
-      await this.auditLogService.logPaymentConfirmation(idCourtReserve, paymentStatus);
-    } catch (auditErr) {
-      this.logger.error('[sendEmailConfirmation] Error logging audit', auditErr);
+  async sendEmailConfirmation(idCourtReserve: string, paymentStatus: MercadoPagoPaymentStatus, idempotencyKey: string) {
+    this.validateIdempotencyKey(idempotencyKey);
+
+    const result = await this.paymentCallbackEffectService.executeOnce(
+      idempotencyKey,
+      'EMAIL_CONFIRMATION',
+      idCourtReserve,
+      paymentStatus,
+      async () => {
+        const reserve = await this.getCourtReserveById(idCourtReserve);
+        const email = await this.findOneEmail(reserve.player1);
+        if (!email) {
+          throw new NotFoundException(`[sendEmailConfirmation] Email for player ${reserve.player1} not found`);
+        }
+
+        await this.emailService.sendEmail(this.buildPaymentStatusEmail(email.email, reserve.player1, paymentStatus), idempotencyKey);
+      },
+    );
+
+    if (result.status === PaymentCallbackEffectStatus.PROCESSED) {
+      await this.auditLogService.logPaymentEffect(
+        idCourtReserve,
+        idempotencyKey,
+        'PAYMENT_CONFIRMATION',
+        paymentStatus,
+        result.processed ? 'PROCESSED' : 'SKIPPED_DUPLICATE',
+      );
     }
 
-    const reserve = await this.getCourtReserveById(idCourtReserve);
-    if (!reserve) {
-      throw new NotFoundException(`[sendEmailConfirmation] Reserve with idCourtReserve ${idCourtReserve} not found`);
-    }
-    const email = await this.findOneEmail(reserve.player1);
-    if (!email) {
-      throw new NotFoundException(`[sendEmailConfirmation] Email for player ${reserve.player1} not found`);
-    }
-    if (paymentStatus === 'approved') {
-      const buildEmailData = {
-        to: email.email,
-        subject: '✅ Pago Confirmado - Reserva Aprobada',
-        html: `
-<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
-  
-  <h2 style="color: #2e7d32; text-align: center; margin: 0 0 20px 0; border-bottom: 2px solid #4caf50; padding-bottom: 12px;">
-    ✅ Pago Confirmado
-  </h2>
-  
-  <p style="font-size: 15px; margin: 0 0 15px 0;">Hola ${reserve.player1},</p>
-  
-  <div style="background: #e8f5e9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-    <p style="margin: 0; font-size: 15px; color: #1b5e20;">
-      <strong>✓ Tu pago fue confirmado</strong> y tu reserva está definitivamente aprobada.
-    </p>
-  </div>
+    return { idCourtReserve, paymentStatus, duplicate: !result.processed };
+  }
 
-  <p style="margin-top: 20px; font-size: 15px;">¡Nos vemos en la cancha!</p>
-  <p style="margin: 5px 0 0 0; font-size: 15px;"><strong>Club de Tenis Quintero</strong></p>
-</div>
-        `,
-      };
-      await this.emailService.sendEmail(buildEmailData);
-    } else {
-      const buildEmailData = {
-        to: email.email,
-        subject: '❌ Pago Rechazado - Reserva Cancelada',
-        html: `
-<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
-  
-  <h2 style="color: #c62828; text-align: center; margin: 0 0 20px 0; border-bottom: 2px solid #d32f2f; padding-bottom: 12px;">
-    ❌ Pago Rechazado
-  </h2>
-  
-  <p style="font-size: 15px; margin: 0 0 15px 0;">Hola ${reserve.player1},</p>
-  
-  <div style="background: #ffebee; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-    <p style="margin: 0; font-size: 15px; color: #c62828;">
-      <strong>✗ Tu pago no fue aprobado</strong> y tu reserva ha sido cancelada automáticamente.
-    </p>
-  </div>
-
-  <div style="background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #ff9800;">
-    <p style="margin: 0; font-size: 15px; line-height: 1.6;">
-      💡 <strong>¿Qué puedes hacer?</strong> Si deseas reservar nuevamente, puedes intentarlo con otro método de pago o contactar con la administración del club.
-    </p>
-  </div>
-
-  <p style="margin-top: 20px; font-size: 15px;">Si tienes dudas, no dudes en contactarnos.</p>
-  <p style="margin: 5px 0 0 0; font-size: 15px;"><strong>Club de Tenis Quintero</strong></p>
-</div>
-        `,
-      };
-      await this.emailService.sendEmail(buildEmailData);
+  private validateIdempotencyKey(idempotencyKey: string): void {
+    if (!idempotencyKey || idempotencyKey.length > 200) {
+      throw new BadRequestException('A valid Idempotency-Key header is required');
     }
+  }
+
+  private buildPaymentStatusEmail(to: string, player: string, paymentStatus: MercadoPagoPaymentStatus) {
+    const approved = paymentStatus === MercadoPagoPaymentStatus.APPROVED;
+    const pending = [
+      MercadoPagoPaymentStatus.AUTHORIZED,
+      MercadoPagoPaymentStatus.PENDING,
+      MercadoPagoPaymentStatus.IN_PROCESS,
+      MercadoPagoPaymentStatus.IN_MEDIATION,
+    ].includes(paymentStatus);
+    const title = approved ? '✅ Pago Confirmado' : pending ? '⏳ Pago en proceso' : '⚠️ Pago no completado';
+    const subject = approved
+      ? '✅ Pago Confirmado - Reserva Aprobada'
+      : pending
+        ? '⏳ Pago en proceso - Reserva pendiente'
+        : '⚠️ Actualización de pago de tu reserva';
+    const message = approved
+      ? 'Tu pago fue confirmado y tu reserva está definitivamente aprobada.'
+      : pending
+        ? 'Mercado Pago aún está procesando tu operación. Te avisaremos cuando exista una confirmación definitiva.'
+        : `Mercado Pago informó el estado “${paymentStatus}”. Tu reserva no fue marcada como pagada.`;
+
+    return {
+      to,
+      subject,
+      html: `<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
+  <h2>${title}</h2>
+  <p>Hola ${player},</p>
+  <p>${message}</p>
+  <p><strong>Club de Tenis Quintero</strong></p>
+</div>`,
+    };
   }
 
   async remove(idCourtReserve: string) {

@@ -8,9 +8,13 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   constructor(private readonly configService: ConfigService) {}
 
-  async sendEmail(sendEmailDto: SendEmailDto) {
+  async sendEmail(sendEmailDto: SendEmailDto, idempotencyKey?: string) {
     const { to, subject, html } = sendEmailDto;
     const emailServiceApiUrl = this.configService.get<string>('EMAIL_SERVICE_API_URL');
+    const emailServiceApiKey = this.configService.get<string>('EMAIL_SERVICE_API_KEY');
+    if (!emailServiceApiUrl || !emailServiceApiKey) {
+      throw new Error('Email service is not configured');
+    }
     try {
       await axios.post(
         `${emailServiceApiUrl}/send`,
@@ -21,7 +25,8 @@ export class EmailService {
         },
         {
           headers: {
-            'x-api-key': 'API_KEY_1234567890',
+            'x-api-key': emailServiceApiKey,
+            ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
           },
         },
       );

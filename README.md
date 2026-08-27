@@ -45,6 +45,22 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Mercado Pago configuration
+
+The backend and the Mercado Pago microservice must share the same `INTERNAL_API_KEY`. Payment amounts are calculated from the persisted reservation; the browser-provided amount is ignored.
+
+```bash
+MP_API_URL=https://mercadopago-service.example.com/mercadopago
+INTERNAL_API_KEY=replace-with-a-long-random-secret
+EMAIL_SERVICE_API_URL=https://email-service.example.com/email
+EMAIL_SERVICE_API_KEY=replace-with-the-email-service-key
+
+# Optional tariff overrides (CLP)
+MP_NIGHT_AMOUNT=4000
+MP_VISIT_AMOUNT=7000
+MP_NIGHT_VISIT_AMOUNT=11000
+```
+
 ## Test
 
 ```bash

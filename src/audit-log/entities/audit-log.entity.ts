@@ -5,6 +5,9 @@ export type AuditLogDocument = AuditLog & Document;
 
 @Schema({ collection: 'audit_logs', timestamps: true })
 export class AuditLog {
+  @Prop({ required: false })
+  eventId?: string;
+
   @Prop({ required: true, default: 'COURT_RESERVE' })
   entityType: string; // Tipo de entidad: 'COURT_RESERVE'
 
@@ -40,6 +43,7 @@ export class AuditLog {
     players?: string[];
     reason?: string; // Para cancelaciones
     paymentStatus?: string; // Para confirmaciones de pago
+    outcome?: string;
     isDouble?: boolean;
     isVisit?: boolean;
     isPaidNight?: boolean;
@@ -58,3 +62,4 @@ export class AuditLog {
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);
 
+AuditLogSchema.index({ eventId: 1 }, { unique: true, sparse: true });

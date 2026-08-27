@@ -15,7 +15,7 @@ async function bootstrap() {
   app.enableCors({
     origin: '*', // Allow requests from this origin
     preflightContinue: false,
-    allowedHeaders: ['Content-Type', 'Authorization'], // Allow only specified headers
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-API-Key'],
     credentials: true,
   });
 

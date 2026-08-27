@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, Res, Headers } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
+import { PaymentConfirmationDto } from './dto/payment-confirmation.dto';
 
 @Controller('court-reserve')
 export class CourtReserveController {
@@ -24,13 +26,15 @@ export class CourtReserveController {
   }
 
   @Post('UpdateStateReserve/:idCourtReserve')
-  updateStateReserve(@Param('idCourtReserve') idCourtReserve: string) {
-    return this.courtReserveService.updateStateReserve(idCourtReserve);
+  @UseGuards(InternalApiKeyGuard)
+  updateStateReserve(@Param('idCourtReserve') idCourtReserve: string, @Headers('idempotency-key') idempotencyKey: string) {
+    return this.courtReserveService.updateStateReserve(idCourtReserve, idempotencyKey);
   }
 
   @Post('emailconfirmation')
-  sendEmailConfirmation(@Body() body: { reservationId: string; paymentStatus: string }) {
-    return this.courtReserveService.sendEmailConfirmation(body.reservationId, body.paymentStatus);
+  @UseGuards(InternalApiKeyGuard)
+  sendEmailConfirmation(@Body() body: PaymentConfirmationDto, @Headers('idempotency-key') idempotencyKey: string) {
+    return this.courtReserveService.sendEmailConfirmation(body.reservationId, body.paymentStatus, idempotencyKey);
   }
 
   @Get('available/:selectedDate')

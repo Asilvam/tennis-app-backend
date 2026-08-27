@@ -154,6 +154,38 @@ export class AuditLogService {
   }
 
   /**
+   * Persiste una sola auditoría por efecto de pago. Sólo usa $setOnInsert para
+   * mantener el registro append-only y permitir reintentar la auditoría sin duplicarla.
+   */
+  async logPaymentEffect(
+    reserveId: string,
+    eventId: string,
+    action: 'STATE_CHANGE' | 'PAYMENT_CONFIRMATION',
+    paymentStatus: string,
+    outcome: 'PROCESSED' | 'SKIPPED_DUPLICATE',
+  ): Promise<void> {
+    await this.auditLogModel
+      .updateOne(
+        { eventId },
+        {
+          $setOnInsert: {
+            eventId,
+            entityType: 'COURT_RESERVE',
+            entityId: reserveId,
+            action,
+            performedBy: 'SYSTEM',
+            metadata: { paymentStatus, outcome },
+            description: `Efecto de pago ${action} ${outcome}: ${paymentStatus} para reserva ${reserveId}`,
+            timestamp: new Date(),
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+    this.logger.log(`[AUDIT] Payment effect persisted: ${eventId}`);
+  }
+
+  /**
    * Registra actualización de resultado de partido
    */
   async logMatchResultUpdate(reserveId: string, performedBy: string = 'USER') {

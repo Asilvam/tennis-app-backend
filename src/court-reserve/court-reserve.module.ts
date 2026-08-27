@@ -7,15 +7,21 @@ import { RegisterModule } from '../register/register.module';
 // import { EmailModule } from '../email/email.module';
 import { EmailService } from '../email/email.service';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { PaymentCallbackEffect, PaymentCallbackEffectSchema } from './entities/payment-callback-effect.entity';
+import { PaymentCallbackEffectService } from './payment-callback-effect.service';
+import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: CourtReserve.name, schema: CourtReserveSchema }]),
+    MongooseModule.forFeature([
+      { name: CourtReserve.name, schema: CourtReserveSchema },
+      { name: PaymentCallbackEffect.name, schema: PaymentCallbackEffectSchema },
+    ]),
     RegisterModule,
     AuditLogModule,
     // EmailModule,
   ],
-  providers: [CourtReserveService, EmailService],
+  providers: [CourtReserveService, EmailService, PaymentCallbackEffectService, InternalApiKeyGuard],
   controllers: [CourtReserveController],
   exports: [CourtReserveService, MongooseModule],
 })
