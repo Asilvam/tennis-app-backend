@@ -52,6 +52,15 @@ export class CourtReserve {
   @Prop({ default: false })
   wasPaid: boolean;
 
+  @Prop({ required: false })
+  paymentStatus?: string;
+
+  @Prop({ required: false })
+  paymentIdempotencyKey?: string;
+
+  @Prop({ required: false })
+  paidAt?: Date;
+
   @Prop({ default: false })
   isDouble: boolean;
 

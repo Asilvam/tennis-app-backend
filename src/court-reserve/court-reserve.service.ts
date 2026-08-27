@@ -11,7 +11,9 @@ import { AuditLogService } from '../audit-log/audit-log.service';
 // import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
 import { buildReservationCancellationEmail, buildReservationConfirmationEmail } from '../email/templates/reservation-email.templates';
-import { buildPaymentStatusEmail } from '../email/templates/transactional-email.templates';
+import { PaymentCallbackEffectService } from './payment-callback-effect.service';
+import { MercadoPagoPaymentStatus } from './dto/payment-confirmation.dto';
+import { PaymentCallbackEffectStatus } from './entities/payment-callback-effect.entity';
 
 type AdminReserveActor = {
   email: string;
@@ -40,6 +42,7 @@ export class CourtReserveService {
     private readonly registerService: RegisterService,
     private readonly emailService: EmailService,
     private readonly auditLogService: AuditLogService,
+    private readonly paymentCallbackEffectService: PaymentCallbackEffectService,
   ) {}
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
@@ -340,57 +343,122 @@ export class CourtReserveService {
     this.logger.log(`Match result updated for reserve: ${idCourtReserve}`);
   }
 
-  async updateStateReserve(idCourtReserve: string) {
-    const currentReserve = await this.courtReserveModel.findOne({ idCourtReserve }).exec();
-    const oldState = currentReserve?.state || false;
+  async updateStateReserve(idCourtReserve: string, idempotencyKey: string) {
+    this.validateIdempotencyKey(idempotencyKey);
 
-    const updatedReserve = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: true, wasPaid: true });
-    if (!updatedReserve) {
-      throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found or already updated`);
+    const result = await this.paymentCallbackEffectService.executeOnce(
+      idempotencyKey,
+      'RESERVATION_UPDATE',
+      idCourtReserve,
+      MercadoPagoPaymentStatus.APPROVED,
+      async () => {
+        const currentReserve = await this.courtReserveModel.findOne({ idCourtReserve }).exec();
+        if (!currentReserve) {
+          throw new NotFoundException(`Reserve with idCourtReserve ${idCourtReserve} not found`);
+        }
+        if (currentReserve.wasPaid && currentReserve.paymentIdempotencyKey && currentReserve.paymentIdempotencyKey !== idempotencyKey) {
+          throw new ConflictException(`Reserve ${idCourtReserve} was already paid by another payment`);
+        }
+
+        return this.courtReserveModel
+          .findOneAndUpdate(
+            { idCourtReserve },
+            {
+              $set: {
+                state: true,
+                wasPaid: true,
+                paymentStatus: MercadoPagoPaymentStatus.APPROVED,
+                paymentIdempotencyKey: idempotencyKey,
+                paidAt: currentReserve.paidAt || new Date(),
+              },
+            },
+            { new: true },
+          )
+          .exec();
+      },
+    );
+
+    if (result.status === PaymentCallbackEffectStatus.PROCESSED) {
+      await this.auditLogService.logPaymentEffect(
+        idCourtReserve,
+        idempotencyKey,
+        'STATE_CHANGE',
+        MercadoPagoPaymentStatus.APPROVED,
+        result.processed ? 'PROCESSED' : 'SKIPPED_DUPLICATE',
+      );
     }
 
-    // ✅ AUDITORÍA: Registrar cambio de estado
-    try {
-      await this.auditLogService.logStateChange(idCourtReserve, oldState, true, true, 'SYSTEM');
-    } catch (auditErr) {
-      this.logger.error('[updateStateReserve] Error logging audit', auditErr);
-    }
-
-    this.logger.log(`reserve state has been updated for reserve: ${idCourtReserve}`);
-    return updatedReserve;
+    return result.value ?? { idCourtReserve, duplicate: true };
   }
 
-  async sendEmailConfirmation(idCourtReserve: string, paymentStatus: string) {
-    // ✅ AUDITORÍA: Registrar confirmación de pago
-    try {
-      await this.auditLogService.logPaymentConfirmation(idCourtReserve, paymentStatus);
-    } catch (auditErr) {
-      this.logger.error('[sendEmailConfirmation] Error logging audit', auditErr);
+  async sendEmailConfirmation(idCourtReserve: string, paymentStatus: MercadoPagoPaymentStatus, idempotencyKey: string) {
+    this.validateIdempotencyKey(idempotencyKey);
+
+    const result = await this.paymentCallbackEffectService.executeOnce(
+      idempotencyKey,
+      'EMAIL_CONFIRMATION',
+      idCourtReserve,
+      paymentStatus,
+      async () => {
+        const reserve = await this.getCourtReserveById(idCourtReserve);
+        const email = await this.findOneEmail(reserve.player1);
+        if (!email) {
+          throw new NotFoundException(`[sendEmailConfirmation] Email for player ${reserve.player1} not found`);
+        }
+
+        await this.emailService.sendEmail(this.buildPaymentStatusEmail(email.email, reserve.player1, paymentStatus), idempotencyKey);
+      },
+    );
+
+    if (result.status === PaymentCallbackEffectStatus.PROCESSED) {
+      await this.auditLogService.logPaymentEffect(
+        idCourtReserve,
+        idempotencyKey,
+        'PAYMENT_CONFIRMATION',
+        paymentStatus,
+        result.processed ? 'PROCESSED' : 'SKIPPED_DUPLICATE',
+      );
     }
 
-    const reserve = await this.getCourtReserveById(idCourtReserve);
-    if (!reserve) {
-      throw new NotFoundException(`[sendEmailConfirmation] Reserve with idCourtReserve ${idCourtReserve} not found`);
+    return { idCourtReserve, paymentStatus, duplicate: !result.processed };
+  }
+
+  private validateIdempotencyKey(idempotencyKey: string): void {
+    if (!idempotencyKey || idempotencyKey.length > 200) {
+      throw new BadRequestException('A valid Idempotency-Key header is required');
     }
-    const email = await this.findOneEmail(reserve.player1);
-    if (!email) {
-      throw new NotFoundException(`[sendEmailConfirmation] Email for player ${reserve.player1} not found`);
-    }
-    if (paymentStatus === 'approved') {
-      const buildEmailData = {
-        to: email.email,
-        subject: 'Pago confirmado - Reserva aprobada',
-        html: buildPaymentStatusEmail({ playerName: reserve.player1, approved: true }),
-      };
-      await this.emailService.sendEmail(buildEmailData);
-    } else {
-      const buildEmailData = {
-        to: email.email,
-        subject: 'Pago rechazado - Reserva anulada',
-        html: buildPaymentStatusEmail({ playerName: reserve.player1, approved: false }),
-      };
-      await this.emailService.sendEmail(buildEmailData);
-    }
+  }
+
+  private buildPaymentStatusEmail(to: string, player: string, paymentStatus: MercadoPagoPaymentStatus) {
+    const approved = paymentStatus === MercadoPagoPaymentStatus.APPROVED;
+    const pending = [
+      MercadoPagoPaymentStatus.AUTHORIZED,
+      MercadoPagoPaymentStatus.PENDING,
+      MercadoPagoPaymentStatus.IN_PROCESS,
+      MercadoPagoPaymentStatus.IN_MEDIATION,
+    ].includes(paymentStatus);
+    const title = approved ? '✅ Pago Confirmado' : pending ? '⏳ Pago en proceso' : '⚠️ Pago no completado';
+    const subject = approved
+      ? '✅ Pago Confirmado - Reserva Aprobada'
+      : pending
+        ? '⏳ Pago en proceso - Reserva pendiente'
+        : '⚠️ Actualización de pago de tu reserva';
+    const message = approved
+      ? 'Tu pago fue confirmado y tu reserva está definitivamente aprobada.'
+      : pending
+        ? 'Mercado Pago aún está procesando tu operación. Te avisaremos cuando exista una confirmación definitiva.'
+        : `Mercado Pago informó el estado “${paymentStatus}”. Tu reserva no fue marcada como pagada.`;
+
+    return {
+      to,
+      subject,
+      html: `<div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
+  <h2>${title}</h2>
+  <p>Hola ${player},</p>
+  <p>${message}</p>
+  <p><strong>Club de Tenis Quintero</strong></p>
+</div>`,
+    };
   }
 
   async remove(idCourtReserve: string) {
