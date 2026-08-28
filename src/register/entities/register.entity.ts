@@ -25,7 +25,7 @@ export class Register {
   @Prop({ default: () => uuidv4().replace(/-/g, '').substring(0, 10) })
   verificationToken: string;
 
-  @Prop({ type: String, enum: ['admin', 'user'], default: 'user' })
+  @Prop({ type: String, enum: ['admin', 'user', 'profesor'], default: 'user' })
   role: string;
 
   @Prop({ required: true, enum: Object.values(EstadoPago), default: EstadoPago.PAGADO })
