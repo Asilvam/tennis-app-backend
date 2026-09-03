@@ -1,4 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { RegisterService } from '../register/register.service';
 import { JwtService } from '@nestjs/jwt';
@@ -15,10 +22,10 @@ export class AuthService {
 
   async login({ username, password }: LoginDto) {
     const user = await this.registerService.validatePlayerEmail(username);
-    const { namePlayer, role } = user;
     if (!user) {
       throw new UnauthorizedException('email is wrong');
     }
+    const { namePlayer, role } = user;
     const isPasswordValid = await bcryptjs.compare(password, user.pwd);
     if (!isPasswordValid) {
       throw new UnauthorizedException('password is wrong');
