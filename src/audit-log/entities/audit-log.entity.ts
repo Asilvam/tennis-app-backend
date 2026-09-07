@@ -17,7 +17,7 @@ export class AuditLog {
   })
   action: string;
 
-  @Prop({ required: true, enum: ['USER', 'ADMIN', 'SYSTEM'] })
+  @Prop({ required: true, enum: ['USER', 'ADMIN', 'PROFESOR', 'SYSTEM'] })
   performedBy: string;
 
   @Prop({ required: false })

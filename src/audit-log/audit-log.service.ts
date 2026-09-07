@@ -3,6 +3,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AuditLog } from './entities/audit-log.entity';
 
+export type AuditPerformer = 'USER' | 'ADMIN' | 'PROFESOR' | 'SYSTEM';
+
+const formatPerformer = (performedBy: AuditPerformer, email?: string): string => {
+  const role = performedBy.toLowerCase();
+  return email ? `role: ${role}, email: ${email}` : `role: ${role}`;
+};
+
 @Injectable()
 export class AuditLogService {
   private readonly logger = new Logger(AuditLogService.name);
@@ -15,9 +22,10 @@ export class AuditLogService {
   /**
    * Registra la creación de una reserva
    */
-  async logReserveCreation(reserveData: any, performedBy: 'USER' | 'ADMIN' | 'SYSTEM', userName?: string, email?: string) {
+  async logReserveCreation(reserveData: any, performedBy: AuditPerformer, userName?: string, email?: string) {
     try {
       const players = [reserveData.player1, reserveData.player2, reserveData.player3, reserveData.player4].filter(Boolean);
+      const performer = formatPerformer(performedBy, email);
 
       const audit = new this.auditLogModel({
         entityType: 'COURT_RESERVE',
@@ -37,12 +45,12 @@ export class AuditLogService {
           isPaidNight: reserveData.isPaidNight || false,
           visitName: reserveData.visitName,
         },
-        description: `Reserva creada por ${performedBy}: ${reserveData.court} - ${reserveData.dateToPlay} ${reserveData.turn} - Jugadores: ${players.join(', ')}`,
+        description: `Reserva creada por ${performer}: ${reserveData.court} - ${reserveData.dateToPlay} ${reserveData.turn} - Jugadores: ${players.join(', ')}`,
         timestamp: new Date(),
       });
 
       await audit.save();
-      this.logger.log(`[AUDIT] Reserve created logged: ${reserveData.idCourtReserve} by ${performedBy}`);
+      this.logger.log(`[AUDIT] Reserve created logged: ${reserveData.idCourtReserve} — ${performer}`);
     } catch (error) {
       this.logger.error('[AUDIT] Error logging creation', error?.stack || error);
     }
@@ -51,22 +59,28 @@ export class AuditLogService {
   /**
    * Registra la creación masiva de reservas por admin
    */
-  async logBulkAdminReserves(reservesCount: number, performedBy: string = 'ADMIN') {
+  async logBulkAdminReserves(
+    reservesCount: number,
+    performedBy: AuditPerformer = 'ADMIN',
+    email?: string,
+  ) {
     try {
+      const performer = formatPerformer(performedBy, email);
       const audit = new this.auditLogModel({
         entityType: 'COURT_RESERVE',
         entityId: 'BULK_OPERATION',
         action: 'ADMIN_BULK_CREATE',
         performedBy,
+        performedByEmail: email,
         metadata: {
           reservesCount,
         },
-        description: `Creación masiva de ${reservesCount} reservas por ${performedBy}`,
+        description: `Creación masiva de ${reservesCount} reservas por ${performer}`,
         timestamp: new Date(),
       });
 
       await audit.save();
-      this.logger.log(`[AUDIT] Bulk creation logged: ${reservesCount} reserves by ${performedBy}`);
+      this.logger.log(`[AUDIT] Bulk creation logged: ${reservesCount} reserves — ${performer}`);
     } catch (error) {
       this.logger.error('[AUDIT] Error logging bulk creation', error?.stack || error);
     }
@@ -228,6 +242,7 @@ export class AuditLogService {
     return {
       total: logs.length,
       byAdmin: logs.filter((l) => l.performedBy === 'ADMIN').length,
+      byProfesor: logs.filter((l) => l.performedBy === 'PROFESOR').length,
       byUser: logs.filter((l) => l.performedBy === 'USER').length,
       bySystem: logs.filter((l) => l.performedBy === 'SYSTEM').length,
       withReason: logs.filter((l) => l.metadata?.reason).length,
@@ -252,6 +267,7 @@ export class AuditLogService {
     return {
       total: logs.length,
       byAdmin: logs.filter((l) => l.performedBy === 'ADMIN').length,
+      byProfesor: logs.filter((l) => l.performedBy === 'PROFESOR').length,
       byUser: logs.filter((l) => l.performedBy === 'USER').length,
       paidNight: logs.filter((l) => l.metadata?.isPaidNight).length,
       withVisit: logs.filter((l) => l.metadata?.isVisit).length,
@@ -283,6 +299,7 @@ export class AuditLogService {
       byPerformer: {
         user: logs.filter((l) => l.performedBy === 'USER').length,
         admin: logs.filter((l) => l.performedBy === 'ADMIN').length,
+        profesor: logs.filter((l) => l.performedBy === 'PROFESOR').length,
         system: logs.filter((l) => l.performedBy === 'SYSTEM').length,
       },
     };

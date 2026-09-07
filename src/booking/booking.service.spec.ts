@@ -31,6 +31,10 @@ describe('BookingService', () => {
         player1: 'Campeonato',
       }),
     ]);
+    expect(courtReserveService.adminReserve).toHaveBeenCalledWith(expect.any(Array), {
+      email: 'admin@example.com',
+      role: 'admin',
+    });
     expect(registerService.findOneByEmail).not.toHaveBeenCalled();
   });
 
@@ -40,6 +44,10 @@ describe('BookingService', () => {
     const result = await service.createMultiple(dto, { email: 'PROFE@example.com', role: 'profesor' });
 
     expect(registerService.findOneByEmail).toHaveBeenCalledWith('profe@example.com');
+    expect(courtReserveService.adminReserve).toHaveBeenCalledWith(expect.any(Array), {
+      email: 'PROFE@example.com',
+      role: 'profesor',
+    });
     expect(result).toEqual([
       expect.objectContaining({
         blockedMotive: 'Clases - V. Saavedra',

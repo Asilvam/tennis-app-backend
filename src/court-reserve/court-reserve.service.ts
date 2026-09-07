@@ -14,6 +14,11 @@ import * as XLSX from 'xlsx';
 import { buildReservationCancellationEmail, buildReservationConfirmationEmail } from '../email/templates/reservation-email.templates';
 import { buildPaymentStatusEmail } from '../email/templates/transactional-email.templates';
 
+type AdminReserveActor = {
+  email: string;
+  role: string;
+};
+
 const getTurnDateRange = (dateToPlay: string, turn: string, timezone: string) => {
   const [start, end] = turn.split('-').map((value) => value.trim());
   const startTime = DateTime.fromISO(`${dateToPlay}T${start}`, { zone: timezone });
@@ -107,9 +112,11 @@ export class CourtReserveService {
     return selectedCourt ? selectedCourt.available : false;
   };
 
-  async adminReserve(createCourtReserveDtoArray: CreateCourtReserveDto[]) {
+  async adminReserve(createCourtReserveDtoArray: CreateCourtReserveDto[], actor?: AdminReserveActor) {
     const savedReservations = [];
     const errors = [];
+    const performedBy = actor?.role === 'profesor' ? 'PROFESOR' : 'ADMIN';
+    const performedByEmail = actor?.email?.trim().toLowerCase();
 
     for (const reservation of createCourtReserveDtoArray) {
       try {
@@ -129,7 +136,12 @@ export class CourtReserveService {
 
         // ✅ AUDITORÍA: Registrar creación individual
         try {
-          await this.auditLogService.logReserveCreation(savedReservation.toObject(), 'ADMIN', 'Admin Bulk Operation');
+          await this.auditLogService.logReserveCreation(
+            savedReservation.toObject(),
+            performedBy,
+            actor?.role === 'profesor' ? reservation.player1 : 'Admin Bulk Operation',
+            performedByEmail,
+          );
         } catch (auditErr) {
           this.logger.error('[adminReserve] Error logging audit', auditErr);
         }
@@ -148,7 +160,7 @@ export class CourtReserveService {
     // ✅ AUDITORÍA: Registrar operación masiva
     if (savedReservations.length > 0) {
       try {
-        await this.auditLogService.logBulkAdminReserves(savedReservations.length);
+        await this.auditLogService.logBulkAdminReserves(savedReservations.length, performedBy, performedByEmail);
       } catch (auditErr) {
         this.logger.error('[adminReserve] Error logging bulk audit', auditErr);
       }

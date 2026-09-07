@@ -35,7 +35,7 @@ export class BookingService {
         });
       });
     });
-    return await this.courtReserveService.adminReserve(newBookings);
+    return await this.courtReserveService.adminReserve(newBookings, actor);
   }
 
   private async resolveMotive(
