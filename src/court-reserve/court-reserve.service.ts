@@ -10,7 +10,6 @@ import { RegisterService } from '../register/register.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 // import { ConfigService } from '@nestjs/config';
 import { TimeSlot } from './interfaces/court-reserve.interface';
-import * as XLSX from 'xlsx';
 import { buildReservationCancellationEmail, buildReservationConfirmationEmail } from '../email/templates/reservation-email.templates';
 import { buildPaymentStatusEmail } from '../email/templates/transactional-email.templates';
 
@@ -42,42 +41,6 @@ export class CourtReserveService {
     private readonly emailService: EmailService,
     private readonly auditLogService: AuditLogService,
   ) {}
-
-  async exportFilteredReservesToExcelBuffer(): Promise<Buffer> {
-    const reserves = await this.findFilteredReserves();
-    const data = reserves.map((r) => ({
-      dateToPlay: r.dateToPlay,
-      court: r.court,
-      turn: r.turn,
-      player1: r.player1,
-      player2: r.player2,
-      player3: r.player3,
-      player4: r.player4,
-      visitName: r.visitName,
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Reserves');
-    return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-  }
-
-  async findFilteredReserves(): Promise<CourtReserve[]> {
-    const filter = {
-      dateToPlay: {
-        $gte: '2025-10-01',
-      },
-      turn: {
-        $in: ['20:15-22:00', '22:15-00:00'],
-      },
-      state: true,
-      isPaidNight: true,
-      wasPaid: false,
-      player1: {
-        $nin: ['mantenimiento', 'Mantenimiento', 'clases', 'Clases', 'clima', 'Clima'],
-      },
-    };
-    return this.courtReserveModel.find(filter).select('dateToPlay court turn player1 player2 player3 player4 visitName -_id').exec();
-  }
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
     return activeReserves.some((reserve) => reserve.player1 === player || reserve.player2 === player || reserve.player3 === player || reserve.player4 === player);
