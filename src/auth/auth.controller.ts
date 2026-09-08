@@ -14,11 +14,6 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @Post('refreshToken')
-  refreshToken(@Body() dto: TokenDto) {
-    return this.authService.refreshToken(dto.token);
-  }
-
   @Post('validateToken')
   validateToken(@Body() token: TokenDto) {
     return this.authService.validateToken(token);
