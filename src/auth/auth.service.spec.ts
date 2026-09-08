@@ -24,7 +24,7 @@ describe('AuthService login', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuthService(registerService as any, jwtService as any, {} as any);
+    service = new AuthService(registerService as any, jwtService as any);
   });
 
   it('rejects an unknown email without attempting password validation', async () => {

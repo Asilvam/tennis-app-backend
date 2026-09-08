@@ -1,112 +1,119 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Tennis App Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend REST del Club de Tenis Quintero, construido con NestJS y MongoDB. Administra usuarios, reservas de cancha, rankings, noticias, auditoría e integración con los servicios de correo y Mercado Pago.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Requisitos
 
-## Description
+- Node.js `22.19.0`
+- npm `10.9.3`
+- Una instancia de MongoDB accesible
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Installation
+La versión de Node también está definida en `.nvmrc`:
 
 ```bash
-$ npm install
+nvm use
 ```
 
-## Running the app
+## Instalación
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm ci
 ```
 
-## New Relic
+## Variables de entorno
 
-This service is configured to preload the New Relic Node.js agent on startup.
+Crea un archivo `.env` local. No guardes secretos reales en Git.
 
-Required environment variables:
+```env
+# Aplicación
+PORT=3500
 
-```bash
+# MongoDB
+MONGODB_URI=mongodb://localhost:27017/Tennis
+
+# JWT
+SECRET_KEY=replace-with-a-long-random-secret
+TOKEN_EXPIRE_TIME=1h
+
+# Microservicio de Mercado Pago
+MP_API_URL=http://localhost:3000/mercadopago
+
+# Microservicio de correo
+EMAIL_SERVICE_API_URL=http://localhost:3001/email
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=replace-me
+CLOUDINARY_API_KEY=replace-me
+CLOUDINARY_API_SECRET=replace-me
+
+# Noticias; ambos valores son opcionales
+NEWS_CTQ_CRON_ENABLED=true
+NEWS_CTQ_CRON_SCHEDULE=0 0 6 * * *
+
+# New Relic; opcional
 NEW_RELIC_APP_NAME=tennis-app-backend
-NEW_RELIC_LICENSE_KEY=your_license_key
-```
-
-Optional environment variables:
-
-```bash
+NEW_RELIC_LICENSE_KEY=replace-me
 NEW_RELIC_ENABLED=true
 NEW_RELIC_LOG_LEVEL=info
 ```
 
-Notes:
-- If `NEW_RELIC_LICENSE_KEY` is missing, the agent stays disabled.
-- If `NEW_RELIC_ENABLED=false`, the agent is explicitly disabled.
-- The agent config lives in `newrelic.js` at the project root.
+`TOKEN_EXPIRE_TIME` usa `1h` por defecto. El cron de noticias queda habilitado por defecto y se ejecuta diariamente a las 06:00 en `America/Santiago`. `NEWS_CTQ_CRON_ENABLED` acepta `true`, `1`, `yes`, `on`, `false`, `0`, `no` u `off`.
 
-Smoke test:
+## Servicios relacionados
+
+Para probar el flujo completo en local se ejecutan tres aplicaciones:
+
+1. `tennis-app-backend`: puerto `3500` por defecto.
+2. `mercadopago-microservice`: configurado mediante `MP_API_URL`.
+3. `email-send-microservice`: configurado mediante `EMAIL_SERVICE_API_URL`.
+
+## Ejecución
 
 ```bash
-NEW_RELIC_APP_NAME=tennis-app-backend \
-NEW_RELIC_LICENSE_KEY=your_license_key \
-NEW_RELIC_ENABLED=true \
+# Desarrollo con recarga
+npm run start:dev
+
+# Build
+npm run build
+
+# Producción local
+npm run start:prod
+```
+
+Con la aplicación activa:
+
+- Estado: `GET /healthz`
+- Swagger: `GET /docs`
+
+## Pruebas
+
+```bash
+# Pruebas unitarias
+npm test -- --runInBand
+
+# Cobertura
+npm run test:cov
+
+# Pruebas e2e
+npm run test:e2e
+```
+
+## New Relic
+
+El agente se carga al iniciar el backend. Si `NEW_RELIC_LICENSE_KEY` no está configurada o `NEW_RELIC_ENABLED=false`, permanece deshabilitado.
+
+```bash
 npm run newrelic:smoke
 ```
 
-What to check in New Relic:
-- APM application named `tennis-app-backend`
-- A non-web/background transaction named `newrelic_smoke_test`
-- Custom events named `SmokeTestEvent`
+## APIs retiradas
 
-If the backend cannot reach MongoDB in your local environment, this smoke test still lets you verify that the New Relic agent is correctly loaded and can emit telemetry.
+El backend ya no expone:
 
-## Test
+- Refresh Token; la autenticación utiliza únicamente access tokens.
+- Notification/Web Push.
+- Exportación XLSX y `filtered-reserves`.
 
-```bash
-# unit tests
-$ npm run test
+## Despliegue
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
+El proyecto se despliega como aplicación Node.js, por ejemplo mediante el buildpack de Heroku. Los archivos de Docker y Fly.io fueron retirados porque ya no forman parte del flujo de despliegue.
