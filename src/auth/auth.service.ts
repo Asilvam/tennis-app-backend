@@ -17,10 +17,10 @@ export class AuthService {
 
   async login({ username, password }: LoginDto) {
     const user = await this.registerService.validatePlayerEmail(username);
-    const { namePlayer, role } = user;
     if (!user) {
       throw new UnauthorizedException('email is wrong');
     }
+    const { namePlayer, role } = user;
     const isPasswordValid = await bcryptjs.compare(password, user.pwd);
     if (!isPasswordValid) {
       throw new UnauthorizedException('password is wrong');
