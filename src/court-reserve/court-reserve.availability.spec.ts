@@ -15,6 +15,7 @@ describe('CourtReserveService availability pricing', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
     );
   }
 

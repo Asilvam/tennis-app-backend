@@ -33,6 +33,7 @@ describe('CourtReserveService audit identity', () => {
       {} as any,
       {} as any,
       auditLogService as any,
+      {} as any,
     );
 
     return { service, auditLogService };
