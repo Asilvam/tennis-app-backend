@@ -1,119 +1,228 @@
 # Tennis App Backend
 
-Backend REST del Club de Tenis Quintero, construido con NestJS y MongoDB. Administra usuarios, reservas de cancha, rankings, noticias, auditoría e integración con los servicios de correo y Mercado Pago.
+Backend principal del Club de Tenis Quintero. Está construido con NestJS y MongoDB y administra autenticación, socios, canchas, reservas, ranking, pagos, auditoría, correo transaccional, imágenes y noticias.
 
 ## Requisitos
 
 - Node.js `22.19.0`
 - npm `10.9.3`
-- Una instancia de MongoDB accesible
+- MongoDB local o MongoDB Atlas
+- `mercadopago-microservice` para procesar pagos
+- `email-send-microservice` para entregar correos
+- Cloudinary si se utilizará la carga de imágenes de perfil
 
-La versión de Node también está definida en `.nvmrc`:
+Puedes activar la versión recomendada de Node definida en `.nvmrc` con:
 
 ```bash
 nvm use
+node --version
+npm --version
 ```
 
-## Instalación
+## Servicios y puertos locales
+
+| Servicio          | Directorio                 | Puerto recomendado | URL base                            |
+| ----------------- | -------------------------- | -----------------: | ----------------------------------- |
+| Mercado Pago      | `mercadopago-microservice` |             `3000` | `http://localhost:3000/mercadopago` |
+| Correo            | `email-send-microservice`  |             `3001` | `http://localhost:3001/email`       |
+| Backend principal | `tennis-app-backend`       |             `3500` | `http://localhost:3500`             |
+
+Cada servicio se instala y ejecuta en una terminal independiente. No se utiliza Docker ni Fly.io en este repositorio.
+
+## Instalación local completa
+
+### 1. Servicio de correo
 
 ```bash
+cd ../email-send-microservice
 npm ci
+cp .env.example .env
+npm run start:dev
 ```
 
-## Variables de entorno
+Su `INTERNAL_API_KEY` debe coincidir con `EMAIL_SERVICE_API_KEY` del backend principal.
 
-Crea un archivo `.env` local. No guardes secretos reales en Git.
+### 2. Microservicio de Mercado Pago
 
-```env
+```bash
+cd ../mercadopago-microservice
+npm ci
+cp .env.example .env
+npm run start:dev
+```
+
+Su `INTERNAL_API_KEY` debe coincidir con `INTERNAL_API_KEY` del backend principal. Para recibir webhooks reales, `NOTIFICATION_URL` debe ser una URL HTTPS pública que apunte a `/mercadopago/webhook`; `localhost` no es accesible desde Mercado Pago.
+
+### 3. Backend principal
+
+```bash
+cd ../tennis-app-backend
+npm ci
+npm run start:dev
+```
+
+El backend escucha en `http://localhost:3500` cuando `PORT` no está definido.
+
+## Variables de entorno del backend
+
+Crea manualmente un archivo `.env` en la raíz de `tennis-app-backend`. No guardes secretos reales en Git.
+
+```dotenv
 # Aplicación
 PORT=3500
 
 # MongoDB
-MONGODB_URI=mongodb://localhost:27017/Tennis
+MONGODB_URI=mongodb+srv://user:password@cluster.example.mongodb.net/tennis
 
 # JWT
 SECRET_KEY=replace-with-a-long-random-secret
 TOKEN_EXPIRE_TIME=1h
 
-# Microservicio de Mercado Pago
+# Mercado Pago
 MP_API_URL=http://localhost:3000/mercadopago
+INTERNAL_API_KEY=replace-with-the-same-key-used-by-mercadopago-microservice
 
-# Microservicio de correo
+# Tarifas opcionales en CLP
+MP_NIGHT_AMOUNT=4000
+MP_VISIT_AMOUNT=7000
+MP_NIGHT_VISIT_AMOUNT=11000
+
+# Correo
 EMAIL_SERVICE_API_URL=http://localhost:3001/email
+EMAIL_SERVICE_API_KEY=replace-with-the-email-service-internal-api-key
 
 # Cloudinary
-CLOUDINARY_CLOUD_NAME=replace-me
-CLOUDINARY_API_KEY=replace-me
-CLOUDINARY_API_SECRET=replace-me
+CLOUDINARY_CLOUD_NAME=replace-with-cloud-name
+CLOUDINARY_API_KEY=replace-with-cloudinary-key
+CLOUDINARY_API_SECRET=replace-with-cloudinary-secret
 
-# Noticias; ambos valores son opcionales
+# Noticias: ambos valores son opcionales
 NEWS_CTQ_CRON_ENABLED=true
 NEWS_CTQ_CRON_SCHEDULE=0 0 6 * * *
 
-# New Relic; opcional
+# New Relic: opcional
 NEW_RELIC_APP_NAME=tennis-app-backend
-NEW_RELIC_LICENSE_KEY=replace-me
+NEW_RELIC_LICENSE_KEY=replace-with-license-key
 NEW_RELIC_ENABLED=true
 NEW_RELIC_LOG_LEVEL=info
 ```
 
-`TOKEN_EXPIRE_TIME` usa `1h` por defecto. El cron de noticias queda habilitado por defecto y se ejecuta diariamente a las 06:00 en `America/Santiago`. `NEWS_CTQ_CRON_ENABLED` acepta `true`, `1`, `yes`, `on`, `false`, `0`, `no` u `off`.
+Notas:
 
-## Servicios relacionados
+- `TOKEN_EXPIRE_TIME` usa `1h` por defecto.
+- `NEWS_CTQ_CRON_ENABLED` usa `true` por defecto.
+- `NEWS_CTQ_CRON_SCHEDULE` usa las 06:00 diariamente por defecto.
+- Las tarifas tienen valores predeterminados y solo deben declararse para sobrescribirlos.
+- New Relic queda deshabilitado si no existe `NEW_RELIC_LICENSE_KEY` o si `NEW_RELIC_ENABLED=false`.
+- El backend no utiliza refresh tokens.
 
-Para probar el flujo completo en local se ejecutan tres aplicaciones:
+## Variables compartidas
 
-1. `tennis-app-backend`: puerto `3500` por defecto.
-2. `mercadopago-microservice`: configurado mediante `MP_API_URL`.
-3. `email-send-microservice`: configurado mediante `EMAIL_SERVICE_API_URL`.
+Las claves internas cumplen propósitos distintos:
 
-## Ejecución
+| Consumidor                       | Variable local          | Debe coincidir con                               |
+| -------------------------------- | ----------------------- | ------------------------------------------------ |
+| Backend principal ↔ Mercado Pago | `INTERNAL_API_KEY`      | `INTERNAL_API_KEY` de `mercadopago-microservice` |
+| Backend principal → correo       | `EMAIL_SERVICE_API_KEY` | `INTERNAL_API_KEY` de `email-send-microservice`  |
 
-```bash
-# Desarrollo con recarga
-npm run start:dev
+No expongas estas claves al frontend.
 
-# Build
-npm run build
+## Flujo de pagos de reservas
 
-# Producción local
-npm run start:prod
+1. El frontend solicita al backend crear una preferencia mediante `POST /mp/init-point`.
+2. El backend recupera la reserva persistida y calcula el importe; no confía en un importe enviado por el navegador.
+3. El backend llama a `POST /mercadopago/create-preference` en el microservicio.
+4. Mercado Pago envía el webhook firmado al microservicio.
+5. El microservicio persiste el evento antes de responder y lo procesa mediante reintentos con backoff.
+6. El microservicio llama al backend para actualizar la reserva y enviar el correo.
+7. El backend utiliza `Idempotency-Key` y persistencia MongoDB para evitar actualizaciones y correos duplicados.
+
+Los callbacks internos protegidos son:
+
+- `POST /court-reserve/UpdateStateReserve/:idCourtReserve`
+- `POST /court-reserve/emailconfirmation`
+
+## Persistencia e idempotencia
+
+El microservicio de Mercado Pago mantiene:
+
+- `mp_webhook_inbox`: recepción durable con estados `PENDING`, `PROCESSING`, `PROCESSED` y `FAILED`.
+- `mp_webhook_effects`: deduplicación de efectos y reintentos.
+- `mp_logs`: auditoría append-only con retención configurable.
+
+El backend principal mantiene una segunda barrera de idempotencia para los callbacks en `payment_callback_effects` y registra eventos de negocio en el audit log.
+
+## Usuarios y estado de pago
+
+El acceso depende de dos propiedades del socio:
+
+- `statePlayer=false`: bloqueo administrativo.
+- `updatePayment=false`: bloqueo por pago pendiente.
+
+El login rechaza cualquiera de esos estados.
+
+## Correo
+
+Este backend no se conecta directamente a SMTP. Genera las plantillas HTML y envía la solicitud autenticada a:
+
+```text
+POST {EMAIL_SERVICE_API_URL}/send
 ```
 
-Con la aplicación activa:
+La configuración SMTP (`MAIL_HOST`, `MAIL_USER`, `MAIL_PASSWORD`, entre otras) pertenece exclusivamente a `email-send-microservice`.
 
-- Estado: `GET /healthz`
-- Swagger: `GET /docs`
+## Noticias programadas
 
-## Pruebas
+`NEWS_CTQ_CRON_ENABLED` controla si el proceso automático se registra al iniciar la aplicación. Acepta `true`, `1`, `yes` o `on` para habilitarlo. `NEWS_CTQ_CRON_SCHEDULE` utiliza una expresión cron de seis campos compatible con NestJS Schedule.
+
+## Ejecución y validación
 
 ```bash
+# Desarrollo
+npm run start:dev
+
+# Compilación
+npm run build
+
+# Producción, después de compilar
+npm run start:prod
+
 # Pruebas unitarias
-npm test -- --runInBand
+npm test
 
 # Cobertura
 npm run test:cov
 
-# Pruebas e2e
+# Pruebas end-to-end
 npm run test:e2e
 ```
 
-## New Relic
+El health check del backend está disponible en `GET /healthz` y Swagger en `GET /docs`.
 
-El agente se carga al iniciar el backend. Si `NEW_RELIC_LICENSE_KEY` no está configurada o `NEW_RELIC_ENABLED=false`, permanece deshabilitado.
+Para comprobar New Relic sin depender de MongoDB:
 
 ```bash
 npm run newrelic:smoke
 ```
 
-## APIs retiradas
+## Integraciones eliminadas
 
-El backend ya no expone:
+Este backend ya no incluye:
 
-- Refresh Token; la autenticación utiliza únicamente access tokens.
-- Notification/Web Push.
-- Exportación XLSX y `filtered-reserves`.
+- Web Push/notifications.
+- WhatsApp Web.
+- Exportaciones XLSX de reservas.
+- Refresh tokens.
+- Configuración de Fly.io.
 
-## Despliegue
+## Seguridad operativa
 
-El proyecto se despliega como aplicación Node.js, por ejemplo mediante el buildpack de Heroku. Los archivos de Docker y Fly.io fueron retirados porque ya no forman parte del flujo de despliegue.
+- Usa secretos largos y distintos por ambiente.
+- No publiques `.env`, credenciales de MongoDB, tokens de Mercado Pago ni claves de Cloudinary.
+- Valida la firma de los webhooks de Mercado Pago.
+- Rota cualquier secreto que haya sido compartido o publicado accidentalmente.
+- Conserva la persistencia de auditoría y efectos al desplegar nuevas versiones.
+
+## Licencia
+
+Proyecto privado (`UNLICENSED`).
