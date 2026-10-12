@@ -1,11 +1,12 @@
 import axios from 'axios';
-import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, GatewayTimeoutException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { MpService } from './mp.service';
 
 jest.mock('axios');
 
 describe('MpService', () => {
   const mockedAxios = axios as jest.Mocked<typeof axios>;
+  const actualAxios = jest.requireActual<typeof import('axios')>('axios');
 
   function createService(reserve: Record<string, unknown> | null, config: Record<string, string> = {}) {
     const query = {
@@ -25,7 +26,10 @@ describe('MpService', () => {
     return { service: new MpService(configService as any, model as any), model };
   }
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockedAxios.isAxiosError.mockImplementation(actualAxios.isAxiosError);
+  });
 
   it('exposes default rates without calling Mercado Pago or looking up a reservation', () => {
     const { service, model } = createService(null);
@@ -109,8 +113,62 @@ describe('MpService', () => {
         player1: 'Player from DB',
         amount: expectedAmount,
       }),
-      expect.objectContaining({ headers: { 'x-api-key': 'internal-secret' } }),
+      expect.objectContaining({ headers: { 'x-api-key': 'internal-secret' }, timeout: 30_000 }),
     );
+  });
+
+  it('accepts a preference response after twenty seconds, within the thirty-second limit, without retrying', async () => {
+    jest.useFakeTimers();
+    try {
+      const { service } = createService({ idCourtReserve: 'reserve-1', wasPaid: false, isPaidNight: true });
+      const result = { preferenceId: 'preference-1', initPoint: 'https://pay.example' };
+      mockedAxios.post.mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve({ data: result }), 25_000)));
+
+      const pending = service.create({ idCourtReserve: 'reserve-1' } as any);
+      const completion = expect(pending).resolves.toEqual(result);
+      await jest.advanceTimersByTimeAsync(25_000);
+      await completion;
+
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.post).toHaveBeenCalledWith(expect.any(String), expect.any(Object), expect.objectContaining({ timeout: 30_000 }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it.each(['ECONNABORTED', 'ETIMEDOUT'])('maps Axios timeout %s to 504 without retrying or returning internal details', async code => {
+    const { service } = createService({ idCourtReserve: 'reserve-1', wasPaid: false, isPaidNight: true });
+    const error = new actualAxios.AxiosError('timeout of 30000ms exceeded', code);
+    error.config = { headers: new actualAxios.AxiosHeaders({ 'x-api-key': 'internal-secret' }), url: 'https://mp.internal/create-preference' };
+    mockedAxios.post.mockRejectedValueOnce(error);
+
+    const result = await service.create({ idCourtReserve: 'reserve-1' } as any).catch(failure => failure);
+
+    expect(result).toBeInstanceOf(GatewayTimeoutException);
+    expect(result.getStatus()).toBe(504);
+    expect(result.getResponse()).toEqual(expect.objectContaining({
+      statusCode: 504,
+      message: 'Mercado Pago no respondió a tiempo. El enlace de pago podría haberse creado. Revisa tu reserva antes de intentar nuevamente.',
+    }));
+    expect(JSON.stringify(result.getResponse())).not.toContain('internal-secret');
+    expect(JSON.stringify(result.getResponse())).not.toContain('https://mp.internal');
+    expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['ERR_BAD_RESPONSE', 'ECONNRESET', 'ERR_CANCELED'])('does not mislabel non-timeout Axios error %s or retry it', async code => {
+    const { service } = createService({ idCourtReserve: 'reserve-1', wasPaid: false, isPaidNight: true });
+    const error = new actualAxios.AxiosError('upstream request failed', code);
+    mockedAxios.post.mockRejectedValueOnce(error);
+    await expect(service.create({ idCourtReserve: 'reserve-1' } as any)).rejects.toBe(error);
+    expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not classify an ordinary application error as a payment timeout', async () => {
+    const { service } = createService({ idCourtReserve: 'reserve-1', wasPaid: false, isPaidNight: true });
+    const error = new Error('unexpected application failure');
+    mockedAxios.post.mockRejectedValueOnce(error);
+    await expect(service.create({ idCourtReserve: 'reserve-1' } as any)).rejects.toBe(error);
+    expect(mockedAxios.post).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a missing reservation', async () => {

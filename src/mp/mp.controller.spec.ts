@@ -1,4 +1,4 @@
-import { INestApplication, ServiceUnavailableException } from '@nestjs/common';
+import { GatewayTimeoutException, INestApplication, ServiceUnavailableException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import { MpController } from './mp.controller';
@@ -38,5 +38,14 @@ describe('MpController rates endpoint', () => {
     service.create.mockResolvedValue({ initPoint: 'https://pay.example' });
     await request(app.getHttpServer()).post('/mp/init-point').send(payload).expect(201).expect({ initPoint: 'https://pay.example' });
     expect(service.create).toHaveBeenCalledWith(payload);
+  });
+
+  it('returns a controlled 504 message to the frontend when preference creation times out', async () => {
+    const message = 'Mercado Pago no respondió a tiempo. El enlace de pago podría haberse creado. Revisa tu reserva antes de intentar nuevamente.';
+    service.create.mockRejectedValueOnce(new GatewayTimeoutException(message));
+    await request(app.getHttpServer()).post('/mp/init-point').send({ idCourtReserve: 'reserve-1' }).expect(504).expect({
+      statusCode: 504, message, error: 'Gateway Timeout',
+    });
+    expect(service.create).toHaveBeenCalledTimes(1);
   });
 });

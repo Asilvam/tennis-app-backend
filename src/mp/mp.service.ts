@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, GatewayTimeoutException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { CreateMpDto } from './dto/create-mp.dto';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
@@ -57,12 +57,22 @@ export class MpService {
       amount: this.calculateAmount(Boolean(reserve.isPaidNight), Boolean(reserve.isVisit)),
       idCourtReserve: reserve.idCourtReserve,
     };
-    const initPoint = await axios.post(`${mpApiUrl}/create-preference`, paymentPayload, {
-      headers: { 'x-api-key': internalApiKey },
-      timeout: 10_000,
-    });
-    this.logger.log(`Mercado Pago preference created for reservation ${reserve.idCourtReserve}`);
-    return initPoint.data;
+    try {
+      const initPoint = await axios.post(`${mpApiUrl}/create-preference`, paymentPayload, {
+        headers: { 'x-api-key': internalApiKey },
+        timeout: 30_000,
+      });
+      this.logger.log(`Mercado Pago preference created for reservation ${reserve.idCourtReserve}`);
+      return initPoint.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT')) {
+        this.logger.warn(`Mercado Pago preference request timed out for reservation ${reserve.idCourtReserve}; no automatic retry`);
+        throw new GatewayTimeoutException(
+          'Mercado Pago no respondió a tiempo. El enlace de pago podría haberse creado. Revisa tu reserva antes de intentar nuevamente.',
+        );
+      }
+      throw error;
+    }
   }
   private calculateAmount(isPaidNight: boolean, isVisit: boolean): number {
     if (!isPaidNight && !isVisit) {

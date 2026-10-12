@@ -139,6 +139,8 @@ Antes de mostrar el importe, el frontend consulta `GET /mp/rates`. Devuelve `cur
 6. El microservicio llama al backend para actualizar la reserva y enviar el correo.
 7. El backend utiliza `Idempotency-Key` y persistencia MongoDB para evitar actualizaciones y correos duplicados.
 
+La creación de la preferencia espera hasta 30 segundos al microservicio, en lugar de 10, para dar margen a su arranque. Esta espera coincide con el [límite de 30 segundos del router de Heroku](https://devcenter.heroku.com/articles/request-timeout); como la consulta previa a Mongo también consume tiempo, Heroku puede cortar la solicitud con H12 antes de que el backend devuelva su respuesta controlada. Si Axios agota la espera (`ECONNABORTED` o `ETIMEDOUT`), el backend devuelve `504`, siempre que el router aún mantenga la conexión. No reintenta automáticamente: el microservicio podría haber creado la preferencia aunque el backend no haya recibido la respuesta. Este timeout no confirma ni cancela un pago o una reserva y no requiere variables de entorno nuevas.
+
 Los callbacks internos protegidos son:
 
 - `POST /court-reserve/UpdateStateReserve/:idCourtReserve`
