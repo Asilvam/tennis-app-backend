@@ -6,6 +6,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CourtReserve } from '../court-reserve/entities/court-reserve.entity';
 
+const DEFAULT_PAYMENT_AMOUNTS = {
+  MP_NIGHT_AMOUNT: 4_000,
+  MP_VISIT_AMOUNT: 7_000,
+  MP_NIGHT_VISIT_AMOUNT: 11_000,
+};
+
 @Injectable()
 export class MpService {
   private readonly logger = new Logger(MpService.name);
@@ -14,6 +20,15 @@ export class MpService {
     @InjectModel(CourtReserve.name)
     private readonly courtReserveModel: Model<CourtReserve>,
   ) {}
+
+  getRates() {
+    return {
+      currency: 'CLP' as const,
+      nightAmount: this.configuredAmount('MP_NIGHT_AMOUNT'),
+      visitAmount: this.configuredAmount('MP_VISIT_AMOUNT'),
+      nightVisitAmount: this.configuredAmount('MP_NIGHT_VISIT_AMOUNT'),
+    };
+  }
 
   async create(createMpDto: CreateMpDto) {
     const mpApiUrl = this.configService.get<string>('MP_API_URL');
@@ -55,8 +70,11 @@ export class MpService {
     }
 
     const configKey = isPaidNight && isVisit ? 'MP_NIGHT_VISIT_AMOUNT' : isPaidNight ? 'MP_NIGHT_AMOUNT' : 'MP_VISIT_AMOUNT';
-    const defaultAmount = isPaidNight && isVisit ? 11_000 : isPaidNight ? 4_000 : 7_000;
-    const amount = Number(this.configService.get<string>(configKey, String(defaultAmount)));
+    return this.configuredAmount(configKey);
+  }
+
+  private configuredAmount(configKey: keyof typeof DEFAULT_PAYMENT_AMOUNTS): number {
+    const amount = Number(this.configService.get<string>(configKey, String(DEFAULT_PAYMENT_AMOUNTS[configKey])));
     if (!Number.isSafeInteger(amount) || amount <= 0) {
       throw new ServiceUnavailableException(`Invalid ${configKey} configuration`);
     }

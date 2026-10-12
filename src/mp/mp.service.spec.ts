@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { MpService } from './mp.service';
 
 jest.mock('axios');
@@ -26,6 +26,55 @@ describe('MpService', () => {
   }
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('exposes default rates without calling Mercado Pago or looking up a reservation', () => {
+    const { service, model } = createService(null);
+    expect(service.getRates()).toEqual({ currency: 'CLP', nightAmount: 4_000, visitAmount: 7_000, nightVisitAmount: 11_000 });
+    expect(model.findOne).not.toHaveBeenCalled();
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
+  it('exposes configured rates, including an independently configured combined rate', () => {
+    const { service } = createService(null, {
+      MP_NIGHT_AMOUNT: '5000', MP_VISIT_AMOUNT: '8000', MP_NIGHT_VISIT_AMOUNT: '12000',
+    });
+    expect(service.getRates()).toEqual({ currency: 'CLP', nightAmount: 5_000, visitAmount: 8_000, nightVisitAmount: 12_000 });
+  });
+
+  it.each([
+    [true, false, 'nightAmount'],
+    [false, true, 'visitAmount'],
+    [true, true, 'nightVisitAmount'],
+  ])('charges the same configured rate it exposes for night=%s visit=%s', async (isPaidNight, isVisit, rateKey) => {
+    const { service } = createService({ idCourtReserve: 'reserve-1', wasPaid: false, isPaidNight, isVisit }, {
+      MP_NIGHT_AMOUNT: '5000', MP_VISIT_AMOUNT: '8000', MP_NIGHT_VISIT_AMOUNT: '12000',
+    });
+    mockedAxios.post.mockResolvedValue({ data: { initPoint: 'https://pay.example' } });
+    await service.create({ idCourtReserve: 'reserve-1', amount: 1 } as any);
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      expect.any(String), expect.objectContaining({ amount: service.getRates()[rateKey] }), expect.any(Object),
+    );
+  });
+
+  it.each([
+    ['MP_NIGHT_AMOUNT', '0', true, false],
+    ['MP_NIGHT_AMOUNT', '-1', true, false],
+    ['MP_NIGHT_AMOUNT', '1.5', true, false],
+    ['MP_NIGHT_AMOUNT', 'invalid', true, false],
+    ['MP_VISIT_AMOUNT', '', false, true],
+    ['MP_VISIT_AMOUNT', 'NaN', false, true],
+    ['MP_VISIT_AMOUNT', 'Infinity', false, true],
+    ['MP_VISIT_AMOUNT', '9007199254740992', false, true],
+    ['MP_NIGHT_VISIT_AMOUNT', '0', true, true],
+    ['MP_NIGHT_VISIT_AMOUNT', '-100', true, true],
+    ['MP_NIGHT_VISIT_AMOUNT', '3.2', true, true],
+    ['MP_NIGHT_VISIT_AMOUNT', 'invalid', true, true],
+  ])('rejects an invalid configured rate %s=%s for display and payment', async (key, value, isPaidNight, isVisit) => {
+    const { service } = createService({ idCourtReserve: 'reserve-1', wasPaid: false, isPaidNight, isVisit }, { [key]: value });
+    expect(() => service.getRates()).toThrow(ServiceUnavailableException);
+    await expect(service.create({ idCourtReserve: 'reserve-1' } as any)).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
 
   it.each([
     [{ isPaidNight: true, isVisit: false }, 4_000],

@@ -129,6 +129,8 @@ No expongas estas claves al frontend.
 
 ## Flujo de pagos de reservas
 
+Antes de mostrar el importe, el frontend consulta `GET /mp/rates`. Devuelve `currency: "CLP"`, `nightAmount`, `visitAmount` y `nightVisitAmount`, calculados con las mismas variables `MP_*_AMOUNT` y valores predeterminados que se utilizan para cobrar. No devuelve claves internas ni crea una reserva o preferencia. La respuesta no se almacena en caché; una tarifa inválida devuelve `503`.
+
 1. El frontend solicita al backend crear una preferencia mediante `POST /mp/init-point`.
 2. El backend recupera la reserva persistida y calcula el importe; no confía en un importe enviado por el navegador.
 3. El backend llama a `POST /mercadopago/create-preference` en el microservicio.
