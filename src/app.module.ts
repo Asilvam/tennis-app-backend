@@ -9,7 +9,6 @@ import { TurnModule } from './turn/turn.module';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
 import { EmailModule } from './email/email.module';
-import { NotificationModule } from './notification/notification.module';
 import { InfoItemsModule } from './info-items/info-items.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { MatchRankingModule } from './match-ranking/match-ranking.module';
@@ -32,7 +31,6 @@ import { ScheduleModule } from '@nestjs/schedule';
       isGlobal: true, // Makes ConfigModule available globally
     }),
     EmailModule,
-    NotificationModule,
     InfoItemsModule,
     CloudinaryModule,
     MatchRankingModule,

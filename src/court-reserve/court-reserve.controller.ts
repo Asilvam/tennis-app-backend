@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
@@ -51,25 +51,6 @@ export class CourtReserveController {
   @Get('isForRankingHistory/:namePlayer')
   findIsforRankingHistoryReserve(@Param('namePlayer') namePlayer: string) {
     return this.courtReserveService.getAllIsForRankingReservesFor(namePlayer);
-  }
-
-  @Get('filtered-reserves/excel')
-  async getFilteredReservesExcel(@Res() res) {
-    const buffer = await this.courtReserveService.exportFilteredReservesToExcelBuffer();
-    res.setHeader('Content-Disposition', 'attachment; filename="reserves.xlsx"');
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buffer);
-  }
-
-  @Get('filtered-reserves') // Ruta completa: GET /court-reserves/filtered-reserves
-  @HttpCode(HttpStatus.OK)
-  async getFilteredReserves() {
-    try {
-      const reserves = await this.courtReserveService.findFilteredReserves();
-      return reserves;
-    } catch (error) {
-      throw new Error('Error al obtener las reservas filtradas.');
-    }
   }
 
   @Get()

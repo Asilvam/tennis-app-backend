@@ -1,20 +1,57 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as Parser from 'rss-parser';
+import { CronJob } from 'cron';
 import { NewsCTQ, NewsCTQDocument } from './entities/news-ctq.entity';
 
 @Injectable()
-export class NewsCTQService {
+export class NewsCTQService implements OnModuleInit, OnModuleDestroy {
+  private readonly cronJobName = 'news-ctq-sync';
   private readonly logger = new Logger(NewsCTQService.name);
   private parser: Parser;
 
-  constructor(@InjectModel(NewsCTQ.name) private newsModel: Model<NewsCTQDocument>) {
+  constructor(
+    @InjectModel(NewsCTQ.name) private newsModel: Model<NewsCTQDocument>,
+    private readonly configService: ConfigService,
+    private readonly schedulerRegistry: SchedulerRegistry,
+  ) {
     this.parser = new Parser();
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_6AM, { timeZone: 'America/Santiago' }) // Ajustado para revisar cambios frecuentemente
+  onModuleInit(): void {
+    if (!this.isCronEnabled()) {
+      this.logger.log('NewsCTQ cron deshabilitado por NEWS_CTQ_CRON_ENABLED.');
+      return;
+    }
+
+    const schedule = this.configService.get<string>('NEWS_CTQ_CRON_SCHEDULE', CronExpression.EVERY_DAY_AT_6AM);
+    let job: CronJob;
+    try {
+      job = CronJob.from({
+        cronTime: schedule,
+        onTick: () => void this.syncTennisNews(),
+        start: false,
+        timeZone: 'America/Santiago',
+      });
+    } catch (error) {
+      throw new Error(`NEWS_CTQ_CRON_SCHEDULE inválido: ${this.errorMessage(error)}`);
+    }
+
+    this.schedulerRegistry.addCronJob(this.cronJobName, job);
+    job.start();
+    this.logger.log(`NewsCTQ cron habilitado con expresión: ${schedule}`);
+  }
+
+  onModuleDestroy(): void {
+    if (this.schedulerRegistry.doesExist('cron', this.cronJobName)) {
+      this.schedulerRegistry.getCronJob(this.cronJobName).stop();
+      this.schedulerRegistry.deleteCronJob(this.cronJobName);
+    }
+  }
+
   async syncTennisNews() {
     this.logger.log('Iniciando sincronización de NewsCTQ...');
 
@@ -57,6 +94,26 @@ export class NewsCTQService {
     }
   }
 
+  private isCronEnabled(): boolean {
+    const rawValue = this.configService.get<string | boolean>('NEWS_CTQ_CRON_ENABLED', true);
+    if (typeof rawValue === 'boolean') {
+      return rawValue;
+    }
+
+    const normalized = rawValue.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'off'].includes(normalized)) {
+      return false;
+    }
+    throw new Error('NEWS_CTQ_CRON_ENABLED debe ser true o false');
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
   /**
    * Retorna las noticias con el formato JSON solicitado
    */
@@ -77,7 +134,8 @@ export class NewsCTQService {
 
   /**
    * Retorna noticias filtradas por rango de fechas.
-   * Query acepta `from` y/o `to` en formato ISO (YYYY-MM-DD o full ISO). Si ninguno se entrega, devuelve todas (limit 100).
+   * Query acepta `from` y/o `to` en formato ISO (YYYY-MM-DD o full ISO).
+   * Si ninguno se entrega, devuelve todas (limit 100).
    */
   async getNewsByDate(from?: string, to?: string) {
     const query: any = {};
