@@ -12,7 +12,7 @@ type SlotReservation = Pick<CourtReserve, 'court' | 'dateToPlay' | 'turn' | 'idC
 
 @Injectable()
 export class ReservationSlotService implements OnModuleInit, OnModuleDestroy {
-  readonly holdDurationMs = 10 * 60 * 1000;
+  readonly holdDurationMs = 2 * 60 * 1000;
   private readonly logger = new Logger(ReservationSlotService.name);
   private timer?: ReturnType<typeof setInterval>;
   private draining = false;

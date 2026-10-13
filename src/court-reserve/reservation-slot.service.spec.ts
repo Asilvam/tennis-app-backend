@@ -77,7 +77,30 @@ describe('Reservation slot holds', () => {
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
     expect(rows.size).toBe(1);
-    expect([...rows.values()][0].expiresAt.getTime() - Date.now()).toBeGreaterThan(599_000);
+    expect(service.holdDurationMs).toBe(120_000);
+    expect([...rows.values()][0].expiresAt.getTime() - Date.now()).toBeGreaterThan(119_000);
+    expect([...rows.values()][0].expiresAt.getTime() - Date.now()).toBeLessThanOrEqual(120_000);
+  });
+
+  it('expires an unstarted hold at two minutes, not before, without resetting its deadline', async () => {
+    jest.useFakeTimers();
+    try {
+      const { service, rows } = fixture();
+      const startedAt = Date.now();
+      const held = await service.acquire(reserve);
+      expect(held.expiresAt.getTime()).toBe(startedAt + 120_000);
+      jest.advanceTimersByTime(119_999);
+      await service.expireDue();
+      expect([...rows.values()][0].status).toBe('HELD');
+      jest.advanceTimersByTime(1);
+      await service.expireDue();
+      expect([...rows.values()][0].status).toBe('EXPIRED');
+      expect([...rows.values()][0].expiresAt.getTime()).toBe(startedAt + 120_000);
+      expect(rows.size).toBe(1);
+      expect(axios.post).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('rejects a hold over an existing legacy reservation', async () => {

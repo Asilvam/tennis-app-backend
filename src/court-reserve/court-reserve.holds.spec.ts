@@ -22,8 +22,8 @@ describe('Reservation hold integration', () => {
     const email = { sendEmail: jest.fn() };
     const audit = { logReserveCreation: jest.fn().mockResolvedValue(undefined) };
     const slots = {
-      acquire: jest.fn().mockResolvedValue({ expiresAt: new Date(Date.now() + 600_000) }),
-      assertEditable: jest.fn().mockResolvedValue({ expiresAt: new Date(Date.now() + 600_000) }),
+      acquire: jest.fn().mockResolvedValue({ expiresAt: new Date(Date.now() + 120_000) }),
+      assertEditable: jest.fn().mockResolvedValue({ expiresAt: new Date(Date.now() + 120_000) }),
       releaseUnstarted: jest.fn(),
     };
     const service = new CourtReserveService(model, register as any, email as any, audit as any, {} as any, slots as any);

@@ -23,7 +23,7 @@ describe('MpService', () => {
     const configService = {
       get: jest.fn((key: string, fallback?: string) => values[key] ?? fallback),
     };
-    const slots = { beginCheckout: jest.fn().mockResolvedValue({ expiresAt: new Date(Date.now() + 600_000) }), storeCheckout: jest.fn().mockResolvedValue(undefined) };
+    const slots = { beginCheckout: jest.fn().mockResolvedValue({ expiresAt: new Date(Date.now() + 120_000) }), storeCheckout: jest.fn().mockResolvedValue(undefined) };
     return { service: new MpService(configService as any, model as any, slots as any), model, slots };
   }
 

@@ -1,6 +1,6 @@
 # Etapa 2: retención local de reservas
 
-El frontend retiene un turno con luz al abrir el modal. Un turno diurno se retiene al marcar Visita. El backend fija el vencimiento a diez minutos, usando su propio reloj. Elegir jugadores y abrir Mercado Pago no reinicia ese plazo.
+El frontend retiene un turno con luz al abrir el modal. Un turno diurno se retiene al marcar Visita. El backend fija el vencimiento a dos minutos, usando su propio reloj. Elegir jugadores y abrir Mercado Pago no reinicia ese plazo. Las retenciones creadas antes de este cambio conservan el vencimiento ya guardado; las nuevas usan dos minutos.
 
 ## Flujo
 
@@ -12,7 +12,7 @@ El frontend retiene un turno con luz al abrir el modal. Un turno diurno se retie
 
 Mongo conserva `reservation_slots` (bloqueo por horario) y los registros de `court_reserve`. Los vencimientos no borran documentos ni pagos. Las reservas anteriores continúan siendo reconocidas como ocupadas.
 
-Un trabajador revisa vencimientos cada quince segundos. Un modal abandonado sin checkout puede liberarse automáticamente. Para un checkout iniciado, llama a `POST /mercadopago/reconcile-reservation`, protegido por la clave interna. Consulta todos los intentos disponibles; un pago pendiente, una respuesta incompleta o una caída del proveedor conserva el bloqueo y se reintenta. Por eso un pago ya en proceso puede superar los diez minutos de retención inicial.
+Un trabajador revisa vencimientos cada quince segundos. Un modal abandonado sin checkout puede liberarse automáticamente. Para un checkout iniciado, llama a `POST /mercadopago/reconcile-reservation`, protegido por la clave interna. Consulta todos los intentos disponibles; un pago pendiente, una respuesta incompleta o una caída del proveedor conserva el bloqueo y se reintenta. Por eso un pago ya en proceso puede superar los dos minutos de retención inicial.
 
 Una aprobación tardía solo activa la reserva si el horario todavía está libre y no terminó. Si lo tomó otro usuario, se guarda el pago con `reservationStatus=PAYMENT_REVIEW_REQUIRED`, sin activar la reserva ni enviar una confirmación falsa. No se realizan reembolsos automáticos.
 
@@ -26,7 +26,7 @@ Ejecutar backend, frontend y Mercado Pago con URLs locales, Mongo de pruebas y c
 2. En la primera, abrir un horario con luz: aparece la cuenta regresiva. En la segunda, el horario pasa a Pendiente de pago y no se puede reservar.
 3. Cerrar el primer modal: la segunda sesión vuelve a verlo disponible en la siguiente actualización.
 4. Repetir en un turno diurno marcando Visita; quitar Visita libera la retención.
-5. Abandonar el modal diez minutos: una retención sin checkout vence y el horario queda disponible.
+5. Abandonar el modal dos minutos: una retención sin checkout vence y el horario queda disponible.
 6. Completar participantes e iniciar un checkout de prueba: confirmar que conserva el ID de reserva y el vencimiento original.
 7. Probar pago pendiente, rechazado y aprobado con el proveedor de pruebas. Cerrar el navegador después de iniciar checkout no equivale a cancelarlo.
 
