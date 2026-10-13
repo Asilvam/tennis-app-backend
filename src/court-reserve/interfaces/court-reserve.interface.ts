@@ -8,6 +8,8 @@ export interface Slot {
   court: string;
   isPayed?: boolean;
   isBlockedByAdmin?: boolean;
+  isPendingPayment?: boolean;
+  holdExpiresAt?: string;
   data?: any;
 }
 

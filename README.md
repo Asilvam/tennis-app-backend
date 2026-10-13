@@ -131,13 +131,15 @@ No expongas estas claves al frontend.
 
 Antes de mostrar el importe, el frontend consulta `GET /mp/rates`. Devuelve `currency: "CLP"`, `nightAmount`, `visitAmount` y `nightVisitAmount`, calculados con las mismas variables `MP_*_AMOUNT` y valores predeterminados que se utilizan para cobrar. No devuelve claves internas ni crea una reserva o preferencia. La respuesta no se almacena en caché; una tarifa inválida devuelve `503`.
 
-1. El frontend solicita al backend crear una preferencia mediante `POST /mp/init-point`.
+1. Para una reserva pagada, el frontend retiene el horario mediante `POST /court-reserve/holds` al abrir el modal nocturno o marcar Visita. Antes del checkout, valida participantes con `PATCH /court-reserve/holds/:id` y solicita una preferencia mediante `POST /mp/init-point`. Estos endpoints requieren JWT y respetan al propietario de la sesión.
 2. El backend recupera la reserva persistida y calcula el importe; no confía en un importe enviado por el navegador.
-3. El backend llama a `POST /mercadopago/create-preference` en el microservicio.
+3. El backend llama a `POST /mercadopago/create-preference` en el microservicio con el vencimiento original. Un checkout guardado se reutiliza en lugar de crear otra preferencia.
 4. Mercado Pago envía el webhook firmado al microservicio.
 5. El microservicio persiste el evento antes de responder y lo procesa mediante reintentos con backoff.
 6. El microservicio llama al backend para actualizar la reserva y enviar el correo.
 7. El backend utiliza `Idempotency-Key` y persistencia MongoDB para evitar actualizaciones y correos duplicados.
+
+Las reservas pagadas no envían correo previo al pago; las gratuitas conservan su correo de confirmación. El correo de estado del pago sigue usando la API existente del servicio de correo. El bloqueo dura diez minutos desde su creación, no desde el checkout. `DELETE /court-reserve/holds/:id` libera inmediatamente una retención sin checkout. Una operación ya iniciada solo se libera tras conciliar con Mercado Pago; si está pendiente o el proveedor falla, la cancha sigue bloqueada. Ver [retenciones y prueba local](docs/reservation-holds-stage-2.md).
 
 La creación de la preferencia espera hasta 30 segundos al microservicio, en lugar de 10, para dar margen a su arranque. Esta espera coincide con el [límite de 30 segundos del router de Heroku](https://devcenter.heroku.com/articles/request-timeout); como la consulta previa a Mongo también consume tiempo, Heroku puede cortar la solicitud con H12 antes de que el backend devuelva su respuesta controlada. Si Axios agota la espera (`ECONNABORTED` o `ETIMEDOUT`), el backend devuelve `504`, siempre que el router aún mantenga la conexión. No reintenta automáticamente: el microservicio podría haber creado la preferencia aunque el backend no haya recibido la respuesta. Este timeout no confirma ni cancela un pago o una reserva y no requiere variables de entorno nuevas.
 

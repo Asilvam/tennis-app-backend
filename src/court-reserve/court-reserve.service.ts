@@ -14,10 +14,18 @@ import { buildReservationCancellationEmail, buildReservationConfirmationEmail } 
 import { PaymentCallbackEffectService } from './payment-callback-effect.service';
 import { MercadoPagoPaymentStatus } from './dto/payment-confirmation.dto';
 import { PaymentCallbackEffectStatus } from './entities/payment-callback-effect.entity';
+import { ReservationSlotService } from './reservation-slot.service';
+import { randomUUID } from 'crypto';
 
 type AdminReserveActor = {
   email: string;
   role: string;
+};
+
+const normalizeReservationDate = (value: string) => {
+  const date = DateTime.fromISO(value, { zone: 'America/Santiago' });
+  if (!date.isValid) throw new BadRequestException('Fecha de reserva inválida.');
+  return date.toISODate();
 };
 
 const getTurnDateRange = (dateToPlay: string, turn: string, timezone: string) => {
@@ -43,6 +51,7 @@ export class CourtReserveService {
     private readonly emailService: EmailService,
     private readonly auditLogService: AuditLogService,
     private readonly paymentCallbackEffectService: PaymentCallbackEffectService,
+    private readonly reservationSlots: ReservationSlotService,
   ) {}
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
@@ -86,7 +95,10 @@ export class CourtReserveService {
 
     for (const reservation of createCourtReserveDtoArray) {
       try {
+        reservation.dateToPlay = normalizeReservationDate(reservation.dateToPlay);
         const { dateToPlay, turn, court, blockedMotive } = reservation;
+        const newCourtReserve = new this.courtReserveModel(reservation);
+        await this.reservationSlots.acquire(newCourtReserve, performedByEmail, true);
         const existingReserve = await this.courtReserveModel.findOne({ dateToPlay, turn, court, state: true }).select('idCourtReserve').exec();
         if (existingReserve?.idCourtReserve) {
           try {
@@ -96,8 +108,8 @@ export class CourtReserveService {
           }
         }
         await this.courtReserveModel.updateMany({ dateToPlay, turn, court }, { state: false });
-        const newCourtReserve = new this.courtReserveModel(reservation);
         const savedReservation = await newCourtReserve.save();
+        await this.reservationSlots.confirm(savedReservation);
         savedReservations.push(savedReservation);
 
         // ✅ AUDITORÍA: Registrar creación individual
@@ -136,10 +148,13 @@ export class CourtReserveService {
   }
 
   async adminCreate(createCourtReserveDto: CreateCourtReserveDto) {
+    createCourtReserveDto.dateToPlay = normalizeReservationDate(createCourtReserveDto.dateToPlay);
     const { court, turn, dateToPlay } = createCourtReserveDto;
-    await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false });
     const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
+    await this.reservationSlots.acquire(newCourtReserve, undefined, true);
+    await this.courtReserveModel.findOneAndUpdate({ dateToPlay, turn, court }, { state: false });
     const savedReservation = await newCourtReserve.save();
+    await this.reservationSlots.confirm(savedReservation);
 
     // ✅ AUDITORÍA: Registrar creación por admin
     try {
@@ -152,8 +167,105 @@ export class CourtReserveService {
     return savedReservation;
   }
 
-  async create(createCourtReserveDto: CreateCourtReserveDto) {
+  async createHold(dto: CreateCourtReserveDto, email: string) {
+    const ownerEmail = email.trim().toLowerCase();
+    const player = await this.registerService.findOneByEmail(ownerEmail);
+    if (!player?.namePlayer) throw new NotFoundException('No se encontró el jugador de la sesión.');
+    const isPaidNight = ['20:15-22:00', '22:15-00:00'].includes(dto.turn);
+    if (!isPaidNight && !dto.isVisit) throw new BadRequestException('Este horario no requiere pago.');
+    const reserve = await this.create({
+      court: dto.court, dateToPlay: dto.dateToPlay, turn: dto.turn,
+      player1: player.namePlayer, player2: dto.player2, player3: dto.player3, player4: dto.player4,
+      isVisit: Boolean(dto.isVisit), visitName: dto.visitName, isDouble: Boolean(dto.isDouble),
+      isForRanking: !dto.isVisit && Boolean(dto.isForRanking), isPaidNight,
+    }, { hold: true, ownerEmail });
+    return { ...reserve.toObject(), serverNow: new Date().toISOString() };
+  }
+
+  async cancelHold(reservationId: string, ownerEmail: string) {
+    return this.reservationSlots.cancel(reservationId, ownerEmail);
+  }
+
+  async prepareHold(reservationId: string, dto: CreateCourtReserveDto, ownerEmail: string) {
+    const slot = await this.reservationSlots.assertEditable(reservationId, ownerEmail);
+    const reserve = await this.courtReserveModel.findOne({ idCourtReserve: reservationId }).exec();
+    if (!reserve) throw new NotFoundException('Reserva no encontrada.');
+    const participants = {
+      player1: reserve.player1, player2: dto.player2, player3: dto.player3, player4: dto.player4,
+      isVisit: Boolean(dto.isVisit), visitName: dto.visitName, isDouble: Boolean(dto.isDouble),
+      isForRanking: !dto.isVisit && Boolean(dto.isForRanking),
+    };
+    this.validateParticipants(participants);
+    if (!reserve.isPaidNight && !participants.isVisit) throw new BadRequestException('La reserva ya no requiere pago.');
+    const active = await this.getAllCourtReserves();
+    for (const player of [participants.player1, participants.player2, participants.player3, participants.player4].filter(Boolean)) {
+      if (this.playerHasActiveReserve(player, active || [])) throw new ConflictException(`El jugador ${player} ya tiene una reserva activa.`);
+    }
+    await this.reservationSlots.assertEditable(reservationId, ownerEmail);
+    const prepared = await this.courtReserveModel.findOneAndUpdate(
+      { idCourtReserve: reservationId, reservationStatus: 'PENDING_PAYMENT', wasPaid: false, checkoutReady: false },
+      { $set: { ...participants, checkoutReady: true } }, { new: true },
+    ).exec();
+    if (!prepared) throw new ConflictException('La reserva ya no está pendiente de pago.');
+    return { idCourtReserve: reservationId, expiresAt: slot.expiresAt };
+  }
+
+  async create(createCourtReserveDto: CreateCourtReserveDto, options: { hold?: boolean; ownerEmail?: string } = {}) {
+    createCourtReserveDto = {
+      court: createCourtReserveDto.court, dateToPlay: normalizeReservationDate(createCourtReserveDto.dateToPlay), turn: createCourtReserveDto.turn,
+      player1: createCourtReserveDto.player1, player2: createCourtReserveDto.player2,
+      player3: createCourtReserveDto.player3, player4: createCourtReserveDto.player4,
+      isVisit: Boolean(createCourtReserveDto.isVisit), visitName: createCourtReserveDto.visitName,
+      isDouble: Boolean(createCourtReserveDto.isDouble), isForRanking: Boolean(createCourtReserveDto.isForRanking),
+      isPaidNight: ['20:15-22:00', '22:15-00:00'].includes(createCourtReserveDto.turn), wasPaid: false,
+    };
     const { player1, player2, player3, player4, court, turn, dateToPlay, isVisit, isDouble } = createCourtReserveDto;
+    if (!options.hold) this.validateParticipants(createCourtReserveDto);
+    const validateDateTurn = await this.validateDateTurn(dateToPlay, court, turn);
+    if (validateDateTurn) {
+      const existingReserve = await this.courtReserveModel.findOne({ dateToPlay, turn, court, state: true }).select('idCourtReserve').exec();
+      if (existingReserve) {
+        throw new BadRequestException('This court is already reserved for this time');
+      }
+      const activeReserves = await this.getAllCourtReserves();
+      if (activeReserves) {
+        const playersToCheck = isVisit ? [player1] : isDouble ? [player1, player2, player3, player4] : [player1, player2];
+        for (const player of playersToCheck.filter(Boolean)) {
+          if (this.playerHasActiveReserve(player, activeReserves)) throw new ConflictException(`El jugador ${player} ya tiene una reserva activa.`);
+        }
+      }
+      const newCourtReserve = new this.courtReserveModel({ ...createCourtReserveDto, ...(options.hold ? { idCourtReserve: randomUUID() } : {}) });
+      const slot = await this.reservationSlots.acquire(newCourtReserve, options.ownerEmail);
+      newCourtReserve.ownerEmail = options.ownerEmail;
+      newCourtReserve.holdExpiresAt = slot.expiresAt;
+      newCourtReserve.checkoutReady = !options.hold;
+      newCourtReserve.reservationStatus = newCourtReserve.isPaidNight || newCourtReserve.isVisit ? 'PENDING_PAYMENT' : 'CONFIRMED';
+      let response;
+      try {
+        response = await newCourtReserve.save();
+        if (response.state) await this.reservationSlots.confirm(response);
+      } catch (error) {
+        await this.reservationSlots.releaseUnstarted(newCourtReserve.idCourtReserve);
+        throw error;
+      }
+      try {
+        const playerEmail = await this.findOneEmail(player1);
+        await this.auditLogService.logReserveCreation(response.toObject(), 'USER', player1, playerEmail?.email);
+      } catch (auditErr) {
+        this.logger.error('[create] Error logging audit', auditErr);
+      }
+      try {
+        if (!response.isPaidNight && !response.isVisit) await this.sendEmailReserve(response);
+      } catch (error) {
+        this.logger.error('Failed to send reservation email', error);
+      }
+      return response;
+    }
+    throw new BadRequestException('Invalid input');
+  }
+
+  private validateParticipants(createCourtReserveDto: Partial<CreateCourtReserveDto>) {
+    const { player1, player2, player3, player4, isVisit, isDouble } = createCourtReserveDto;
     if (isDouble) {
       if (isVisit) {
         throw new BadRequestException('Doubles reserves cannot be marked as visit');
@@ -175,60 +287,6 @@ export class CourtReserveService {
       if (player3 || player4 || createCourtReserveDto.visitName) {
         throw new BadRequestException('Singles reserves cannot include player3, player4, or visitName');
       }
-    }
-    const validateDateTurn = await this.validateDateTurn(dateToPlay, court, turn);
-    if (validateDateTurn) {
-      const existingReserve = await this.courtReserveModel.findOne({ dateToPlay, turn, court, state: true }).select('idCourtReserve').exec();
-      if (existingReserve) {
-        throw new BadRequestException('This court is already reserved for this time');
-      }
-      const activeReserves = await this.getAllCourtReserves();
-      if (activeReserves) {
-        let playersToCheck: string[];
-        if (isVisit) {
-          playersToCheck = [player1];
-        } else if (isDouble) {
-          playersToCheck = [player1, player2, player3, player4];
-        } else {
-          playersToCheck = [player1, player2];
-        }
-        for (const player of playersToCheck) {
-          if (player && this.playerHasActiveReserve(player, activeReserves)) {
-            const playerActiveReserve = this.playerActiveReserve(player, activeReserves);
-            this.logger.log(
-              // eslint-disable-next-line max-len
-              `Player ${player} already has a reserve, day ${playerActiveReserve.dateToPlay}, turn ${playerActiveReserve.turn}, on ${playerActiveReserve.court}`,
-            );
-            throw new BadRequestException(
-              // eslint-disable-next-line max-len
-              `Player ${player} already has a reserve, day ${playerActiveReserve.dateToPlay}, turn ${playerActiveReserve.turn}, on ${playerActiveReserve.court}`,
-            );
-          }
-        }
-        const isCourtReserve = activeReserves.find((courtReserve) => courtReserve.court === court && courtReserve.turn === turn && courtReserve.dateToPlay === dateToPlay);
-        if (isCourtReserve) {
-          throw new BadRequestException('This court is already reserved for this time');
-        }
-      }
-      const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
-      const response = await newCourtReserve.save();
-
-      try {
-        const playerEmail = await this.findOneEmail(player1);
-        await this.auditLogService.logReserveCreation(response.toObject(), 'USER', player1, playerEmail?.email);
-      } catch (auditErr) {
-        this.logger.error('[create] Error logging audit', auditErr);
-      }
-
-      try {
-        await this.sendEmailReserve(response);
-      } catch (err) {
-        this.logger.error('Failed to send reservation email', err?.stack || err?.message || String(err));
-      }
-      this.logger.log(response);
-      return response;
-    } else {
-      throw new BadRequestException('Invalid input');
     }
   }
 
@@ -360,13 +418,15 @@ export class CourtReserveService {
           throw new ConflictException(`Reserve ${idCourtReserve} was already paid by another payment`);
         }
 
+        const confirmed = await this.reservationSlots.confirm(currentReserve);
         return this.courtReserveModel
           .findOneAndUpdate(
             { idCourtReserve },
             {
               $set: {
-                state: true,
+                state: confirmed,
                 wasPaid: true,
+                reservationStatus: confirmed ? 'CONFIRMED' : 'PAYMENT_REVIEW_REQUIRED',
                 paymentStatus: MercadoPagoPaymentStatus.APPROVED,
                 paymentIdempotencyKey: idempotencyKey,
                 paidAt: currentReserve.paidAt || new Date(),
@@ -388,7 +448,9 @@ export class CourtReserveService {
       );
     }
 
-    return result.value ?? { idCourtReserve, duplicate: true };
+    if (result.value) return result.value;
+    const persisted = await this.courtReserveModel.findOne({ idCourtReserve }).select('idCourtReserve reservationStatus state wasPaid').lean().exec();
+    return { ...persisted, idCourtReserve, duplicate: true };
   }
 
   async sendEmailConfirmation(idCourtReserve: string, paymentStatus: MercadoPagoPaymentStatus, idempotencyKey: string) {
@@ -401,6 +463,10 @@ export class CourtReserveService {
       paymentStatus,
       async () => {
         const reserve = await this.getCourtReserveById(idCourtReserve);
+        if (reserve.reservationStatus === 'PAYMENT_REVIEW_REQUIRED') return { skipped: 'PAYMENT_REVIEW_REQUIRED' };
+        if (paymentStatus === MercadoPagoPaymentStatus.APPROVED && !reserve.wasPaid) {
+          throw new ConflictException('El pago requiere verificar la reserva antes de enviar una confirmación.');
+        }
         const email = await this.findOneEmail(reserve.player1);
         if (!email) {
           throw new NotFoundException(`[sendEmailConfirmation] Email for player ${reserve.player1} not found`);
@@ -420,7 +486,7 @@ export class CourtReserveService {
       );
     }
 
-    return { idCourtReserve, paymentStatus, duplicate: !result.processed };
+    return { idCourtReserve, paymentStatus, duplicate: !result.processed, ...(result.value || {}) };
   }
 
   private validateIdempotencyKey(idempotencyKey: string): void {
@@ -478,10 +544,12 @@ export class CourtReserveService {
     if (!updatedRegister) {
       throw new NotFoundException(`Register with idCourtReserve ${idCourtReserve} not found`);
     }
+    await this.reservationSlots.releaseConfirmed(idCourtReserve);
     return updatedRegister;
   }
 
   async getAllCourtAvailable(selectedDate: string) {
+    selectedDate = normalizeReservationDate(selectedDate);
     const formatPlayerNames = (players: { [key: string]: string }): string => {
       return Object.values(players)
         .filter((name) => name) // Remove empty names
@@ -572,6 +640,7 @@ export class CourtReserveService {
       }));
     };
     const availability = generateTimeSlotAvailability();
+    const pendingSlots = await this.reservationSlots.pendingForDate(selectedDate);
     availability.forEach((turn) => {
       if (activeReserves.length > 0) {
         // this.logger.log(activeReserves);
@@ -597,6 +666,15 @@ export class CourtReserveService {
         });
       }
     });
+    for (const pending of pendingSlots) {
+      const slot = availability.find((turn) => turn.time === pending.turn)?.slots.find((court) => court.court === pending.court);
+      if (slot?.available) {
+        slot.available = false;
+        slot.isPendingPayment = true;
+        slot.holdExpiresAt = pending.expiresAt.toISOString();
+        slot.data = 'Pendiente de pago';
+      }
+    }
     return availability;
   }
 
@@ -783,7 +861,7 @@ export class CourtReserveService {
   }
 
   private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
-    const reserve = await this.courtReserveModel.findOne({ idCourtReserve }).select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin').exec();
+    const reserve = await this.courtReserveModel.findOne({ idCourtReserve }).select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin wasPaid reservationStatus').exec();
 
     if (!reserve) {
       throw new NotFoundException(`Reserva ${idCourtReserve} no encontrada`);

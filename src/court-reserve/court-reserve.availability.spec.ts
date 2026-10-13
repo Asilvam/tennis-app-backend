@@ -16,6 +16,7 @@ describe('CourtReserveService availability pricing', () => {
       {} as any,
       {} as any,
       {} as any,
+      { pendingForDate: jest.fn().mockResolvedValue([]) } as any,
     );
   }
 

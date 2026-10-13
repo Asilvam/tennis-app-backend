@@ -34,6 +34,7 @@ describe('CourtReserveService audit identity', () => {
       {} as any,
       auditLogService as any,
       {} as any,
+      { acquire: jest.fn().mockResolvedValue({}), confirm: jest.fn().mockResolvedValue(true) } as any,
     );
 
     return { service, auditLogService };

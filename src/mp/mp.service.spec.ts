@@ -23,7 +23,8 @@ describe('MpService', () => {
     const configService = {
       get: jest.fn((key: string, fallback?: string) => values[key] ?? fallback),
     };
-    return { service: new MpService(configService as any, model as any), model };
+    const slots = { beginCheckout: jest.fn().mockResolvedValue({ expiresAt: new Date(Date.now() + 600_000) }), storeCheckout: jest.fn().mockResolvedValue(undefined) };
+    return { service: new MpService(configService as any, model as any, slots as any), model, slots };
   }
 
   beforeEach(() => {
@@ -189,5 +190,32 @@ describe('MpService', () => {
       isVisit: false,
     });
     await expect(service.create({ idCourtReserve: 'reserve-1' } as any)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('does not start checkout until the hold has valid participants', async () => {
+    const { service, slots } = createService({ idCourtReserve: 'hold-1', ownerEmail: 'owner@test.cl', checkoutReady: false, isPaidNight: true });
+    await expect(service.create({ idCourtReserve: 'hold-1' } as any, 'owner@test.cl')).rejects.toBeInstanceOf(BadRequestException);
+    expect(slots.beginCheckout).not.toHaveBeenCalled();
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
+  it('reuses the saved checkout rather than creating another preference', async () => {
+    const { service, slots } = createService({ idCourtReserve: 'hold-1', ownerEmail: 'owner@test.cl', checkoutReady: true, isPaidNight: true });
+    slots.beginCheckout.mockResolvedValue({ expiresAt: new Date(Date.now() + 60_000), initPoint: 'https://pay.test/existing', preferenceId: 'existing' } as any);
+    await expect(service.create({ idCourtReserve: 'hold-1' } as any, 'owner@test.cl')).resolves.toEqual({ initPoint: 'https://pay.test/existing', preferenceId: 'existing' });
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
+  it('uses and persists the original hold deadline without changing backend prices or the thirty-second timeout', async () => {
+    const { service, slots } = createService({ idCourtReserve: 'hold-1', ownerEmail: 'owner@test.cl', checkoutReady: true, isPaidNight: true, isVisit: true }, { MP_NIGHT_VISIT_AMOUNT: '12345' });
+    const expiresAt = new Date(Date.now() + 60_000);
+    slots.beginCheckout.mockResolvedValue({ expiresAt });
+    const preference = { preferenceId: 'pref-1', initPoint: 'https://pay.test/pref-1' };
+    mockedAxios.post.mockResolvedValueOnce({ data: preference });
+    await expect(service.create({ idCourtReserve: 'hold-1', amount: 1 } as any, 'OWNER@test.cl')).resolves.toEqual(preference);
+    expect(slots.beginCheckout).toHaveBeenCalledWith(expect.objectContaining({ idCourtReserve: 'hold-1' }), 'owner@test.cl');
+    expect(mockedAxios.post).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ amount: 12345, expiresAt: expiresAt.toISOString() }), expect.objectContaining({ timeout: 30_000 }));
+    expect(slots.storeCheckout).toHaveBeenCalledWith('hold-1', preference);
+    expect(mockedAxios.post).toHaveBeenCalledTimes(1);
   });
 });

@@ -61,6 +61,18 @@ export class CourtReserve {
   @Prop({ required: false })
   paidAt?: Date;
 
+  @Prop({ required: false })
+  reservationStatus?: string;
+
+  @Prop({ required: false })
+  holdExpiresAt?: Date;
+
+  @Prop({ required: false })
+  ownerEmail?: string;
+
+  @Prop({ required: false })
+  checkoutReady?: boolean;
+
   @Prop({ default: false })
   isDouble: boolean;
 
@@ -84,7 +96,7 @@ export const CourtReserveSchema = SchemaFactory.createForClass(CourtReserve);
 
 CourtReserveSchema.pre('save', function (next) {
   if (this.isPaidNight || this.isVisit) {
-    this.state = false; // era false si agenda para pagar
+    this.state = Boolean(this.wasPaid);
   } else {
     this.state = true;
   }

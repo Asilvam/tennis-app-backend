@@ -1,4 +1,5 @@
-import { Controller, Get, Header, Post, Body } from '@nestjs/common';
+import { Controller, Get, Header, Post, Body, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { MpService } from './mp.service';
 import { CreateMpDto } from './dto/create-mp.dto';
@@ -15,7 +16,8 @@ export class MpController {
   }
 
   @Post('init-point')
-  create(@Body() createMpDto: CreateMpDto) {
-    return this.mpService.create(createMpDto);
+  @UseGuards(JwtAuthGuard)
+  create(@Body() createMpDto: CreateMpDto, @Req() request: { user: { email: string } }) {
+    return this.mpService.create(createMpDto, request.user.email);
   }
 }

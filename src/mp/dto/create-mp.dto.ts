@@ -1,7 +1,11 @@
-import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsNotEmpty, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateMpDto {
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
   @ApiProperty({
     description: 'Nombre o identificador de la cancha a reservar',
     example: 'Cancha 1',

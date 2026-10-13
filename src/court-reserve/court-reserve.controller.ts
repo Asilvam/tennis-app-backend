@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Headers, Req } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
@@ -13,6 +13,24 @@ export class CourtReserveController {
   @Post()
   create(@Body() createCourtReserveDto: CreateCourtReserveDto) {
     return this.courtReserveService.create(createCourtReserveDto);
+  }
+
+  @Post('holds')
+  @UseGuards(JwtAuthGuard)
+  createHold(@Body() dto: CreateCourtReserveDto, @Req() request: { user: { email: string } }) {
+    return this.courtReserveService.createHold(dto, request.user.email);
+  }
+
+  @Delete('holds/:reservationId')
+  @UseGuards(JwtAuthGuard)
+  cancelHold(@Param('reservationId') reservationId: string, @Req() request: { user: { email: string } }) {
+    return this.courtReserveService.cancelHold(reservationId, request.user.email);
+  }
+
+  @Patch('holds/:reservationId')
+  @UseGuards(JwtAuthGuard)
+  prepareHold(@Param('reservationId') reservationId: string, @Body() dto: CreateCourtReserveDto, @Req() request: { user: { email: string } }) {
+    return this.courtReserveService.prepareHold(reservationId, dto, request.user.email);
   }
 
   @Post('admincreate')

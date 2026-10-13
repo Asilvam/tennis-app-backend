@@ -6,7 +6,7 @@ import { PaymentCallbackEffectStatus } from './entities/payment-callback-effect.
 describe('CourtReserveService payment callbacks', () => {
   function createService() {
     const model = {
-      findOne: jest.fn(),
+      findOne: jest.fn().mockReturnValue({ select: jest.fn().mockReturnThis(), lean: jest.fn().mockReturnThis(), exec: jest.fn().mockResolvedValue({ reservationStatus: 'CONFIRMED' }) }),
       findOneAndUpdate: jest.fn(),
     };
     const emailService = { sendEmail: jest.fn().mockResolvedValue(undefined) };
@@ -18,8 +18,9 @@ describe('CourtReserveService payment callbacks', () => {
         value: await effect(),
       })),
     };
-    const service = new CourtReserveService(model as any, {} as any, emailService as any, auditLogService as any, effectService as any);
-    return { service, model, emailService, auditLogService, effectService };
+    const slots = { confirm: jest.fn().mockResolvedValue(true) };
+    const service = new CourtReserveService(model as any, {} as any, emailService as any, auditLogService as any, effectService as any, slots as any);
+    return { service, model, emailService, auditLogService, effectService, slots };
   }
 
   it('requires Idempotency-Key for callbacks', async () => {
@@ -54,8 +55,8 @@ describe('CourtReserveService payment callbacks', () => {
 
     const response = await service.updateStateReserve('reserve-1', 'same-key');
 
-    expect(model.findOne).not.toHaveBeenCalled();
-    expect(response).toEqual({ idCourtReserve: 'reserve-1', duplicate: true });
+    expect(model.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(response).toEqual({ idCourtReserve: 'reserve-1', reservationStatus: 'CONFIRMED', duplicate: true });
     expect(auditLogService.logPaymentEffect).toHaveBeenCalledWith('reserve-1', 'same-key', 'STATE_CHANGE', 'approved', 'SKIPPED_DUPLICATE');
   });
 
@@ -83,5 +84,23 @@ describe('CourtReserveService payment callbacks', () => {
 
     expect(emailService.sendEmail).not.toHaveBeenCalled();
     expect(response.duplicate).toBe(true);
+  });
+
+  it('records an approved payment for review when another reservation owns the slot', async () => {
+    const { service, model, slots } = createService();
+    model.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ wasPaid: false }) });
+    slots.confirm.mockResolvedValue(false);
+    model.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue({ state: false, wasPaid: true, reservationStatus: 'PAYMENT_REVIEW_REQUIRED' }) });
+    const result = await service.updateStateReserve('late', 'late-payment');
+    expect(result.reservationStatus).toBe('PAYMENT_REVIEW_REQUIRED');
+    expect(model.findOneAndUpdate).toHaveBeenCalledWith({ idCourtReserve: 'late' }, expect.objectContaining({ $set: expect.objectContaining({ state: false, wasPaid: true }) }), { new: true });
+  });
+
+  it('does not send a confirmation for a paid reservation requiring review', async () => {
+    const { service, emailService } = createService();
+    jest.spyOn(service as any, 'getCourtReserveById').mockResolvedValue({ player1: 'Player', wasPaid: true, reservationStatus: 'PAYMENT_REVIEW_REQUIRED' });
+    const result = await service.sendEmailConfirmation('late', MercadoPagoPaymentStatus.APPROVED, 'review-key');
+    expect(result.skipped).toBe('PAYMENT_REVIEW_REQUIRED');
+    expect(emailService.sendEmail).not.toHaveBeenCalled();
   });
 });

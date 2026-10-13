@@ -10,19 +10,22 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { PaymentCallbackEffect, PaymentCallbackEffectSchema } from './entities/payment-callback-effect.entity';
 import { PaymentCallbackEffectService } from './payment-callback-effect.service';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
+import { ReservationSlot, ReservationSlotSchema } from './entities/reservation-slot.entity';
+import { ReservationSlotService } from './reservation-slot.service';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: CourtReserve.name, schema: CourtReserveSchema },
       { name: PaymentCallbackEffect.name, schema: PaymentCallbackEffectSchema },
+      { name: ReservationSlot.name, schema: ReservationSlotSchema },
     ]),
     RegisterModule,
     AuditLogModule,
     // EmailModule,
   ],
-  providers: [CourtReserveService, EmailService, PaymentCallbackEffectService, InternalApiKeyGuard],
+  providers: [CourtReserveService, EmailService, PaymentCallbackEffectService, InternalApiKeyGuard, ReservationSlotService],
   controllers: [CourtReserveController],
-  exports: [CourtReserveService, MongooseModule],
+  exports: [CourtReserveService, MongooseModule, ReservationSlotService],
 })
 export class CourtReserveModule {}

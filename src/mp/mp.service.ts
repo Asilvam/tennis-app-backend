@@ -5,6 +5,7 @@ import axios from 'axios';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CourtReserve } from '../court-reserve/entities/court-reserve.entity';
+import { ReservationSlotService } from '../court-reserve/reservation-slot.service';
 
 const DEFAULT_PAYMENT_AMOUNTS = {
   MP_NIGHT_AMOUNT: 4_000,
@@ -19,6 +20,7 @@ export class MpService {
     private readonly configService: ConfigService,
     @InjectModel(CourtReserve.name)
     private readonly courtReserveModel: Model<CourtReserve>,
+    private readonly reservationSlots: ReservationSlotService,
   ) {}
 
   getRates() {
@@ -30,7 +32,7 @@ export class MpService {
     };
   }
 
-  async create(createMpDto: CreateMpDto) {
+  async create(createMpDto: CreateMpDto, ownerEmail?: string) {
     const mpApiUrl = this.configService.get<string>('MP_API_URL');
     const internalApiKey = this.configService.get<string>('INTERNAL_API_KEY');
     if (!mpApiUrl || !internalApiKey) {
@@ -39,7 +41,7 @@ export class MpService {
 
     const reserve = await this.courtReserveModel
       .findOne({ idCourtReserve: createMpDto.idCourtReserve })
-      .select('idCourtReserve court dateToPlay turn player1 isPaidNight isVisit wasPaid')
+      .select('idCourtReserve court dateToPlay turn player1 isPaidNight isVisit wasPaid ownerEmail reservationStatus checkoutReady')
       .lean()
       .exec();
     if (!reserve) {
@@ -48,20 +50,26 @@ export class MpService {
     if (reserve.wasPaid) {
       throw new BadRequestException(`Reserva ${createMpDto.idCourtReserve} ya fue pagada`);
     }
+    if (reserve.ownerEmail && !reserve.checkoutReady) throw new BadRequestException('Completa los participantes de la reserva antes de pagar.');
 
+    const amount = this.calculateAmount(Boolean(reserve.isPaidNight), Boolean(reserve.isVisit));
+    const slot = await this.reservationSlots.beginCheckout(reserve, ownerEmail?.toLowerCase());
+    if (slot.initPoint && slot.preferenceId) return { initPoint: slot.initPoint, preferenceId: slot.preferenceId };
     const paymentPayload: CreateMpDto = {
       courtId: reserve.court,
       date: reserve.dateToPlay,
       time: reserve.turn,
       player1: reserve.player1,
-      amount: this.calculateAmount(Boolean(reserve.isPaidNight), Boolean(reserve.isVisit)),
+      amount,
       idCourtReserve: reserve.idCourtReserve,
+      expiresAt: slot.expiresAt.toISOString(),
     };
     try {
       const initPoint = await axios.post(`${mpApiUrl}/create-preference`, paymentPayload, {
         headers: { 'x-api-key': internalApiKey },
         timeout: 30_000,
       });
+      await this.reservationSlots.storeCheckout(reserve.idCourtReserve, initPoint.data);
       this.logger.log(`Mercado Pago preference created for reservation ${reserve.idCourtReserve}`);
       return initPoint.data;
     } catch (error) {
