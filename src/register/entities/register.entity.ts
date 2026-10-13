@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { TipoSocio } from '../enums/tipo-socio.enum';
 import { EstadoPago } from '../enums/estado-pago.enum';
@@ -19,6 +19,19 @@ export class Register {
   @Prop({ required: true, select: false })
   pwd: string;
 
+  @Prop({ type: String, select: false, index: true, sparse: true })
+  passwordResetTokenHash?: string;
+
+  @Prop({ type: Date, select: false })
+  passwordResetExpiresAt?: Date;
+
+  @Prop({ type: Date, select: false })
+  passwordResetRequestedAt?: Date;
+
+  // Keep historical recovery metadata hidden; the 24-hour policy no longer writes this array.
+  @Prop({ type: [Date], select: false })
+  passwordResetRequests?: Date[];
+
   @Prop({ default: false })
   emailVerified: boolean;
 
@@ -33,6 +46,9 @@ export class Register {
 
   @Prop({ required: true, enum: Object.values(TipoSocio), default: TipoSocio.TITULAR })
   partnerType: TipoSocio;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: Register.name, required: false, index: true })
+  titularId?: Types.ObjectId;
 
   @Prop({ required: false })
   socioPrincipal?: boolean;

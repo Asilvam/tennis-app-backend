@@ -2,20 +2,29 @@ import { buildEmailShell, escapeHtml } from './email-layout.template';
 
 const paragraph = (content: string) => `<p style="margin:8px 0 0; color:#cbd5e1; font-size:15px; line-height:1.65;">${content}</p>`;
 
-export const buildPasswordResetEmail = (newPassword: string) =>
+export const buildPasswordResetEmail = (resetLink: string, validity: '15 minutos' | '24 horas' = '15 minutos') =>
   buildEmailShell({
-    title: 'Contraseña restablecida',
+    title: 'Restablecer contraseña',
     eyebrow: 'Seguridad de cuenta',
     accent: '#f4e85a',
     content: `
       <p style="margin:0; color:#e2e8f0; font-size:16px; line-height:1.6;">¡Hola!</p>
       ${paragraph('Se solicitó un restablecimiento de contraseña para tu cuenta.')}
       <div style="margin:20px 0; padding:18px; background:#102441; border:1px solid #52647d; border-radius:14px; text-align:center;">
-        <div style="color:#94a3b8; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase;">Nueva contraseña</div>
-        <div style="margin-top:9px; color:#f4e85a; font-size:20px; font-weight:800; letter-spacing:2px; word-break:break-all;">${escapeHtml(newPassword)}</div>
+        <a href="${escapeHtml(resetLink)}" style="display:inline-block; padding:14px 24px; background:#f4e85a; border-radius:10px; color:#08172c; font-weight:800; text-decoration:none;">Elegir mi nueva contraseña</a>
       </div>
-      ${paragraph('Por seguridad, inicia sesión y cambia esta contraseña. Si no solicitaste el restablecimiento, comunícate con la administración.')}`,
+      ${paragraph(`El enlace vence en ${escapeHtml(validity)} y puede utilizarse una sola vez. Tu contraseña actual no cambia hasta que confirmes la nueva.`)}
+      ${paragraph('Si no solicitaste este cambio, ignora este correo. Si lo solicitaste varias veces, utiliza el enlace más reciente.')}
+      <div style="margin-top:10px; word-break:break-all; color:#7dd3fc; font-size:12px;">${escapeHtml(resetLink)}</div>`,
   });
+
+export const buildPasswordChangedEmail = () => buildEmailShell({
+  title: 'Contraseña actualizada',
+  eyebrow: 'Seguridad de cuenta',
+  accent: '#f4e85a',
+  content: `${paragraph('La contraseña de tu cuenta fue actualizada. Inicia sesión con tu nueva contraseña.')}
+    ${paragraph('Si no realizaste este cambio, comunícate inmediatamente con la administración del club.')}`,
+});
 
 export const buildVerificationEmail = (verificationLink: string) => {
   const safeLink = escapeHtml(verificationLink);

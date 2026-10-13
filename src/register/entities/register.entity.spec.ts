@@ -71,4 +71,18 @@ describe('Register Entity & Schema', () => {
     expect(error).toBeUndefined();
     expect(user.role).toBe('user');
   });
+
+  it.each(['Titular', 'Carga', 'Familiar'])('preserves supported and legacy membership type %s without changing the role', type => {
+    const user = new RegisterModel({ namePlayer: 'Member', email: 'member@test.cl', cellular: '123', pwd: 'hashed', role: 'profesor', partnerType: type });
+    expect(user.validateSync()).toBeUndefined();
+    expect(user.partnerType).toBe(type);
+    expect(user.role).toBe('profesor');
+  });
+
+  it('stores a stable ObjectId reference to the titular', () => {
+    const user = new RegisterModel({ namePlayer: 'Member', email: 'member@test.cl', cellular: '123', pwd: 'hashed', partnerType: 'Carga', titularId: '000000000000000000000002' });
+    expect(user.validateSync()).toBeUndefined();
+    expect(user.titularId.toString()).toBe('000000000000000000000002');
+    expect(RegisterSchema.path('titularId').options.ref).toBe('Register');
+  });
 });

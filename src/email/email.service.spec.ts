@@ -53,21 +53,33 @@ describe('EmailService', () => {
 
   it('builds and sends a password reset email', async () => {
     jest.spyOn(service, 'sendEmail').mockResolvedValue(undefined);
-    await service.sendResetPasswordEmail('to@example.com', '<new-password>');
+    await service.sendResetPasswordEmail('to@example.com', 'https://front.example/reset#token=fixture&test=1');
     expect(service.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'to@example.com',
-        subject: expect.stringContaining('Contraseña restablecida'),
-        html: expect.stringContaining('&lt;new-password&gt;'),
+        subject: expect.stringContaining('Restablecer contraseña'),
+        html: expect.stringContaining('token=fixture&amp;test=1'),
       }),
     );
   });
 
   it('wraps password reset email failures', async () => {
     jest.spyOn(service, 'sendEmail').mockRejectedValue(new Error('unavailable'));
-    await expect(service.sendResetPasswordEmail('to@example.com', 'password')).rejects.toThrow(
+    await expect(service.sendResetPasswordEmail('to@example.com', 'https://front.example/reset')).rejects.toThrow(
       'Failed to send reset password email: unavailable',
     );
+  });
+
+  it('sends the admin link with its 24-hour validity in the email', async () => {
+    jest.spyOn(service, 'sendEmail').mockResolvedValue(undefined);
+    await service.sendResetPasswordEmail('to@example.com', 'https://front.example/reset#token=fixture', '24 horas');
+    expect(service.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('vence en 24 horas') }));
+  });
+
+  it('sends a change notification without a password', async () => {
+    jest.spyOn(service, 'sendEmail').mockResolvedValue(undefined);
+    await service.sendPasswordChangedEmail('to@example.com');
+    expect(service.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'to@example.com', subject: expect.stringContaining('Contraseña actualizada') }));
   });
 
   it('builds and sends a verification email', async () => {

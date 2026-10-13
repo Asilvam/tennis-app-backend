@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SendEmailDto } from './dto/send-email.dto';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
-import { buildPasswordResetEmail, buildVerificationEmail } from './templates/transactional-email.templates';
+import { buildPasswordChangedEmail, buildPasswordResetEmail, buildVerificationEmail } from './templates/transactional-email.templates';
 
 @Injectable()
 export class EmailService {
@@ -38,9 +38,9 @@ export class EmailService {
     }
   }
 
-  async sendResetPasswordEmail(to: string, newPassword: string) {
-    const subject = 'Contraseña restablecida - Club de Tenis Quintero';
-    const html = buildPasswordResetEmail(newPassword);
+  async sendResetPasswordEmail(to: string, resetLink: string, validity: '15 minutos' | '24 horas' = '15 minutos') {
+    const subject = 'Restablecer contraseña - Club de Tenis Quintero';
+    const html = buildPasswordResetEmail(resetLink, validity);
     try {
       await this.sendEmail({ to, subject, html });
       this.logger.log(`Reset password email sent successfully to ${to}`);
@@ -48,6 +48,10 @@ export class EmailService {
       this.logger.error(`Failed to send reset password email to ${to}: ${error.message}`, error.stack);
       throw new Error(`Failed to send reset password email: ${error.message}`);
     }
+  }
+
+  async sendPasswordChangedEmail(to: string) {
+    await this.sendEmail({ to, subject: 'Contraseña actualizada - Club de Tenis Quintero', html: buildPasswordChangedEmail() });
   }
 
   async sendVerificationEmail(email: string, verificationLink: string) {

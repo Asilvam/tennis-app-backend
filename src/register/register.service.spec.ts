@@ -61,47 +61,6 @@ describe('RegisterService', () => {
     });
   });
 
-  it('generates a password with the requested length', () => {
-    jest.spyOn(Math, 'random').mockReturnValue(0);
-    expect(service.generateRandomPassword(4)).toBe('AAAA');
-    jest.restoreAllMocks();
-  });
-
-  it('creates a plain and hashed password pair', async () => {
-    jest.spyOn(service, 'generateRandomPassword').mockReturnValue('Random');
-    (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
-    await expect(service.createNewPassword()).resolves.toEqual({ plainPassword: 'Random', hashedPassword: 'hashed' });
-  });
-
-  it('returns a safe response when resetting an unknown account', async () => {
-    registerModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
-    await expect(service.resetPassword({ email: 'MISSING@EXAMPLE.COM' })).resolves.toEqual({
-      success: false,
-      message: 'Usuario no encontrado',
-    });
-  });
-
-  it('resets a password using a normalized email address', async () => {
-    registerModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue({ email: 'user@example.com' }) });
-    registerModel.updateOne.mockResolvedValue({ modifiedCount: 1 });
-    jest.spyOn(service, 'createNewPassword').mockResolvedValue({ plainPassword: 'Random', hashedPassword: 'hashed' });
-
-    await expect(service.resetPassword({ email: 'USER@EXAMPLE.COM' })).resolves.toEqual({
-      success: true,
-      message: 'Contraseña actualizada con éxito',
-      newPassword: 'Random',
-    });
-    expect(registerModel.updateOne).toHaveBeenCalledWith({ email: 'user@example.com' }, { pwd: 'hashed' });
-    expect(emailService.sendResetPasswordEmail).toHaveBeenCalledWith('user@example.com', 'Random');
-  });
-
-  it('returns a failure response when password reset fails', async () => {
-    registerModel.findOne.mockReturnValue({ exec: jest.fn().mockRejectedValue(new Error('Mongo unavailable')) });
-    await expect(service.resetPassword({ email: 'user@example.com' })).resolves.toEqual({
-      success: false,
-      message: 'Error al actualizar la contraseña',
-    });
-  });
 
   it.each([
     [[{ namePlayer: 'Player' }], true],
@@ -191,6 +150,42 @@ describe('RegisterService', () => {
     await expect(service.create({ ...createDto, categories: undefined })).resolves.toBeUndefined();
     expect(playerCategoryPointsService.initializePlayerCategories).not.toHaveBeenCalled();
     expect(emailService.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('does not accept a titular association through public registration', async () => {
+    registerModel.findOne.mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) }).mockResolvedValueOnce(null);
+    jest.spyOn(service, 'hashPassword').mockResolvedValue('hashed');
+    save.mockResolvedValue({ id: 'register-1' });
+    await service.create({ ...createDto, categories: undefined, titularId: '000000000000000000000002' });
+    expect(registerModel.mock.calls[0][0]).not.toHaveProperty('titularId');
+  });
+
+  it('assigns server-owned signup permissions and ignores privileged fields even in direct service calls', async () => {
+    registerModel.findOne.mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(null) }).mockResolvedValueOnce(null);
+    jest.spyOn(service, 'hashPassword').mockResolvedValue('hashed');
+    save.mockResolvedValue({ id: 'register-1' });
+    await service.create({ ...createDto, categories: undefined, role: 'admin', statePlayer: true, updatePayment: false, emailVerified: true,
+      verificationToken: 'chosen-token', estadoPago: 'PENDIENTE', isLigthNigth: true, imageUrlProfile: 'https://image.example/forged.jpg' });
+    const persisted = registerModel.mock.calls[0][0];
+    expect(persisted).toMatchObject({ role: 'user', statePlayer: false, updatePayment: true, emailVerified: false, pwd: 'hashed' });
+    for (const field of ['verificationToken', 'estadoPago', 'isLigthNigth', 'imageUrlProfile']) expect(persisted).not.toHaveProperty(field);
+  });
+
+  it.each(['role', 'statePlayer', 'updatePayment', 'emailVerified', 'verificationToken', 'email', 'pwd', 'partnerType', 'titularId', '$set', 'role.value'])('rejects %s in the profile service before writing', async field => {
+    await expect(service.updateProfileByEmail('user@example.com', { [field]: 'forged' } as any)).rejects.toThrow('El perfil no permite');
+    expect(registerModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('updates only allowed profile fields with validators and a server-built set operation', async () => {
+    const updated = { email: 'user@example.com', imageUrlProfile: 'https://images.example/profile.jpg' };
+    registerModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue(updated) });
+    await expect(service.updateProfileByEmail(updated.email, { imageUrlProfile: updated.imageUrlProfile, namePlayer: undefined })).resolves.toBe(updated);
+    expect(registerModel.findOneAndUpdate).toHaveBeenCalledWith({ email: updated.email }, { $set: { imageUrlProfile: updated.imageUrlProfile } }, { new: true, runValidators: true });
+  });
+
+  it('rejects a profile update for a missing member', async () => {
+    registerModel.findOneAndUpdate.mockReturnValue({ exec: jest.fn().mockResolvedValue(null) });
+    await expect(service.updateProfileByEmail('missing@example.com', { namePlayer: 'Updated' })).rejects.toThrow(NotFoundException);
   });
 
   it('returns the placeholder removal result', async () => {

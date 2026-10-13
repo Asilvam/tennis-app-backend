@@ -11,15 +11,17 @@ describe('RegisterController', () => {
     findOneAndUpdate: jest.fn(),
     findAllNamePlayers: jest.fn(),
     updateByEmail: jest.fn(),
+    updateProfileByEmail: jest.fn(),
     enablePlayerPayment: jest.fn(),
     blockPlayerPayment: jest.fn(),
   };
   const cloudinaryService = { uploadImageBuffer: jest.fn() };
+  const passwordRecoveryService = { requestReset: jest.fn(), confirmReset: jest.fn() };
   let controller: RegisterController;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    controller = new RegisterController(registerService as any, cloudinaryService as any);
+    controller = new RegisterController(registerService as any, cloudinaryService as any, passwordRecoveryService as any);
   });
 
   it('delegates register queries and mutations', async () => {
@@ -28,9 +30,9 @@ describe('RegisterController', () => {
     registerService.findOneByEmail.mockReturnValue('profile');
     registerService.remove.mockReturnValue('removed');
     registerService.create.mockReturnValue('created');
-    registerService.resetPassword.mockReturnValue('reset');
+    passwordRecoveryService.requestReset.mockReturnValue('reset');
     registerService.findAllNamePlayers.mockReturnValue('names');
-    registerService.updateByEmail.mockReturnValue('updated');
+    registerService.updateProfileByEmail.mockReturnValue('updated');
     registerService.enablePlayerPayment.mockResolvedValue({ success: true });
     registerService.blockPlayerPayment.mockResolvedValue({ success: true });
     const createDto = { email: 'user@example.com' } as any;
@@ -43,7 +45,7 @@ describe('RegisterController', () => {
     expect(controller.register(createDto)).toBe('created');
     await expect(controller.resetPassword({ email: 'user@example.com' })).resolves.toBe('reset');
     expect(controller.findAllNAmes()).toBe('names');
-    expect(controller.update('user@example.com', updateDto)).toBe('updated');
+    expect(controller.update('user@example.com', updateDto, { user: { email: 'user@example.com' } })).toBe('updated');
     await expect(controller.enablePayment('user@example.com')).resolves.toEqual({ success: true });
     await expect(controller.blockPayment('user@example.com')).resolves.toEqual({ success: true });
     expect(registerService.remove).toHaveBeenCalledWith(7);

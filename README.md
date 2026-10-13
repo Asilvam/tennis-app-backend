@@ -70,6 +70,7 @@ Crea manualmente un archivo `.env` en la raíz de `tennis-app-backend`. No guard
 ```dotenv
 # Aplicación
 PORT=3500
+PASSWORD_RESET_FRONTEND_URL=http://localhost:5173/restablecer-contrasena
 
 # MongoDB
 MONGODB_URI=mongodb+srv://user:password@cluster.example.mongodb.net/tennis
@@ -160,12 +161,32 @@ El backend principal mantiene una segunda barrera de idempotencia para los callb
 
 ## Usuarios y estado de pago
 
+La edición administrativa de socios usa `PATCH /register/admin/:email` con JWT admin. Permite seleccionar Titular/Carga y asociar cada carga mediante `titularId`. Los valores históricos Familiar se conservan hasta editar la asociación. No se crean cuotas ni pagos en esta etapa; ver [modelo de socios y próximas etapas](docs/membership-management-stage-1.md). Las asociaciones requieren Mongo con soporte de transacciones.
+
 El acceso depende de dos propiedades del socio:
 
 - `statePlayer=false`: bloqueo administrativo.
 - `updatePayment=false`: bloqueo por pago pendiente.
 
 El login rechaza cualquiera de esos estados.
+
+### Permisos de registro y edición
+
+- `POST /register` continúa público, pero solo acepta nombre, correo, celular, contraseña, tipo de socio, categorías y URL de verificación. Campos administrativos o de verificación enviados por el cliente se rechazan con `400`.
+- El servidor conserva la política de alta existente: `role=user`, `statePlayer=false`, `updatePayment=true` y `emailVerified=false`. El token de verificación lo genera el modelo. `updatePayment=true` no equivale a un pago confirmado ni a una cuota pagada.
+- `PATCH /register/:email` requiere JWT y solo permite editar el perfil propio (nombre, celular y fotografía). Los campos de permisos/pago se rechazan; otra cuenta recibe `403`.
+- `POST /register/profile` requiere JWT para subir una fotografía.
+- `PATCH /register/admin/:email` y `PATCH /register/payment/{enable|block}/:email` requieren JWT con rol admin. Sin JWT devuelven `401`; usuarios y profesores reciben `403` en las rutas administrativas.
+
+El front debe enviar el JWT en las dos llamadas de actualización de fotografía. Coordinar el despliegue de backend y front: el front antiguo sin esos encabezados recibirá `401`. No se modifican cuentas existentes, tarifas, variables de entorno, Mercado Pago ni el contrato del servicio de correo.
+
+Las pruebas de permisos usan JWT de prueba, HTTP local y servicios simulados, sin correos ni Mongo de producción:
+
+```bash
+npm test -- --runInBand --runTestsByPath src/register/register.security.spec.ts src/register/register.admin.spec.ts src/register/register.service.spec.ts
+```
+
+Esta protección no constituye una auditoría completa de seguridad. El restablecimiento inseguro se reemplazó por un enlace de un solo uso: el usuario puede solicitarlo sin sesión y un admin desde administración. Solo se envía a cuentas activas (`statePlayer=true`). El usuario espera 24 horas entre solicitudes aceptadas, incluso si falla el correo; el administrador autenticado no tiene límite de espera, pero tampoco puede enviar a cuentas inactivas. La contraseña actual no cambia hasta confirmar; no se devuelve ni se envía una contraseña por correo. El enlace público dura quince minutos y el de administración dura 24 horas; ambos requieren `PASSWORD_RESET_FRONTEND_URL` del backend. Por decisión explícita, las sesiones JWT anteriores siguen válidas hasta vencer. Ver [flujo, límites y pruebas de recuperación](docs/password-recovery.md).
 
 ## Correo
 

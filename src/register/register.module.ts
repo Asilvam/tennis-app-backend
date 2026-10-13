@@ -7,6 +7,7 @@ import { Register, RegisterSchema } from './entities/register.entity';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { EmailService } from '../email/email.service';
 import { PlayerCategoryPointsModule } from '../player-category-points/player-category-points.module';
+import { PasswordRecoveryService } from './password-recovery.service';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { PlayerCategoryPointsModule } from '../player-category-points/player-cat
     PlayerCategoryPointsModule, // ✅ NUEVO: Importar para usar PlayerCategoryPointsService
   ],
   controllers: [RegisterController],
-  providers: [RegisterService, EmailService],
+  providers: [RegisterService, EmailService, PasswordRecoveryService],
   exports: [RegisterService, MongooseModule],
 })
 export class RegisterModule {}
