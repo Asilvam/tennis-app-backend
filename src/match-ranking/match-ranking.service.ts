@@ -27,7 +27,7 @@ import {
   RankingMatchPolicyService,
   rankingParticipants,
   rankingTimes,
-  RANKING_CAPACITY,
+  rankingResultExpired,
 } from '../court-reserve/ranking-match-policy.service';
 import { PlayerCategoryPoints } from '../player-category-points/entities/player-category-points.entity';
 
@@ -143,9 +143,10 @@ export class MatchRankingService {
         throw new ConflictException('Los participantes cambiaron. Actualiza el partido.');
       const players = await this.loadPlayers(reserve, session);
       const member = await this.authorize(players, actor, session);
-      if (dto.allowExpired && member.role !== 'admin')
-        throw new ForbiddenException('Solo un administrador puede autorizar resultados vencidos.');
-      await this.rankingPolicy.assertResultAllowed(reserve, session, Boolean(dto.allowExpired));
+      await this.rankingPolicy.pendingFor(names, session);
+      // Return the expiry outcome so its state commits before rejecting a late result.
+      if (reserve.state && reserve.isForRanking && rankingResultExpired(reserve)) return { expired: true as const };
+      await this.rankingPolicy.assertResultAllowed(reserve, session);
       if (await this.matchRankingModel.exists({ matchId: dto.matchId }).session(session))
         throw new ConflictException({
           code: 'RESULT_ALREADY_REGISTERED',
@@ -222,8 +223,13 @@ export class MatchRankingService {
       }
       const claimed = await this.courtReserveModel
         .updateOne(
-          { _id: reserve._id, state: true, resultMatchUpdated: { $ne: true } },
-          { $set: { resultMatchUpdated: true } },
+          {
+            _id: reserve._id,
+            state: true,
+            resultMatchUpdated: { $ne: true },
+            rankingResultStatus: { $nin: ['EXPIRED', 'RECORDED'] },
+          },
+          { $set: { resultMatchUpdated: true, rankingResultStatus: 'RECORDED' } },
           { session },
         )
         .exec();
@@ -239,11 +245,15 @@ export class MatchRankingService {
         looser,
         recordedBy: member.email,
         pointChanges: changes,
-        expiredOverride: Boolean(dto.allowExpired),
       });
       await result.save({ session });
       return { result: result.toObject(), changes, winner, looser, actorName: member.namePlayer };
     });
+    if ('expired' in saved)
+      throw new ConflictException({
+        code: 'RESULT_DEADLINE_EXPIRED',
+        message: 'Este partido venció y quedó sin puntos. No bloquea nuevas reservas ni resultados posteriores.',
+      });
     try {
       await this.courtReserveService.logResultMatchUpdate(dto.matchId, saved.actorName);
     } catch (error) {
@@ -346,11 +356,40 @@ export class MatchRankingService {
                   .lean()
                   .exec();
           if (!member) throw new NotFoundException('Socio no encontrado.');
-          const pending = await this.rankingPolicy.pendingFor([member.namePlayer], session);
+          const current = await this.rankingPolicy.currentFor([member.namePlayer], session);
           const matches = [];
-          for (const reserve of pending.slice(0, RANKING_CAPACITY)) {
-            const players = await this.loadPlayers(reserve, session);
-            let blocked = await this.rankingPolicy.resultBlock(reserve, session);
+          for (const reserve of current) {
+            const recordedResult = await this.matchRankingModel
+              .findOne({ matchId: reserve.idCourtReserve })
+              .session(session)
+              .lean()
+              .exec();
+            if (recordedResult && (!reserve.resultMatchUpdated || reserve.rankingResultStatus !== 'RECORDED')) {
+              await this.courtReserveModel
+                .updateOne(
+                  { idCourtReserve: reserve.idCourtReserve },
+                  { $set: { resultMatchUpdated: true, rankingResultStatus: 'RECORDED' } },
+                  { session },
+                )
+                .exec();
+            }
+            const recorded = Boolean(
+              recordedResult || reserve.resultMatchUpdated || reserve.rankingResultStatus === 'RECORDED',
+            );
+            const players = recorded
+              ? rankingParticipants(reserve).map(
+                  (name) =>
+                    [...(recordedResult?.winner ?? []), ...(recordedResult?.looser ?? [])].find(
+                      (player) => player.name === name,
+                    ) ?? { name, email: '', cellular: '', categories: [] },
+                )
+              : await this.loadPlayers(reserve, session);
+            let blocked = recorded
+              ? {
+                  code: 'RESULT_ALREADY_REGISTERED',
+                  message: 'Uno de los participantes ya ingresó el resultado de este partido.',
+                }
+              : await this.rankingPolicy.resultBlock(reserve, session);
             const stats = players.map((player) => {
               const active = player.categories.filter(
                 (row) =>
@@ -360,7 +399,7 @@ export class MatchRankingService {
                     : MAIN_SINGLES_CATEGORIES.includes(row.category)),
               );
               const valid = active.length === 1 && Number.isSafeInteger(active[0].points) && active[0].points >= 0;
-              if (!valid && (!blocked || blocked.code === 'RESULT_DEADLINE_EXPIRED'))
+              if (!valid && !blocked)
                 blocked = {
                   code: 'CATEGORY_UNAVAILABLE',
                   message: 'Un participante requiere revisión de su categoría o puntaje activo.',
@@ -368,8 +407,14 @@ export class MatchRankingService {
               return {
                 name: player.name,
                 email: player.email,
-                category: active.length === 1 ? active[0].category : null,
-                points: active.length === 1 ? active[0].points : null,
+                category:
+                  recordedResult?.pointChanges?.find((change) => change.email === player.email)?.category ??
+                  (active.length === 1 ? active[0].category : null),
+                points: recorded
+                  ? (recordedResult?.pointChanges?.find((change) => change.email === player.email)?.after ?? null)
+                  : active.length === 1
+                    ? active[0].points
+                    : null,
               };
             });
             matches.push({
@@ -378,24 +423,31 @@ export class MatchRankingService {
               dateToPlay: reserve.dateToPlay,
               turn: reserve.turn,
               isDouble: reserve.isDouble,
-              phase: rankingTimes(reserve).endAt.toMillis() > Date.now() ? 'CURRENT' : 'AWAITING_RESULT',
+              phase: recorded
+                ? 'RECORDED'
+                : rankingTimes(reserve).endAt.toMillis() > Date.now()
+                  ? 'CURRENT'
+                  : 'AWAITING_RESULT',
               players: stats,
               canRegister: blocked === null,
               blockedReason: blocked?.message ?? null,
               blockedCode: blocked?.code ?? null,
+              result: recorded
+                ? {
+                    score: recordedResult?.result ?? null,
+                    winners: recordedResult?.winner?.map((player) => player.name) ?? [],
+                  }
+                : null,
             });
           }
           return {
             matches,
             member: { name: member.namePlayer, email: member.email },
-            canReviewExpired: reviewer.role === 'admin',
-            totalPending: pending.length,
-            capacity: RANKING_CAPACITY,
-            hasOverflow: pending.length > RANKING_CAPACITY,
+            totalPending: matches.filter((match) => match.phase !== 'RECORDED').length,
             serverNow: new Date().toISOString(),
           };
         },
-        { readConcern: { level: 'snapshot' } },
+        { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } },
       );
     } finally {
       await session.endSession();

@@ -56,6 +56,7 @@ describe('Ranking result HTTP contract', () => {
     { winnerSide: 'C' },
     { result: 'arbitrary text' },
     { allowExpired: 'true' },
+    { allowExpired: true },
     { result: '' },
     { role: 'admin' },
   ])('rejects invalid or forged payload %j', async (override) => {

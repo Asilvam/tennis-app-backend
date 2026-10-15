@@ -46,6 +46,12 @@ export class CourtReserve {
   @Prop({ default: false })
   resultMatchUpdated: boolean;
 
+  @Prop({ enum: ['PENDING', 'RECORDED', 'EXPIRED'] })
+  rankingResultStatus?: 'PENDING' | 'RECORDED' | 'EXPIRED';
+
+  @Prop()
+  rankingResultExpiredAt?: Date;
+
   @Prop({ default: false })
   isPaidNight: boolean;
 

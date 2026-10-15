@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsIn, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
 
 export class CreateMatchRankingDto {
   @IsString()
@@ -17,8 +17,4 @@ export class CreateMatchRankingDto {
 
   @IsIn(['A', 'B'])
   winnerSide: 'A' | 'B';
-
-  @IsOptional()
-  @IsBoolean()
-  allowExpired?: boolean;
 }

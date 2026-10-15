@@ -110,13 +110,52 @@ const uri = process.env.RESULTS_TEST_MONGO_URI;
     if (saved.length === 1) await service.create({ ...dto, matchId: 'next' }, actor);
     expect(await results.countDocuments({})).toBe(2);
   });
-  it('serializes competing third bookings on the member rather than allowing both', async () => {
-    const attempt = (id: string) =>
-      policy.withBookingCapacity(match(id) as CourtReserve, undefined, async (session) => {
-        return new reserves(match(id)).save({ session });
+  it('permits bookings despite pending results but serializes competing active reservations', async () => {
+    await reserves.create([match('pending-two', '10:00-11:45'), match('pending-three', '11:45-13:30')]);
+    const attempt = (id: string) => {
+      const future = {
+        ...match(id),
+        dateToPlay: DateTime.now().setZone('America/Santiago').plus({ days: 1 }).toISODate(),
+      };
+      return policy.withBookingPolicy(future as CourtReserve, undefined, async (session) => {
+        return new reserves(future).save({ session });
       });
+    };
     const attempts = await Promise.allSettled([attempt('next-a'), attempt('next-b')]);
     expect(attempts.filter((row) => row.status === 'fulfilled')).toHaveLength(1);
-    expect(await reserves.countDocuments({ isForRanking: true, resultMatchUpdated: false })).toBe(2);
+    expect(await reserves.countDocuments({ isForRanking: true, resultMatchUpdated: false })).toBe(4);
+  });
+  it('keeps expired games as history without points and frees the following result', async () => {
+    await reserves.create({
+      ...match('expired'),
+      dateToPlay: DateTime.now().setZone('America/Santiago').minus({ days: 3 }).toISODate(),
+    });
+    const queue = await service.getPendingMatches(actor);
+    expect(queue.matches.map((row) => row.idCourtReserve)).toEqual(['oldest']);
+    expect(queue).not.toHaveProperty('expiredMatches');
+    const stored = await reserves.findOne({ idCourtReserve: 'expired' }).lean();
+    expect(stored.rankingResultStatus).toBe('EXPIRED');
+    expect(stored.resultMatchUpdated).toBe(false);
+    expect(await results.countDocuments({ matchId: 'expired' })).toBe(0);
+    await expect(service.create({ ...dto, matchId: 'expired' }, actor)).rejects.toMatchObject({
+      response: { code: 'RESULT_DEADLINE_EXPIRED' },
+    });
+    expect(emails.sendEmail).not.toHaveBeenCalled();
+    expect((await points.findOne({ playerEmail: email })).points).toBe(100);
+    await expect(service.create(dto, actor)).resolves.toMatchObject({ matchId: 'oldest' });
+  });
+  it('shows the shared result as disabled for both participants, without re-awarding points', async () => {
+    await service.create({ ...dto, winnerSide: 'B' }, { email: 'beto@test.invalid', role: 'user' });
+    const a = await service.getPendingMatches(actor);
+    const b = await service.getPendingMatches({ email: 'beto@test.invalid', role: 'user' });
+    for (const queue of [a, b])
+      expect(queue.matches[0]).toMatchObject({
+        phase: 'RECORDED',
+        canRegister: false,
+        result: { score: '6:4, 6:3', winners: ['Beto'] },
+      });
+    expect(await results.countDocuments({})).toBe(1);
+    expect((await points.findOne({ playerEmail: email })).points).toBe(150);
+    expect(emails.sendEmail).toHaveBeenCalledTimes(2);
   });
 });

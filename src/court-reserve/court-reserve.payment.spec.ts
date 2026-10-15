@@ -6,13 +6,11 @@ import { PaymentCallbackEffectStatus } from './entities/payment-callback-effect.
 describe('CourtReserveService payment callbacks', () => {
   function createService(policy?: any) {
     const model = {
-      findOne: jest
-        .fn()
-        .mockReturnValue({
-          select: jest.fn().mockReturnThis(),
-          lean: jest.fn().mockReturnThis(),
-          exec: jest.fn().mockResolvedValue({ reservationStatus: 'CONFIRMED' }),
-        }),
+      findOne: jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        lean: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue({ reservationStatus: 'CONFIRMED' }),
+      }),
       findOneAndUpdate: jest.fn(),
     };
     const emailService = { sendEmail: jest.fn().mockResolvedValue(undefined) };
@@ -146,9 +144,9 @@ describe('CourtReserveService payment callbacks', () => {
     expect(emailService.sendEmail).not.toHaveBeenCalled();
   });
 
-  it('preserves an approved ranking payment for review if the member capacity was reached', async () => {
+  it('preserves an approved ranking payment for review if another active reservation exists', async () => {
     const policy = {
-      withBookingCapacity: jest.fn().mockRejectedValue(new ConflictException({ code: 'RANKING_CAPACITY_REACHED' })),
+      withBookingPolicy: jest.fn().mockRejectedValue(new ConflictException({ code: 'ACTIVE_RESERVATION' })),
     };
     const { service, model, slots } = createService(policy);
     model.findOne.mockReturnValue({
@@ -171,28 +169,26 @@ describe('CourtReserveService payment callbacks', () => {
   });
 
   it('does not recheck capacity or reactivate a payment already persisted under the same key', async () => {
-    const policy = { withBookingCapacity: jest.fn() };
+    const policy = { withBookingPolicy: jest.fn() };
     const { service, model, slots } = createService(policy);
     model.findOne.mockReturnValue({
-      exec: jest
-        .fn()
-        .mockResolvedValue({
-          idCourtReserve: 'rank',
-          wasPaid: true,
-          isForRanking: true,
-          paymentIdempotencyKey: 'same-key',
-          state: false,
-        }),
+      exec: jest.fn().mockResolvedValue({
+        idCourtReserve: 'rank',
+        wasPaid: true,
+        isForRanking: true,
+        paymentIdempotencyKey: 'same-key',
+        state: false,
+      }),
     });
     expect(await service.updateStateReserve('rank', 'same-key')).toMatchObject({ wasPaid: true, state: false });
-    expect(policy.withBookingCapacity).not.toHaveBeenCalled();
+    expect(policy.withBookingPolicy).not.toHaveBeenCalled();
     expect(slots.confirm).not.toHaveBeenCalled();
     expect(model.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('uses the participant transaction for the slot and reservation updates together', async () => {
     const session = {};
-    const policy = { withBookingCapacity: jest.fn(async (_reserve, _exclude, operation) => operation(session)) };
+    const policy = { withBookingPolicy: jest.fn(async (_reserve, _exclude, operation) => operation(session)) };
     const { service, model, slots } = createService(policy);
     const reserve = { idCourtReserve: 'rank', wasPaid: false, isForRanking: true };
     model.findOne.mockReturnValue({ session: jest.fn().mockReturnThis(), exec: jest.fn().mockResolvedValue(reserve) });

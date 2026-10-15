@@ -5,7 +5,6 @@ import { DateTime } from 'luxon';
 import { CourtReserve } from './entities/court-reserve.entity';
 import { Register } from '../register/entities/register.entity';
 
-export const RANKING_CAPACITY = 2;
 export const RANKING_TIMEZONE = 'America/Santiago';
 export type RankingActor = { email: string; role: string };
 export type RankingReservation = Pick<
@@ -21,6 +20,7 @@ export type RankingReservation = Pick<
   | 'isForRanking'
   | 'state'
   | 'resultMatchUpdated'
+  | 'rankingResultStatus'
 >;
 
 export function rankingParticipants(
@@ -51,6 +51,19 @@ export function compareRankingMatches(a: RankingReservation, b: RankingReservati
     rankingTimes(a).startAt.toMillis() - rankingTimes(b).startAt.toMillis() ||
     a.idCourtReserve.localeCompare(b.idCourtReserve)
   );
+}
+
+export function rankingDeadlineAt(reserve: Pick<CourtReserve, 'dateToPlay'>) {
+  const matchDay = DateTime.fromISO(reserve.dateToPlay.slice(0, 10), { zone: RANKING_TIMEZONE }).startOf('day');
+  if (!matchDay.isValid)
+    throw new BadRequestException('El partido tiene una fecha inválida. Requiere revisión administrativa.');
+  return matchDay.plus({ days: 3 });
+}
+
+export function rankingResultExpired(reserve: RankingReservation) {
+  if (reserve.resultMatchUpdated || reserve.rankingResultStatus === 'RECORDED') return false;
+  if (reserve.rankingResultStatus === 'EXPIRED') return true;
+  return DateTime.now().setZone(RANKING_TIMEZONE) >= rankingDeadlineAt(reserve);
 }
 
 @Injectable()
@@ -100,6 +113,7 @@ export class RankingMatchPolicyService {
       .find({
         isForRanking: true,
         resultMatchUpdated: { $ne: true },
+        rankingResultStatus: { $nin: ['EXPIRED', 'RECORDED'] },
         $and: [
           {
             $or: names.flatMap((name) =>
@@ -116,10 +130,59 @@ export class RankingMatchPolicyService {
       })
       .session(session ?? null)
       .lean();
-    return (await query.exec()).sort(compareRankingMatches);
+    const rows = await query.exec();
+    const expired = rows.filter(
+      (row) => row.state && rankingResultExpired(row) && row.rankingResultStatus !== 'EXPIRED',
+    );
+    // Preserve expired games in their reservations, without creating a result or changing points.
+    if (expired.length) {
+      await this.reserves.bulkWrite(
+        expired.map((row) => ({
+          updateOne: {
+            filter: {
+              idCourtReserve: row.idCourtReserve,
+              state: true,
+              resultMatchUpdated: { $ne: true },
+              rankingResultStatus: { $nin: ['EXPIRED', 'RECORDED'] },
+            },
+            update: {
+              $set: {
+                rankingResultStatus: 'EXPIRED',
+                rankingResultExpiredAt: rankingDeadlineAt(row).toJSDate(),
+              },
+            },
+          },
+        })),
+        session ? { session } : {},
+      );
+    }
+    return rows
+      .filter((row) => !row.resultMatchUpdated && row.rankingResultStatus !== 'RECORDED' && !rankingResultExpired(row))
+      .sort(compareRankingMatches);
   }
 
-  async withBookingCapacity<T>(
+  async currentFor(names: string[], session?: ClientSession) {
+    await this.pendingFor(names, session);
+    const now = DateTime.now().setZone(RANKING_TIMEZONE);
+    const rows = await this.reserves
+      .find({
+        isForRanking: true,
+        state: true,
+        dateToPlay: { $gte: now.minus({ days: 2 }).toISODate() },
+        rankingResultStatus: { $ne: 'EXPIRED' },
+        $or: names.flatMap((name) => ['player1', 'player2', 'player3', 'player4'].map((field) => ({ [field]: name }))),
+      })
+      .session(session ?? null)
+      .lean()
+      .exec();
+    return rows
+      .filter(
+        (row) => row.state && row.isForRanking && row.rankingResultStatus !== 'EXPIRED' && rankingDeadlineAt(row) > now,
+      )
+      .sort(compareRankingMatches);
+  }
+
+  async withBookingPolicy<T>(
     reserve: RankingReservation,
     excludeId: string | undefined,
     operation: (session: ClientSession) => Promise<T>,
@@ -130,12 +193,6 @@ export class RankingMatchPolicyService {
       const now = DateTime.now().setZone(RANKING_TIMEZONE);
       for (const name of names) {
         const own = pending.filter((row) => [row.player1, row.player2, row.player3, row.player4].includes(name));
-        if (own.length >= RANKING_CAPACITY)
-          throw new ConflictException({
-            code: 'RANKING_CAPACITY_REACHED',
-            message: `${name} ya tiene dos partidos de ranking. Registra primero el resultado más antiguo.`,
-            player: name,
-          });
         if (own.some((row) => rankingTimes(row).endAt > now))
           throw new ConflictException({
             code: 'ACTIVE_RESERVATION',
@@ -147,7 +204,12 @@ export class RankingMatchPolicyService {
     });
   }
 
-  async resultBlock(reserve: RankingReservation, session?: ClientSession, allowExpired = false) {
+  async resultBlock(reserve: RankingReservation, session?: ClientSession) {
+    if (rankingResultExpired(reserve))
+      return {
+        code: 'RESULT_DEADLINE_EXPIRED',
+        message: 'Este partido venció y quedó sin puntos. No bloquea nuevas reservas ni resultados posteriores.',
+      };
     const pending = await this.pendingFor(rankingParticipants(reserve), session);
     const older = pending.find(
       (row) => row.idCourtReserve !== reserve.idCourtReserve && compareRankingMatches(row, reserve) < 0,
@@ -164,31 +226,26 @@ export class RankingMatchPolicyService {
         previousMatchId: older.idCourtReserve,
       };
     }
-    const { startAt, endAt } = rankingTimes(reserve);
+    const { endAt } = rankingTimes(reserve);
     const now = DateTime.now().setZone(RANKING_TIMEZONE);
     if (endAt > now)
       return { code: 'MATCH_NOT_FINISHED', message: 'El resultado estará disponible al finalizar el turno.' };
-    if (!allowExpired && now.startOf('day').diff(startAt.startOf('day'), 'days').days > 2)
-      return {
-        code: 'RESULT_DEADLINE_EXPIRED',
-        message: 'El plazo de este partido venció. Un administrador debe revisar el resultado antes de continuar.',
-      };
     return null;
   }
 
-  async assertResultAllowed(reserve: RankingReservation, session: ClientSession, allowExpired = false) {
+  async assertResultAllowed(reserve: RankingReservation, session: ClientSession) {
     if (!reserve) throw new NotFoundException('Partido no encontrado.');
     if (!reserve.state || !reserve.isForRanking)
       throw new BadRequestException({
         code: 'MATCH_NOT_ELIGIBLE',
         message: 'La reserva no está confirmada para ranking o fue cancelada.',
       });
-    if (reserve.resultMatchUpdated)
+    if (reserve.resultMatchUpdated || reserve.rankingResultStatus === 'RECORDED')
       throw new ConflictException({
         code: 'RESULT_ALREADY_REGISTERED',
         message: 'El resultado de este partido ya fue registrado.',
       });
-    const blocked = await this.resultBlock(reserve, session, allowExpired);
+    const blocked = await this.resultBlock(reserve, session);
     if (blocked) throw new ConflictException(blocked);
   }
 }

@@ -210,7 +210,7 @@ export class CourtReserveService {
     }
     await this.reservationSlots.assertEditable(reservationId, ownerEmail);
     const candidate = { ...(reserve.toObject?.() ?? reserve), ...participants };
-    const prepared = await this.withRankingCapacity(candidate, reservationId, async session => {
+    const prepared = await this.withRankingBookingPolicy(candidate, reservationId, async session => {
       const query = this.courtReserveModel.findOneAndUpdate(
         { idCourtReserve: reservationId, reservationStatus: 'PENDING_PAYMENT', wasPaid: false, checkoutReady: false },
         { $set: { ...participants, checkoutReady: true } }, { new: true },
@@ -257,7 +257,7 @@ export class CourtReserveService {
       let response;
       try {
         // Each transaction retry needs a new document, since aborted saves mutate Mongoose's isNew flag.
-        response = await this.withRankingCapacity(newCourtReserve, undefined, session => session ? new this.courtReserveModel(newCourtReserve.toObject()).save({ session }) : newCourtReserve.save());
+        response = await this.withRankingBookingPolicy(newCourtReserve, undefined, session => session ? new this.courtReserveModel(newCourtReserve.toObject()).save({ session }) : newCourtReserve.save());
         if (response.state) await this.reservationSlots.confirm(response);
       } catch (error) {
         await this.reservationSlots.releaseUnstarted(newCourtReserve.idCourtReserve);
@@ -279,10 +279,10 @@ export class CourtReserveService {
     throw new BadRequestException('Invalid input');
   }
 
-  private async withRankingCapacity<T>(reserve: CourtReserve, excludeId: string | undefined, operation: (session?: ClientSession) => Promise<T>): Promise<T> {
+  private async withRankingBookingPolicy<T>(reserve: CourtReserve, excludeId: string | undefined, operation: (session?: ClientSession) => Promise<T>): Promise<T> {
     if (!reserve.isForRanking) return operation();
     if (!this.rankingPolicy) throw new Error('La política de partidos de ranking no está disponible.');
-    return this.rankingPolicy.withBookingCapacity(reserve, excludeId, operation);
+    return this.rankingPolicy.withBookingPolicy(reserve, excludeId, operation);
   }
 
   private validateParticipants(createCourtReserveDto: Partial<CreateCourtReserveDto>) {
@@ -456,12 +456,12 @@ export class CourtReserveService {
         };
         if (currentReserve.wasPaid && currentReserve.paymentIdempotencyKey === idempotencyKey) return currentReserve;
         try {
-          return await this.withRankingCapacity(currentReserve, idCourtReserve, confirmPayment);
+          return await this.withRankingBookingPolicy(currentReserve, idCourtReserve, confirmPayment);
         } catch (error) {
           const response = error instanceof ConflictException ? error.getResponse() : null;
           const code = typeof response === 'object' && response ? (response as { code?: string }).code : null;
-          if (!['RANKING_CAPACITY_REACHED', 'ACTIVE_RESERVATION', 'SLOT_CONFLICT'].includes(code)) throw error;
-          // Retain approved payments for review instead of confirming a reservation over capacity.
+          if (!['ACTIVE_RESERVATION', 'SLOT_CONFLICT'].includes(code)) throw error;
+          // Retain approved payments for review when another active reservation prevents confirmation.
           await this.reservationSlots.markReview(idCourtReserve);
           return this.courtReserveModel.findOneAndUpdate(
             { idCourtReserve, wasPaid: { $ne: true } },
