@@ -1,10 +1,17 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateMatchRankingDto } from './dto/create-match-ranking.dto';
 import { UpdateMatchRankingDto } from './dto/update-match-ranking.dto';
 import { ValidateMatchDto } from './dto/validate-match.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { MatchRanking, MatchResultDocument } from './entities/match-ranking.entity';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { CourtReserveService } from '../court-reserve/court-reserve.service';
 import { RegisterService } from '../register/register.service';
 import { PlayerCategoryPointsService } from '../player-category-points/player-category-points.service';
@@ -15,6 +22,17 @@ import { EmailService } from '../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { DOUBLES_CATEGORY, MAIN_SINGLES_CATEGORIES } from '../register/enums/category.enum';
 import { buildRankingPointsEmail } from '../email/templates/transactional-email.templates';
+import {
+  RankingActor,
+  RankingMatchPolicyService,
+  rankingParticipants,
+  rankingTimes,
+  RANKING_CAPACITY,
+} from '../court-reserve/ranking-match-policy.service';
+import { PlayerCategoryPoints } from '../player-category-points/entities/player-category-points.entity';
+
+type RankingPlayer = MatchRanking['winner'][number];
+type ResolvedResult = { winner: RankingPlayer[]; looser: RankingPlayer[] };
 
 @Injectable()
 export class MatchRankingService {
@@ -31,21 +49,23 @@ export class MatchRankingService {
     private readonly playerCategoryPointsService: PlayerCategoryPointsService, // ✅ PASO 5: Nuevo servicio
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    @InjectModel(PlayerCategoryPoints.name) private readonly pointsModel: Model<PlayerCategoryPoints>,
+    private readonly rankingPolicy: RankingMatchPolicyService,
   ) {}
 
-  async calculateSinglesValidPoints(createMatchRankingDto: CreateMatchRankingDto) {
-    this.logger.log(createMatchRankingDto);
+  async calculateSinglesValidPoints(createMatchRankingDto: ResolvedResult, session?: ClientSession) {
     const winnerData = createMatchRankingDto.winner[0];
     const looserData = createMatchRankingDto.looser[0];
     const { winnerCategory, looserCategory } = this._resolveSinglesCategories(winnerData, looserData);
 
     // Obtener puntos actuales desde player_category_points
-    const winnerPts = await this.playerCategoryPointsService.getPoints(winnerData.email, winnerCategory);
-    const looserPts = await this.playerCategoryPointsService.getPoints(looserData.email, looserCategory);
+    const winnerPts = await this.storedPoints(winnerData.email, winnerCategory, session);
+    const looserPts = await this.storedPoints(looserData.email, looserCategory, session);
 
     const winnerCat = winnerCategory;
     const looserCat = looserCategory;
-    const isSpecialCategorySingles = !this.MAIN_SINGLES_CATEGORIES.includes(winnerCat) || !this.MAIN_SINGLES_CATEGORIES.includes(looserCat);
+    const isSpecialCategorySingles =
+      !this.MAIN_SINGLES_CATEGORIES.includes(winnerCat) || !this.MAIN_SINGLES_CATEGORIES.includes(looserCat);
 
     let winnerPointChange = 0;
     let looserPointChange = 0;
@@ -56,7 +76,9 @@ export class MatchRankingService {
     // Categorías especiales (+55, +65, etc.) usan fórmula fija
     if (isSpecialCategorySingles) {
       if (winnerCat !== looserCat) {
-        throw new BadRequestException(`Partido inválido: categorías especiales distintas (${winnerCat} vs ${looserCat})`);
+        throw new BadRequestException(
+          `Partido inválido: categorías especiales distintas (${winnerCat} vs ${looserCat})`,
+        );
       }
       winnerPointChange = baseWin;
       looserPointChange = baseLose;
@@ -107,122 +129,290 @@ export class MatchRankingService {
     };
   }
 
-  async create(createMatchRankingDto: CreateMatchRankingDto) {
-    this.logger.log({ createMatchRankingDto });
-    const claimedReserve = await this.courtReserveService.claimResultMatch(createMatchRankingDto.matchId);
-
-    try {
-      if (createMatchRankingDto.winner.length === 1) {
-        // ✅ PASO 5: Lógica para singles usando PlayerCategoryPointsService
-        const winnerData = createMatchRankingDto.winner[0];
-        const looserData = createMatchRankingDto.looser[0];
-
-        const { winnerPointChange, looserPointChange, winnerPoints, looserPoints, detail, winnerCategory, looserCategory } = await this.calculateSinglesValidPoints(createMatchRankingDto);
-
-        this.logger.log({
-          categoryResolved: 'singles',
-          winner: { email: winnerData.email, category: winnerCategory },
-          looser: { email: looserData.email, category: looserCategory },
+  async create(dto: CreateMatchRankingDto, actor: RankingActor) {
+    const initial = await this.courtReserveModel.findOne({ idCourtReserve: dto.matchId }).lean().exec();
+    if (!initial) throw new NotFoundException('Partido no encontrado.');
+    const names = rankingParticipants(initial);
+    const saved = await this.rankingPolicy.withParticipantLock(names, async (session) => {
+      const reserve = await this.courtReserveModel
+        .findOne({ idCourtReserve: dto.matchId })
+        .session(session)
+        .lean()
+        .exec();
+      if (!reserve || JSON.stringify(rankingParticipants(reserve)) !== JSON.stringify(names))
+        throw new ConflictException('Los participantes cambiaron. Actualiza el partido.');
+      const players = await this.loadPlayers(reserve, session);
+      const member = await this.authorize(players, actor, session);
+      if (dto.allowExpired && member.role !== 'admin')
+        throw new ForbiddenException('Solo un administrador puede autorizar resultados vencidos.');
+      await this.rankingPolicy.assertResultAllowed(reserve, session, Boolean(dto.allowExpired));
+      if (await this.matchRankingModel.exists({ matchId: dto.matchId }).session(session))
+        throw new ConflictException({
+          code: 'RESULT_ALREADY_REGISTERED',
+          message: 'El resultado de este partido ya fue registrado.',
         });
-
-        this.logger.log({ winnerPoints, looserPoints, detail });
-
-        // Actualizar puntos en player_category_points
-        await this.playerCategoryPointsService.upsertPoints(winnerData.email, winnerCategory, winnerPointChange);
-        await this.playerCategoryPointsService.upsertPoints(looserData.email, looserCategory, looserPointChange);
-
-        // Obtener puntos actuales para el email
-        const winnerOldPoints = winnerPoints - winnerPointChange;
-        const looserOldPoints = looserPoints - looserPointChange;
-
-        this._sendPointsUpdateEmail(
-          winnerData.email,
-          winnerData.name,
-          true, // isWinner
-          looserData.name,
-          createMatchRankingDto.result,
-          winnerOldPoints,
-          winnerPoints,
+      const teamSize = reserve.isDouble ? 2 : 1;
+      const a = players.slice(0, teamSize);
+      const b = players.slice(teamSize);
+      const winner = dto.winnerSide === 'A' ? a : b;
+      const looser = dto.winnerSide === 'A' ? b : a;
+      const changes: {
+        email: string;
+        name: string;
+        category: string;
+        before: number;
+        delta: number;
+        after: number;
+        isWinner: boolean;
+      }[] = [];
+      if (reserve.isDouble) {
+        for (const player of players) {
+          const category = this._resolveDoublesCategory(player);
+          const before = await this.storedPoints(player.email, category, session);
+          const isWinner = winner.some((row) => row.email === player.email);
+          const delta = isWinner ? 300 : 50;
+          changes.push({
+            email: player.email,
+            name: player.name,
+            category,
+            before,
+            delta,
+            after: before + delta,
+            isWinner,
+          });
+        }
+      } else {
+        const calculation = await this.calculateSinglesValidPoints({ winner, looser }, session);
+        changes.push(
+          {
+            email: winner[0].email,
+            name: winner[0].name,
+            category: calculation.winnerCategory,
+            before: calculation.winnerPoints - calculation.winnerPointChange,
+            delta: calculation.winnerPointChange,
+            after: calculation.winnerPoints,
+            isWinner: true,
+          },
+          {
+            email: looser[0].email,
+            name: looser[0].name,
+            category: calculation.looserCategory,
+            before: calculation.looserPoints - calculation.looserPointChange,
+            delta: calculation.looserPointChange,
+            after: calculation.looserPoints,
+            isWinner: false,
+          },
         );
-        this._sendPointsUpdateEmail(
-          looserData.email,
-          looserData.name,
-          false, // isWinner
-          winnerData.name,
-          createMatchRankingDto.result,
-          looserOldPoints,
-          looserPoints,
-        );
-      } else if (createMatchRankingDto.winner.length === 2) {
-        const winner1 = createMatchRankingDto.winner[0];
-        const winner2 = createMatchRankingDto.winner[1];
-        const looser1 = createMatchRankingDto.looser[0];
-        const looser2 = createMatchRankingDto.looser[1];
-        const winner1Category = this._resolveDoublesCategory(winner1);
-        const winner2Category = this._resolveDoublesCategory(winner2);
-        const looser1Category = this._resolveDoublesCategory(looser1);
-        const looser2Category = this._resolveDoublesCategory(looser2);
-
-        this.logger.log({
-          categoryResolved: 'doubles',
-          winner: [
-            { email: winner1.email, category: winner1Category },
-            { email: winner2.email, category: winner2Category },
-          ],
-          looser: [
-            { email: looser1.email, category: looser1Category },
-            { email: looser2.email, category: looser2Category },
-          ],
-        });
-
-        const pointsToWin = 300;
-        const pointsToLose = 50;
-
-        // Obtener puntos actuales de doubles
-        const winner1OldPoints = await this.playerCategoryPointsService.getPoints(winner1.email, winner1Category);
-        const winner2OldPoints = await this.playerCategoryPointsService.getPoints(winner2.email, winner2Category);
-        const looser1OldPoints = await this.playerCategoryPointsService.getPoints(looser1.email, looser1Category);
-        const looser2OldPoints = await this.playerCategoryPointsService.getPoints(looser2.email, looser2Category);
-
-        // Actualizar puntos en player_category_points
-        await this.playerCategoryPointsService.upsertPoints(winner1.email, winner1Category, pointsToWin);
-        await this.playerCategoryPointsService.upsertPoints(winner2.email, winner2Category, pointsToWin);
-        await this.playerCategoryPointsService.upsertPoints(looser1.email, looser1Category, pointsToLose);
-        await this.playerCategoryPointsService.upsertPoints(looser2.email, looser2Category, pointsToLose);
-
-        const winner1NewPoints = winner1OldPoints + pointsToWin;
-        const winner2NewPoints = winner2OldPoints + pointsToWin;
-        const looser1NewPoints = looser1OldPoints + pointsToLose;
-        const looser2NewPoints = looser2OldPoints + pointsToLose;
-
-        // Enviar emails a los ganadores
-        const losersNames = `${looser1.name} y ${looser2.name}`;
-        this._sendPointsUpdateEmail(winner1.email, winner1.name, true, losersNames, createMatchRankingDto.result, winner1OldPoints, winner1NewPoints);
-        this._sendPointsUpdateEmail(winner2.email, winner2.name, true, losersNames, createMatchRankingDto.result, winner2OldPoints, winner2NewPoints);
-
-        // Enviar emails a los perdedores
-        const winnersNames = `${winner1.name} y ${winner2.name}`;
-        this._sendPointsUpdateEmail(looser1.email, looser1.name, false, winnersNames, createMatchRankingDto.result, looser1OldPoints, looser1NewPoints);
-        this._sendPointsUpdateEmail(looser2.email, looser2.name, false, winnersNames, createMatchRankingDto.result, looser2OldPoints, looser2NewPoints);
-
-        this.logger.log('Doubles match processed: Winners +300, Losers +50 (using PlayerCategoryPoints)');
       }
-
-      const newMatchRanking = new this.matchRankingModel(createMatchRankingDto);
-      const savedMatchRanking = await newMatchRanking.save();
-      await this.courtReserveService.logResultMatchUpdate(createMatchRankingDto.matchId, claimedReserve.player1);
-      return savedMatchRanking;
+      for (const change of changes) {
+        if (!Number.isSafeInteger(change.after) || change.after < 0)
+          throw new BadRequestException('El puntaje calculado requiere revisión administrativa.');
+        const updated = await this.pointsModel
+          .updateOne(
+            { playerEmail: change.email, category: change.category, isActive: true, points: change.before },
+            { $set: { points: change.after } },
+            { session },
+          )
+          .exec();
+        if (updated.matchedCount !== 1)
+          throw new ConflictException({
+            code: 'POINTS_CHANGED',
+            message: 'Las categorías o los puntajes cambiaron. Actualiza el partido e intenta nuevamente.',
+          });
+      }
+      const claimed = await this.courtReserveModel
+        .updateOne(
+          { _id: reserve._id, state: true, resultMatchUpdated: { $ne: true } },
+          { $set: { resultMatchUpdated: true } },
+          { session },
+        )
+        .exec();
+      if (claimed.matchedCount !== 1)
+        throw new ConflictException({
+          code: 'RESULT_ALREADY_REGISTERED',
+          message: 'El resultado de este partido ya fue registrado.',
+        });
+      const result = new this.matchRankingModel({
+        matchId: dto.matchId,
+        result: dto.result,
+        winner,
+        looser,
+        recordedBy: member.email,
+        pointChanges: changes,
+        expiredOverride: Boolean(dto.allowExpired),
+      });
+      await result.save({ session });
+      return { result: result.toObject(), changes, winner, looser, actorName: member.namePlayer };
+    });
+    try {
+      await this.courtReserveService.logResultMatchUpdate(dto.matchId, saved.actorName);
     } catch (error) {
-      await this.courtReserveService.releaseResultMatch(createMatchRankingDto.matchId);
-      throw error;
+      this.logger.error('El resultado fue guardado, pero falló su registro de auditoría.', error);
+    }
+    // Notifications are external side effects and must never precede the transaction commit.
+    for (const change of saved.changes) {
+      const opponents = (change.isWinner ? saved.looser : saved.winner).map((row) => row.name).join(' y ');
+      void this._sendPointsUpdateEmail(
+        change.email,
+        change.name,
+        change.isWinner,
+        opponents,
+        dto.result,
+        change.before,
+        change.after,
+      );
+    }
+    return saved.result;
+  }
+
+  private async storedPoints(email: string, category: string, session?: ClientSession): Promise<number> {
+    if (!session) return this.playerCategoryPointsService.getPoints(email, category);
+    const row = await this.pointsModel
+      .findOne({ playerEmail: email, category, isActive: true })
+      .session(session)
+      .lean()
+      .exec();
+    if (!row || !Number.isSafeInteger(row.points) || row.points < 0)
+      throw new BadRequestException('El participante no tiene un puntaje válido en la categoría del partido.');
+    return row.points;
+  }
+
+  private async loadPlayers(reserve: CourtReserve, session: ClientSession): Promise<RankingPlayer[]> {
+    const names = rankingParticipants(reserve);
+    const players: RankingPlayer[] = [];
+    for (const name of names) {
+      const matches = await this.registerModel
+        .find({ namePlayer: name })
+        .select('namePlayer email cellular')
+        .session(session)
+        .lean()
+        .exec();
+      if (matches.length !== 1)
+        throw new BadRequestException('No se pudo identificar de forma única a un participante del partido.');
+      const member = matches[0];
+      const categories = await this.pointsModel.find({ playerEmail: member.email }).session(session).lean().exec();
+      players.push({
+        name: member.namePlayer,
+        email: member.email,
+        cellular: member.cellular,
+        categories: categories.map((row) => ({
+          category: row.category,
+          points: row.points,
+          isActive: row.isActive === true,
+        })),
+      });
+    }
+    if (new Set(players.map((row) => row.email)).size !== names.length)
+      throw new BadRequestException('Los participantes no tienen identidades únicas.');
+    return players;
+  }
+
+  private async authorize(players: RankingPlayer[], actor: RankingActor, session: ClientSession) {
+    if (!actor?.email) throw new ForbiddenException('Inicia sesión para registrar un resultado.');
+    const member = await this.registerModel
+      .findOne({ email: actor.email.toLowerCase() })
+      .select('namePlayer email role')
+      .session(session)
+      .lean()
+      .exec();
+    if (!member || (member.role !== 'admin' && !players.some((row) => row.email === member.email)))
+      throw new ForbiddenException('Solo los participantes o un administrador pueden registrar este resultado.');
+    return member;
+  }
+
+  async getPendingMatches(actor: RankingActor, playerEmail?: string) {
+    const session = await this.registerModel.db.startSession();
+    try {
+      return await session.withTransaction(
+        async () => {
+          if (!actor?.email) throw new ForbiddenException('Inicia sesión para revisar resultados.');
+          const reviewer = await this.registerModel
+            .findOne({ email: actor.email.toLowerCase() })
+            .select('namePlayer email role')
+            .session(session)
+            .lean()
+            .exec();
+          if (!reviewer) throw new ForbiddenException('Usuario no encontrado.');
+          const target = playerEmail?.trim().toLowerCase() || reviewer.email;
+          if (target !== reviewer.email && reviewer.role !== 'admin')
+            throw new ForbiddenException('Solo un administrador puede revisar los pendientes de otro socio.');
+          const member =
+            target === reviewer.email
+              ? reviewer
+              : await this.registerModel
+                  .findOne({ email: target })
+                  .select('namePlayer email')
+                  .session(session)
+                  .lean()
+                  .exec();
+          if (!member) throw new NotFoundException('Socio no encontrado.');
+          const pending = await this.rankingPolicy.pendingFor([member.namePlayer], session);
+          const matches = [];
+          for (const reserve of pending.slice(0, RANKING_CAPACITY)) {
+            const players = await this.loadPlayers(reserve, session);
+            let blocked = await this.rankingPolicy.resultBlock(reserve, session);
+            const stats = players.map((player) => {
+              const active = player.categories.filter(
+                (row) =>
+                  row.isActive &&
+                  (reserve.isDouble
+                    ? row.category === DOUBLES_CATEGORY
+                    : MAIN_SINGLES_CATEGORIES.includes(row.category)),
+              );
+              const valid = active.length === 1 && Number.isSafeInteger(active[0].points) && active[0].points >= 0;
+              if (!valid && (!blocked || blocked.code === 'RESULT_DEADLINE_EXPIRED'))
+                blocked = {
+                  code: 'CATEGORY_UNAVAILABLE',
+                  message: 'Un participante requiere revisión de su categoría o puntaje activo.',
+                };
+              return {
+                name: player.name,
+                email: player.email,
+                category: active.length === 1 ? active[0].category : null,
+                points: active.length === 1 ? active[0].points : null,
+              };
+            });
+            matches.push({
+              idCourtReserve: reserve.idCourtReserve,
+              court: reserve.court,
+              dateToPlay: reserve.dateToPlay,
+              turn: reserve.turn,
+              isDouble: reserve.isDouble,
+              phase: rankingTimes(reserve).endAt.toMillis() > Date.now() ? 'CURRENT' : 'AWAITING_RESULT',
+              players: stats,
+              canRegister: blocked === null,
+              blockedReason: blocked?.message ?? null,
+              blockedCode: blocked?.code ?? null,
+            });
+          }
+          return {
+            matches,
+            member: { name: member.namePlayer, email: member.email },
+            canReviewExpired: reviewer.role === 'admin',
+            totalPending: pending.length,
+            capacity: RANKING_CAPACITY,
+            hasOverflow: pending.length > RANKING_CAPACITY,
+            serverNow: new Date().toISOString(),
+          };
+        },
+        { readConcern: { level: 'snapshot' } },
+      );
+    } finally {
+      await session.endSession();
     }
   }
 
-  async validateMatch(validateMatchDto: ValidateMatchDto) {
-    // this.logger.log({ validateMatchDto });
-    const response = await this.courtReserveService.validateIdReserve(validateMatchDto);
-    this.logger.log({ response });
-    return response;
+  async validateMatch(dto: ValidateMatchDto, actor: RankingActor) {
+    const response = await this.courtReserveService.validateIdReserve(dto);
+    const session = await this.registerModel.db.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await this.authorize(response.dataPlayers, actor, session);
+      });
+      return response;
+    } finally {
+      await session.endSession();
+    }
   }
 
   async getRanking(): Promise<RankingPorCategoria> {

@@ -1,23 +1,47 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Req,
+  Query,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { MatchRankingService } from './match-ranking.service';
 import { CreateMatchRankingDto } from './dto/create-match-ranking.dto';
 import { UpdateMatchRankingDto } from './dto/update-match-ranking.dto';
 import { ValidateMatchDto } from './dto/validate-match.dto';
 import { RankingPorCategoria, Resultado } from './interfaces/tennis.types';
 import { MatchResultDocument } from './entities/match-ranking.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RankingActor } from '../court-reserve/ranking-match-policy.service';
 
 @Controller('match-ranking')
 export class MatchRankingController {
   constructor(private readonly matchRankingService: MatchRankingService) {}
 
   @Post()
-  create(@Body() createMatchRankingDto: CreateMatchRankingDto) {
-    return this.matchRankingService.create(createMatchRankingDto);
+  @UseGuards(JwtAuthGuard)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))
+  create(@Body() createMatchRankingDto: CreateMatchRankingDto, @Req() request: { user: RankingActor }) {
+    return this.matchRankingService.create(createMatchRankingDto, request.user);
+  }
+
+  @Get('pending')
+  @UseGuards(JwtAuthGuard)
+  pending(@Req() request: { user: RankingActor }, @Query('playerEmail') playerEmail?: string) {
+    return this.matchRankingService.getPendingMatches(request.user, playerEmail);
   }
 
   @Post('validate-match')
-  validateMatch(@Body() validateMatchDto: ValidateMatchDto) {
-    return this.matchRankingService.validateMatch(validateMatchDto);
+  @UseGuards(JwtAuthGuard)
+  validateMatch(@Body() validateMatchDto: ValidateMatchDto, @Req() request: { user: RankingActor }) {
+    return this.matchRankingService.validateMatch(validateMatchDto, request.user);
   }
 
   // --- NUEVOS ENDPOINTS PARA EL RANKING Y RESULTADOS ---

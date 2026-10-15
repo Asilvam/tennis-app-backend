@@ -1,64 +1,24 @@
-import { IsString, IsNotEmpty, IsArray, ValidateNested, ArrayMinSize } from 'class-validator';
-import { Type } from 'class-transformer';
-
-// Se crea una clase para el objeto del ganador para una mejor validación
-class WinnerDto {
-  @IsString()
-  @IsNotEmpty()
-  email: string;
-
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-  @IsString()
-  @IsNotEmpty()
-  cellular: string;
-
-  @IsArray()
-  @ValidateNested({ each: true }) // Valida cada objeto dentro del arreglo
-  @IsNotEmpty()
-  categories: [{ category: string; points: number; isActive: boolean }];
-}
-
-class LooserDto {
-  @IsString()
-  @IsNotEmpty()
-  email: string;
-
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-  @IsString()
-  @IsNotEmpty()
-  cellular: string;
-
-  @IsArray()
-  @ValidateNested({ each: true }) // Valida cada objeto dentro del arreglo
-  @IsNotEmpty()
-  categories: [{ category: string; points: number; isActive: boolean }];
-}
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 export class CreateMatchRankingDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(64)
   matchId: string;
 
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
-  @IsNotEmpty()
+  @MaxLength(64)
+  @Matches(/^\d{1,2}[:\-]\d{1,2}(?:\(\d{1,2}\))?(?:,\s*\d{1,2}[:\-]\d{1,2}(?:\(\d{1,2}\))?){0,2}$/, {
+    message: 'Ingresa un marcador por sets, por ejemplo 6:4, 6:3.',
+  })
   result: string;
 
-  // La propiedad 'winner' ahora es un arreglo de objetos 'WinnerDto'
-  @IsArray()
-  @ValidateNested({ each: true }) // Valida cada objeto dentro del arreglo
-  @ArrayMinSize(1) // Asegura que el arreglo contenga al menos un ganador
-  @Type(() => WinnerDto) // Especifica el tipo de objeto para la validación
-  winner: WinnerDto[];
+  @IsIn(['A', 'B'])
+  winnerSide: 'A' | 'B';
 
-  @IsArray()
-  @ValidateNested({ each: true }) // Valida cada objeto dentro del arreglo
-  @ArrayMinSize(1) // Asegura que el arreglo contenga al menos un perdedor
-  @Type(() => LooserDto) // Especifica el tipo de objeto para la validación
-  looser: LooserDto[];
+  @IsOptional()
+  @IsBoolean()
+  allowExpired?: boolean;
 }

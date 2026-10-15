@@ -21,7 +21,13 @@ function matches(record: any, filter: any): boolean {
 }
 
 function query<T>(read: () => T) {
-  const result = { select: () => result, lean: () => result, limit: () => result, exec: async () => read() };
+  const result = {
+    session: () => result,
+    select: () => result,
+    lean: () => result,
+    limit: () => result,
+    exec: async () => read(),
+  };
   return result;
 }
 
@@ -34,26 +40,38 @@ function fixture() {
       rows.set(row._id, { ...row });
       return { ...row };
     }),
-    findOne: jest.fn((filter) => query(() => [...rows.values()].find(row => matches(row, filter)) || null)),
-    find: jest.fn((filter) => query(() => [...rows.values()].filter(row => matches(row, filter)))),
-    findOneAndUpdate: jest.fn((filter, update) => query(() => {
-      const row = [...rows.values()].find(value => matches(value, filter));
-      if (!row) return null;
-      Object.assign(row, update.$set);
-      for (const key of Object.keys(update.$unset || {})) delete row[key];
-      return { ...row };
-    })),
-    updateOne: jest.fn((filter, update) => query(() => {
-      const row = [...rows.values()].find(value => matches(value, filter));
-      if (row) Object.assign(row, update.$set);
-      return { modifiedCount: row ? 1 : 0 };
-    })),
+    findOne: jest.fn((filter) => query(() => [...rows.values()].find((row) => matches(row, filter)) || null)),
+    find: jest.fn((filter) => query(() => [...rows.values()].filter((row) => matches(row, filter)))),
+    findOneAndUpdate: jest.fn((filter, update, options?: any) =>
+      query(() => {
+        const row = [...rows.values()].find((value) => matches(value, filter));
+        if (!row) {
+          if (!options?.upsert) return null;
+          if (rows.has(filter._id)) throw { code: 11000 };
+          const created = { _id: filter._id, ...update.$set };
+          rows.set(filter._id, created);
+          return created;
+        }
+        Object.assign(row, update.$set);
+        for (const key of Object.keys(update.$unset || {})) delete row[key];
+        return { ...row };
+      }),
+    ),
+    updateOne: jest.fn((filter, update) =>
+      query(() => {
+        const row = [...rows.values()].find((value) => matches(value, filter));
+        if (row) Object.assign(row, update.$set);
+        return { modifiedCount: row ? 1 : 0 };
+      }),
+    ),
   };
   const reserves = {
-    findOne: jest.fn(filter => query(() => reservations.find(row => matches(row, filter)) || null)),
+    findOne: jest.fn((filter) => query(() => reservations.find((row) => matches(row, filter)) || null)),
     updateOne: jest.fn(() => query(() => ({ modifiedCount: 1 }))),
   };
-  const config = { get: (key: string) => ({ MP_API_URL: 'https://mp.test/mercadopago', INTERNAL_API_KEY: 'test-key' })[key] };
+  const config = {
+    get: (key: string) => ({ MP_API_URL: 'https://mp.test/mercadopago', INTERNAL_API_KEY: 'test-key' })[key],
+  };
   const service = new ReservationSlotService(slots as any, reserves as any, config as any);
   return { service, rows, slots, reserves, reservations };
 }
@@ -74,8 +92,8 @@ describe('Reservation slot holds', () => {
       service.acquire(reserve, 'one@test.cl'),
       service.acquire({ ...reserve, idCourtReserve: 'r-2' }, 'two@test.cl'),
     ]);
-    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
-    expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
     expect(rows.size).toBe(1);
     expect(service.holdDurationMs).toBe(120_000);
     expect([...rows.values()][0].expiresAt.getTime() - Date.now()).toBeGreaterThan(119_000);
@@ -113,7 +131,9 @@ describe('Reservation slot holds', () => {
     const { service } = fixture();
     await service.acquire(reserve, 'owner@test.cl');
     await expect(service.cancel('r-1', 'owner@test.cl')).resolves.toEqual({ released: true });
-    await expect(service.acquire({ ...reserve, idCourtReserve: 'r-2' })).resolves.toMatchObject({ reservationId: 'r-2' });
+    await expect(service.acquire({ ...reserve, idCourtReserve: 'r-2' })).resolves.toMatchObject({
+      reservationId: 'r-2',
+    });
   });
 
   it('does not allow another user to cancel or edit the hold', async () => {
@@ -154,7 +174,10 @@ describe('Reservation slot holds', () => {
     const { service, rows } = fixture();
     await service.acquire(reserve);
     await service.beginCheckout(reserve);
-    Object.assign([...rows.values()][0], { expiresAt: new Date(Date.now() - 1), nextReconcileAt: new Date(Date.now() - 1) });
+    Object.assign([...rows.values()][0], {
+      expiresAt: new Date(Date.now() - 1),
+      nextReconcileAt: new Date(Date.now() - 1),
+    });
     (axios.post as jest.Mock).mockResolvedValue({ data: { status } });
     await service.expireDue();
     expect([...rows.values()][0].status).toBe('CHECKOUT');
@@ -164,7 +187,10 @@ describe('Reservation slot holds', () => {
     const { service, rows } = fixture();
     await service.acquire(reserve);
     await service.beginCheckout(reserve);
-    Object.assign([...rows.values()][0], { expiresAt: new Date(Date.now() - 1), nextReconcileAt: new Date(Date.now() - 1) });
+    Object.assign([...rows.values()][0], {
+      expiresAt: new Date(Date.now() - 1),
+      nextReconcileAt: new Date(Date.now() - 1),
+    });
     (axios.post as jest.Mock).mockRejectedValue(new Error('Network failure'));
     await service.expireDue();
     expect([...rows.values()][0].status).toBe('CHECKOUT');
@@ -174,7 +200,10 @@ describe('Reservation slot holds', () => {
     const { service, rows } = fixture();
     await service.acquire(reserve);
     await service.beginCheckout(reserve);
-    Object.assign([...rows.values()][0], { expiresAt: new Date(Date.now() - 1), nextReconcileAt: new Date(Date.now() - 1) });
+    Object.assign([...rows.values()][0], {
+      expiresAt: new Date(Date.now() - 1),
+      nextReconcileAt: new Date(Date.now() - 1),
+    });
     (axios.post as jest.Mock).mockResolvedValue({ data: { status: 'unpaid' } });
     await service.expireDue();
     expect([...rows.values()][0].status).toBe('EXPIRED');
@@ -199,14 +228,19 @@ describe('Reservation slot holds', () => {
   it('does not let an admin replace a pending payment', async () => {
     const { service } = fixture();
     await service.acquire(reserve);
-    await expect(service.acquire({ ...reserve, idCourtReserve: 'admin' }, undefined, true)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.acquire({ ...reserve, idCourtReserve: 'admin' }, undefined, true)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   it('does not let an expiration race release a payment already confirmed', async () => {
     const { service, rows } = fixture();
     await service.acquire(reserve);
     await service.beginCheckout(reserve);
-    Object.assign([...rows.values()][0], { expiresAt: new Date(Date.now() - 1), nextReconcileAt: new Date(Date.now() - 1) });
+    Object.assign([...rows.values()][0], {
+      expiresAt: new Date(Date.now() - 1),
+      nextReconcileAt: new Date(Date.now() - 1),
+    });
     (axios.post as jest.Mock).mockImplementation(async () => {
       await service.confirm(reserve);
       return { data: { status: 'unpaid' } };
@@ -222,5 +256,36 @@ describe('Reservation slot holds', () => {
     await service.beginCheckout(past);
     await expect(service.confirm(past)).resolves.toBe(false);
     expect([...rows.values()][0].status).toBe('REVIEW');
+  });
+
+  it('confirms a ranking slot within the supplied MongoDB transaction', async () => {
+    const { service, rows, slots } = fixture();
+    const session = {} as any;
+    await service.acquire(reserve);
+    await expect(service.confirm(reserve, session)).resolves.toBe(true);
+    expect([...rows.values()][0].status).toBe('CONFIRMED');
+    expect(slots.findOneAndUpdate).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      { $set: { status: 'CONFIRMED' } },
+      { new: true, session },
+    );
+  });
+
+  it('reacquires a free expired slot in the same transaction without external create writes', async () => {
+    const { service, rows, slots } = fixture();
+    const session = {} as any;
+    await service.acquire(reserve);
+    [...rows.values()][0].status = 'EXPIRED';
+    slots.create.mockClear();
+    await expect(service.confirm(reserve, session)).resolves.toBe(true);
+    expect(slots.create).not.toHaveBeenCalled();
+    expect(slots.findOneAndUpdate.mock.calls[0][2]).toMatchObject({ upsert: true, session });
+  });
+
+  it('aborts the transaction when a foreign hold owns the slot instead of swallowing a duplicate key', async () => {
+    const { service, rows } = fixture();
+    await service.acquire({ ...reserve, idCourtReserve: 'foreign' });
+    await expect(service.confirm(reserve, {} as any)).rejects.toMatchObject({ response: { code: 'SLOT_CONFLICT' } });
+    expect([...rows.values()][0].reservationId).toBe('foreign');
   });
 });

@@ -3,7 +3,7 @@ import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { DateTime } from 'luxon';
 import { EmailService } from '../email/email.service';
 import { RegisterService } from '../register/register.service';
@@ -16,6 +16,7 @@ import { MercadoPagoPaymentStatus } from './dto/payment-confirmation.dto';
 import { PaymentCallbackEffectStatus } from './entities/payment-callback-effect.entity';
 import { ReservationSlotService } from './reservation-slot.service';
 import { randomUUID } from 'crypto';
+import { RankingMatchPolicyService } from './ranking-match-policy.service';
 
 type AdminReserveActor = {
   email: string;
@@ -52,6 +53,7 @@ export class CourtReserveService {
     private readonly auditLogService: AuditLogService,
     private readonly paymentCallbackEffectService: PaymentCallbackEffectService,
     private readonly reservationSlots: ReservationSlotService,
+    private readonly rankingPolicy?: RankingMatchPolicyService,
   ) {}
 
   playerHasActiveReserve = (player: string, activeReserves: any[]) => {
@@ -95,6 +97,10 @@ export class CourtReserveService {
 
     for (const reservation of createCourtReserveDtoArray) {
       try {
+        if (reservation.isForRanking) {
+          savedReservations.push(await this.create(reservation));
+          continue;
+        }
         reservation.dateToPlay = normalizeReservationDate(reservation.dateToPlay);
         const { dateToPlay, turn, court, blockedMotive } = reservation;
         const newCourtReserve = new this.courtReserveModel(reservation);
@@ -148,6 +154,7 @@ export class CourtReserveService {
   }
 
   async adminCreate(createCourtReserveDto: CreateCourtReserveDto) {
+    if (createCourtReserveDto.isForRanking) return this.create(createCourtReserveDto);
     createCourtReserveDto.dateToPlay = normalizeReservationDate(createCourtReserveDto.dateToPlay);
     const { court, turn, dateToPlay } = createCourtReserveDto;
     const newCourtReserve = new this.courtReserveModel(createCourtReserveDto);
@@ -202,10 +209,17 @@ export class CourtReserveService {
       if (this.playerHasActiveReserve(player, active || [])) throw new ConflictException(`El jugador ${player} ya tiene una reserva activa.`);
     }
     await this.reservationSlots.assertEditable(reservationId, ownerEmail);
-    const prepared = await this.courtReserveModel.findOneAndUpdate(
-      { idCourtReserve: reservationId, reservationStatus: 'PENDING_PAYMENT', wasPaid: false, checkoutReady: false },
-      { $set: { ...participants, checkoutReady: true } }, { new: true },
-    ).exec();
+    const candidate = { ...(reserve.toObject?.() ?? reserve), ...participants };
+    const prepared = await this.withRankingCapacity(candidate, reservationId, async session => {
+      const query = this.courtReserveModel.findOneAndUpdate(
+        { idCourtReserve: reservationId, reservationStatus: 'PENDING_PAYMENT', wasPaid: false, checkoutReady: false },
+        { $set: { ...participants, checkoutReady: true } }, { new: true },
+      );
+      if (session) query.session(session);
+      const result = await query.exec();
+      if (!result) throw new ConflictException('La reserva ya no está pendiente de pago.');
+      return result;
+    });
     if (!prepared) throw new ConflictException('La reserva ya no está pendiente de pago.');
     return { idCourtReserve: reservationId, expiresAt: slot.expiresAt };
   }
@@ -242,7 +256,8 @@ export class CourtReserveService {
       newCourtReserve.reservationStatus = newCourtReserve.isPaidNight || newCourtReserve.isVisit ? 'PENDING_PAYMENT' : 'CONFIRMED';
       let response;
       try {
-        response = await newCourtReserve.save();
+        // Each transaction retry needs a new document, since aborted saves mutate Mongoose's isNew flag.
+        response = await this.withRankingCapacity(newCourtReserve, undefined, session => session ? new this.courtReserveModel(newCourtReserve.toObject()).save({ session }) : newCourtReserve.save());
         if (response.state) await this.reservationSlots.confirm(response);
       } catch (error) {
         await this.reservationSlots.releaseUnstarted(newCourtReserve.idCourtReserve);
@@ -262,6 +277,12 @@ export class CourtReserveService {
       return response;
     }
     throw new BadRequestException('Invalid input');
+  }
+
+  private async withRankingCapacity<T>(reserve: CourtReserve, excludeId: string | undefined, operation: (session?: ClientSession) => Promise<T>): Promise<T> {
+    if (!reserve.isForRanking) return operation();
+    if (!this.rankingPolicy) throw new Error('La política de partidos de ranking no está disponible.');
+    return this.rankingPolicy.withBookingCapacity(reserve, excludeId, operation);
   }
 
   private validateParticipants(createCourtReserveDto: Partial<CreateCourtReserveDto>) {
@@ -418,23 +439,36 @@ export class CourtReserveService {
           throw new ConflictException(`Reserve ${idCourtReserve} was already paid by another payment`);
         }
 
-        const confirmed = await this.reservationSlots.confirm(currentReserve);
-        return this.courtReserveModel
-          .findOneAndUpdate(
+        const confirmPayment = async (session?: ClientSession) => {
+          if (session) {
+            const fresh = await this.courtReserveModel.findOne({ idCourtReserve }).session(session).exec();
+            if (!fresh) throw new NotFoundException('Reserva no encontrada.');
+            if (fresh.wasPaid && fresh.paymentIdempotencyKey && fresh.paymentIdempotencyKey !== idempotencyKey) throw new ConflictException('La reserva ya fue pagada por otro pago.');
+          }
+          const confirmed = await this.reservationSlots.confirm(currentReserve, session);
+          const query = this.courtReserveModel.findOneAndUpdate(
             { idCourtReserve },
-            {
-              $set: {
-                state: confirmed,
-                wasPaid: true,
-                reservationStatus: confirmed ? 'CONFIRMED' : 'PAYMENT_REVIEW_REQUIRED',
-                paymentStatus: MercadoPagoPaymentStatus.APPROVED,
-                paymentIdempotencyKey: idempotencyKey,
-                paidAt: currentReserve.paidAt || new Date(),
-              },
-            },
+            { $set: { state: confirmed, wasPaid: true, reservationStatus: confirmed ? 'CONFIRMED' : 'PAYMENT_REVIEW_REQUIRED', paymentStatus: MercadoPagoPaymentStatus.APPROVED, paymentIdempotencyKey: idempotencyKey, paidAt: currentReserve.paidAt || new Date() } },
             { new: true },
-          )
-          .exec();
+          );
+          if (session) query.session(session);
+          return query.exec();
+        };
+        if (currentReserve.wasPaid && currentReserve.paymentIdempotencyKey === idempotencyKey) return currentReserve;
+        try {
+          return await this.withRankingCapacity(currentReserve, idCourtReserve, confirmPayment);
+        } catch (error) {
+          const response = error instanceof ConflictException ? error.getResponse() : null;
+          const code = typeof response === 'object' && response ? (response as { code?: string }).code : null;
+          if (!['RANKING_CAPACITY_REACHED', 'ACTIVE_RESERVATION', 'SLOT_CONFLICT'].includes(code)) throw error;
+          // Retain approved payments for review instead of confirming a reservation over capacity.
+          await this.reservationSlots.markReview(idCourtReserve);
+          return this.courtReserveModel.findOneAndUpdate(
+            { idCourtReserve, wasPaid: { $ne: true } },
+            { $set: { state: false, wasPaid: true, reservationStatus: 'PAYMENT_REVIEW_REQUIRED', paymentStatus: MercadoPagoPaymentStatus.APPROVED, paymentIdempotencyKey: idempotencyKey, paidAt: currentReserve.paidAt || new Date() } },
+            { new: true },
+          ).exec();
+        }
       },
     );
 

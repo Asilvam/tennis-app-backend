@@ -12,6 +12,7 @@ import { PaymentCallbackEffectService } from './payment-callback-effect.service'
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { ReservationSlot, ReservationSlotSchema } from './entities/reservation-slot.entity';
 import { ReservationSlotService } from './reservation-slot.service';
+import { RankingMatchPolicyService } from './ranking-match-policy.service';
 
 @Module({
   imports: [
@@ -24,8 +25,15 @@ import { ReservationSlotService } from './reservation-slot.service';
     AuditLogModule,
     // EmailModule,
   ],
-  providers: [CourtReserveService, EmailService, PaymentCallbackEffectService, InternalApiKeyGuard, ReservationSlotService],
+  providers: [
+    CourtReserveService,
+    EmailService,
+    PaymentCallbackEffectService,
+    InternalApiKeyGuard,
+    ReservationSlotService,
+    RankingMatchPolicyService,
+  ],
   controllers: [CourtReserveController],
-  exports: [CourtReserveService, MongooseModule, ReservationSlotService],
+  exports: [CourtReserveService, MongooseModule, ReservationSlotService, RankingMatchPolicyService],
 })
 export class CourtReserveModule {}

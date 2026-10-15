@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { ClientSession, Model } from 'mongoose';
 import { randomUUID } from 'crypto';
 import axios from 'axios';
 import { DateTime } from 'luxon';
@@ -135,42 +135,67 @@ export class ReservationSlotService implements OnModuleInit, OnModuleDestroy {
     await this.slots.updateOne({ reservationId, status: 'CHECKOUT' }, { $set: preference }).exec();
   }
 
-  async confirm(reserve: SlotReservation): Promise<boolean> {
-    const [start, end] = reserve.turn.split('-').map(value => value.trim());
+  async confirm(reserve: SlotReservation, session?: ClientSession): Promise<boolean> {
+    const [start, end] = reserve.turn.split('-').map((value) => value.trim());
     const startAt = DateTime.fromISO(`${reserve.dateToPlay}T${start}`, { zone: 'America/Santiago' });
     let endAt = DateTime.fromISO(`${reserve.dateToPlay}T${end}`, { zone: 'America/Santiago' });
     if (endAt <= startAt) endAt = endAt.plus({ days: 1 });
     if (!endAt.isValid || endAt.toMillis() <= Date.now()) {
-      await this.markReview(reserve.idCourtReserve);
+      await this.markReview(reserve.idCourtReserve, session);
       return false;
     }
     // An expired hold may only be confirmed if no other reservation took its slot.
-    let slot: ReservationSlot = await this.slots.findOne({ _id: this.key(reserve) }).lean().exec();
+    const slotQuery = this.slots.findOne({ _id: this.key(reserve) });
+    if (session) slotQuery.session(session);
+    let slot: ReservationSlot = await slotQuery.lean().exec();
     if (!slot || slot.reservationId !== reserve.idCourtReserve || ['RELEASED', 'EXPIRED', 'REVIEW'].includes(slot.status)) {
       try {
-        slot = await this.acquire(reserve);
+        if (session) {
+          // Do not catch duplicate inserts inside a transaction: MongoDB has already aborted it.
+          slot = await this.slots
+            .findOneAndUpdate(
+              { _id: this.key(reserve), $or: [{ reservationId: reserve.idCourtReserve }, { status: { $in: ['RELEASED', 'EXPIRED', 'REVIEW'] } }, { status: 'HELD', expiresAt: { $lte: new Date() } }] },
+              {
+                $set: { reservationId: reserve.idCourtReserve, court: reserve.court, dateToPlay: reserve.dateToPlay, turn: reserve.turn, status: 'HELD', expiresAt: new Date(Date.now() + this.holdDurationMs) },
+                $unset: { ownerEmail: 1, preferenceId: 1, initPoint: 1, nextReconcileAt: 1, reconcileUntil: 1, reconciliationToken: 1 },
+              },
+              { new: true, upsert: true, session },
+            )
+            .lean()
+            .exec();
+        } else {
+          slot = await this.acquire(reserve);
+        }
       } catch (error) {
+        if (session && (error as { code?: number }).code === 11000) throw new ConflictException({ code: 'SLOT_CONFLICT', message: 'La cancha fue ocupada por otra reserva. El pago requiere revisión.' });
         if (error instanceof ConflictException) return false;
         throw error;
       }
     }
-    const existing = await this.reserves.findOne({
-      court: reserve.court, dateToPlay: reserve.dateToPlay, turn: reserve.turn,
-      state: true, idCourtReserve: { $ne: reserve.idCourtReserve },
-    }).select('idCourtReserve').lean().exec();
+    const existingQuery = this.reserves
+      .findOne({
+        court: reserve.court,
+        dateToPlay: reserve.dateToPlay,
+        turn: reserve.turn,
+        state: true,
+        idCourtReserve: { $ne: reserve.idCourtReserve },
+      })
+      .select('idCourtReserve');
+    if (session) existingQuery.session(session);
+    const existing = await existingQuery.lean().exec();
     if (existing) {
-      await this.markReview(reserve.idCourtReserve);
+      await this.markReview(reserve.idCourtReserve, session);
       return false;
     }
-    const confirmed = await this.slots.findOneAndUpdate(
-      { _id: this.key(reserve), reservationId: reserve.idCourtReserve, status: { $in: ['HELD', 'CHECKOUT', 'CONFIRMED'] } },
-      { $set: { status: 'CONFIRMED' } }, { new: true },
-    ).lean().exec();
+    const confirmed = await this.slots
+      .findOneAndUpdate({ _id: this.key(reserve), reservationId: reserve.idCourtReserve, status: { $in: ['HELD', 'CHECKOUT', 'CONFIRMED'] } }, { $set: { status: 'CONFIRMED' } }, { new: true, ...(session ? { session } : {}) })
+      .lean()
+      .exec();
     return Boolean(confirmed);
   }
 
-  private async markReview(reservationId: string) {
-    await this.slots.updateOne({ reservationId, status: { $in: ['HELD', 'CHECKOUT'] } }, { $set: { status: 'REVIEW' } }).exec();
+  async markReview(reservationId: string, session?: ClientSession) {
+    await this.slots.updateOne({ reservationId, status: { $in: ['HELD', 'CHECKOUT'] } }, { $set: { status: 'REVIEW' } }, session ? { session } : {}).exec();
   }
 
   async releaseConfirmed(reservationId: string) {

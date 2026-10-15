@@ -10,6 +10,10 @@ import { Register, RegisterSchema } from '../register/entities/register.entity';
 // import { EmailModule } from '../email/email.module';
 import { EmailService } from '../email/email.service';
 import { CourtReserve, CourtReserveSchema } from '../court-reserve/entities/court-reserve.entity';
+import {
+  PlayerCategoryPoints,
+  PlayerCategoryPointsSchema,
+} from '../player-category-points/entities/player-category-points.entity';
 
 @Module({
   imports: [
@@ -17,6 +21,7 @@ import { CourtReserve, CourtReserveSchema } from '../court-reserve/entities/cour
       { name: MatchRanking.name, schema: MatchResultSchema },
       { name: CourtReserve.name, schema: CourtReserveSchema },
       { name: Register.name, schema: RegisterSchema },
+      { name: PlayerCategoryPoints.name, schema: PlayerCategoryPointsSchema },
     ]),
     CourtReserveModule,
     RegisterModule,

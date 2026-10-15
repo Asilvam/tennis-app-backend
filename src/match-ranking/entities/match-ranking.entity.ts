@@ -27,10 +27,50 @@ export class MatchRanking {
   result: string; // Ejemplo: "6:4, 3:6, 7:5"
 
   @Prop({ type: [playerMatchSchema], required: true })
-  winner: { email: string; name: string; cellular: string; categories: { category: string; points: number; isActive: boolean }[] }[];
+  winner: {
+    email: string;
+    name: string;
+    cellular: string;
+    categories: { category: string; points: number; isActive: boolean }[];
+  }[];
 
   @Prop({ type: [playerMatchSchema], required: true })
-  looser: { email: string; name: string; cellular: string; categories: { category: string; points: number; isActive: boolean }[] }[];
+  looser: {
+    email: string;
+    name: string;
+    cellular: string;
+    categories: { category: string; points: number; isActive: boolean }[];
+  }[];
+
+  @Prop({ select: false })
+  recordedBy?: string;
+
+  @Prop({ default: false })
+  expiredOverride?: boolean;
+
+  @Prop({
+    type: [
+      {
+        email: String,
+        name: String,
+        category: String,
+        before: Number,
+        delta: Number,
+        after: Number,
+        isWinner: Boolean,
+      },
+    ],
+    default: undefined,
+  })
+  pointChanges?: {
+    email: string;
+    name: string;
+    category: string;
+    before: number;
+    delta: number;
+    after: number;
+    isWinner: boolean;
+  }[];
 }
 
 export const MatchResultSchema = SchemaFactory.createForClass(MatchRanking);
