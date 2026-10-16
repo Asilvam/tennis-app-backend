@@ -10,7 +10,7 @@ describe('transactional email templates', () => {
   it('escapes reset and verification link values and explains expiry', () => {
     const reset = buildPasswordResetEmail('https://front.example/reset#token=abc&test=<value>');
     expect(reset).toContain('token=abc&amp;test=&lt;value&gt;');
-    expect(reset).toContain('15 minutos');
+    expect(reset).toContain('vence en 24 horas');
     expect(reset).toContain('una sola vez');
     expect(buildVerificationEmail('https://example.com?a=1&b=2')).toContain('a=1&amp;b=2');
   });
@@ -22,12 +22,12 @@ describe('transactional email templates', () => {
     expect(message).not.toContain('Nueva contraseña</div>');
   });
 
-  it('describes admin links as 24-hour one-use links without changing public default validity', () => {
+  it('describes public and admin links as 24-hour one-use links', () => {
     const admin = buildPasswordResetEmail('https://front.example/reset#token=fixture', '24 horas');
     expect(admin).toContain('vence en 24 horas');
     expect(admin).toContain('una sola vez');
     expect(admin).not.toContain('vence en 15 minutos');
-    expect(buildPasswordResetEmail('https://front.example/reset')).toContain('vence en 15 minutos');
+    expect(buildPasswordResetEmail('https://front.example/reset')).toContain('vence en 24 horas');
   });
 
   it('builds an approved payment message with a player name', () => {

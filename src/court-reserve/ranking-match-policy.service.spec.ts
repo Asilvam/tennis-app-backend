@@ -109,6 +109,15 @@ describe('Ranking match order and capacity', () => {
     expect(await policy.resultBlock(current)).toMatchObject({ code: 'MATCH_NOT_FINISHED' });
     expect(rankingTimes(match('night', '2026-10-14', '23:00-01:00')).endAt.toISODate()).toBe('2026-10-15');
   });
+  it.each([{ isForRanking: false }, { state: false }])(
+    'never allows results for non-ranking or cancelled bookings: %j',
+    async (extra) => {
+      setup([]);
+      await expect(
+        policy.assertResultAllowed(match('ineligible', undefined, undefined, extra), {} as any),
+      ).rejects.toMatchObject({ response: { code: 'MATCH_NOT_ELIGIBLE' } });
+    },
+  );
   it('keeps the two-day deadline and cannot award points to expired matches', async () => {
     const oldest = match('oldest', '2026-10-11');
     setup([oldest]);

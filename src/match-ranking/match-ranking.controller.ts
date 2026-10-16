@@ -20,6 +20,7 @@ import { RankingPorCategoria, Resultado } from './interfaces/tennis.types';
 import { MatchResultDocument } from './entities/match-ranking.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RankingActor } from '../court-reserve/ranking-match-policy.service';
+import { AdminMatchHistoryDto } from './dto/admin-match-history.dto';
 
 @Controller('match-ranking')
 export class MatchRankingController {
@@ -36,6 +37,13 @@ export class MatchRankingController {
   @UseGuards(JwtAuthGuard)
   pending(@Req() request: { user: RankingActor }, @Query('playerEmail') playerEmail?: string) {
     return this.matchRankingService.getPendingMatches(request.user, playerEmail);
+  }
+
+  @Get('admin/history')
+  @UseGuards(JwtAuthGuard)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))
+  adminHistory(@Req() request: { user: RankingActor }, @Query() query: AdminMatchHistoryDto) {
+    return this.matchRankingService.getAdminMatchHistory(request.user, query);
   }
 
   @Post('validate-match')

@@ -28,8 +28,11 @@ import {
   rankingParticipants,
   rankingTimes,
   rankingResultExpired,
+  RANKING_TIMEZONE,
 } from '../court-reserve/ranking-match-policy.service';
 import { PlayerCategoryPoints } from '../player-category-points/entities/player-category-points.entity';
+import { DateTime } from 'luxon';
+import { AdminMatchHistoryDto } from './dto/admin-match-history.dto';
 
 type RankingPlayer = MatchRanking['winner'][number];
 type ResolvedResult = { winner: RankingPlayer[]; looser: RankingPlayer[] };
@@ -423,6 +426,8 @@ export class MatchRankingService {
               dateToPlay: reserve.dateToPlay,
               turn: reserve.turn,
               isDouble: reserve.isDouble,
+              isForRanking: true,
+              readOnly: false,
               phase: recorded
                 ? 'RECORDED'
                 : rankingTimes(reserve).endAt.toMillis() > Date.now()
@@ -443,7 +448,7 @@ export class MatchRankingService {
           return {
             matches,
             member: { name: member.namePlayer, email: member.email },
-            totalPending: matches.filter((match) => match.phase !== 'RECORDED').length,
+            totalPending: matches.filter((match) => !match.readOnly && match.phase !== 'RECORDED').length,
             serverNow: new Date().toISOString(),
           };
         },
@@ -452,6 +457,118 @@ export class MatchRankingService {
     } finally {
       await session.endSession();
     }
+  }
+
+  private adminParticipantNames(reserve: CourtReserve) {
+    return (
+      reserve.isDouble
+        ? [reserve.player1, reserve.player2, reserve.player3, reserve.player4]
+        : [reserve.player1, reserve.player2 || (reserve.isVisit ? reserve.visitName : null)]
+    ).map((name) => name || 'Participante no disponible');
+  }
+
+  private adminMatchStatus(reserve: CourtReserve, recorded: boolean) {
+    if (!reserve.state) {
+      if (['PENDING_PAYMENT', 'PAYMENT_REVIEW_REQUIRED', 'EXPIRED'].includes(reserve.reservationStatus))
+        return 'UNCONFIRMED';
+      return 'CANCELLED';
+    }
+    if (recorded) return 'RECORDED';
+    try {
+      if (reserve.isForRanking && rankingResultExpired(reserve)) return 'EXPIRED';
+      return rankingTimes(reserve).endAt > DateTime.now().setZone(RANKING_TIMEZONE)
+        ? 'CURRENT'
+        : reserve.isForRanking ? 'AWAITING_RESULT' : 'FINISHED';
+    } catch {
+      return 'REVIEW_REQUIRED';
+    }
+  }
+
+  async getAdminMatchHistory(actor: RankingActor, query: AdminMatchHistoryDto) {
+    if (!actor?.email) throw new ForbiddenException('Inicia sesión para revisar el historial.');
+    const reviewer = await this.registerModel
+      .findOne({ email: actor.email.trim().toLowerCase() })
+      .select('email role')
+      .lean()
+      .exec();
+    if (reviewer?.role !== 'admin')
+      throw new ForbiddenException('Solo un administrador puede revisar este historial.');
+
+    const today = DateTime.now().setZone(RANKING_TIMEZONE).startOf('day');
+    const to = query.to ?? null;
+    const from = query.from ?? today.minus({ days: 29 }).toISODate();
+    const page = query.page ?? 1;
+    const pageSize = 20;
+    if (
+      !DateTime.fromISO(from, { zone: RANKING_TIMEZONE }).isValid ||
+      (to !== null && (!DateTime.fromISO(to, { zone: RANKING_TIMEZONE }).isValid || from > to))
+    )
+      throw new BadRequestException('Selecciona un rango de fechas válido.');
+
+    const member = await this.registerModel
+      .findOne({ email: query.playerEmail.trim().toLowerCase() })
+      .select('namePlayer email')
+      .lean()
+      .exec();
+    if (!member) throw new NotFoundException('Socio no encontrado.');
+    const filter = {
+      isBlockedByAdmin: { $ne: true },
+      dateToPlay: {
+        $gte: from,
+        ...(to ? { $lt: DateTime.fromISO(to, { zone: RANKING_TIMEZONE }).plus({ days: 1 }).toISODate() } : {}),
+      },
+      $or: ['player1', 'player2', 'player3', 'player4'].map((field) => ({ [field]: member.namePlayer })),
+    };
+    const total = await this.courtReserveModel.countDocuments(filter).exec();
+    const reserves = await this.courtReserveModel
+      .find(filter)
+      .sort({ dateToPlay: -1, turn: -1, _id: -1 })
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
+      .select(
+        'idCourtReserve court dateToPlay turn isDouble player1 player2 player3 player4 ' +
+          'resultMatchUpdated rankingResultStatus isForRanking state reservationStatus isVisit visitName',
+      )
+      .lean()
+      .exec();
+    const results = reserves.length
+      ? await this.matchRankingModel
+          .find({ matchId: { $in: reserves.map((reserve) => reserve.idCourtReserve) } })
+          .sort({ _id: 1 })
+          .select('matchId result winner.name')
+          .lean()
+          .exec()
+      : [];
+    const byMatch = new Map<string, (typeof results)[number]>();
+    for (const result of results) if (!byMatch.has(result.matchId)) byMatch.set(result.matchId, result);
+    // History is read-only: derive legacy statuses without persisting flags or changing points.
+    const matches = reserves.map((reserve) => {
+      const result = byMatch.get(reserve.idCourtReserve);
+      const recorded = Boolean(
+        result || reserve.resultMatchUpdated || reserve.rankingResultStatus === 'RECORDED',
+      );
+      return {
+        idCourtReserve: reserve.idCourtReserve,
+        court: reserve.court,
+        dateToPlay: reserve.dateToPlay,
+        turn: reserve.turn,
+        isDouble: reserve.isDouble,
+        isForRanking: reserve.isForRanking === true,
+        players: this.adminParticipantNames(reserve),
+        status: this.adminMatchStatus(reserve, recorded),
+        canRegister: false,
+        result: recorded
+          ? { score: result?.result ?? null, winners: result?.winner?.map((player) => player.name) ?? [] }
+          : null,
+      };
+    });
+    return {
+      matches,
+      member: { name: member.namePlayer, email: member.email },
+      from, to, page, pageSize, total,
+      totalPages: Math.ceil(total / pageSize),
+      serverNow: DateTime.now().toISO(),
+    };
   }
 
   async validateMatch(dto: ValidateMatchDto, actor: RankingActor) {

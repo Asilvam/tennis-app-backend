@@ -11,7 +11,12 @@ import { MatchRankingService } from './match-ranking.service';
 describe('Ranking result HTTP contract', () => {
   let app: INestApplication;
   let jwt: JwtService;
-  const service = { create: jest.fn(), getPendingMatches: jest.fn(), validateMatch: jest.fn() };
+  const service = {
+    create: jest.fn(),
+    getPendingMatches: jest.fn(),
+    getAdminMatchHistory: jest.fn(),
+    validateMatch: jest.fn(),
+  };
   const body = { matchId: 'match-test', result: '6:4, 6:3', winnerSide: 'A' };
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -31,10 +36,12 @@ describe('Ranking result HTTP contract', () => {
     jest.clearAllMocks();
     service.create.mockResolvedValue({ matchId: 'match-test' });
     service.getPendingMatches.mockResolvedValue({ matches: [] });
+    service.getAdminMatchHistory.mockResolvedValue({ matches: [] });
   });
   afterAll(async () => app.close());
   const token = () => jwt.sign({ email: 'ana@test.invalid', role: 'user' });
   it('requires JWT for pending reads, validation and result writes', async () => {
+    await request(app.getHttpServer()).get('/match-ranking/admin/history?playerEmail=member@test.invalid').expect(401);
     await request(app.getHttpServer()).get('/match-ranking/pending').expect(401);
     await request(app.getHttpServer())
       .post('/match-ranking/validate-match')
@@ -76,5 +83,32 @@ describe('Ranking result HTTP contract', () => {
       expect.objectContaining({ email: 'ana@test.invalid' }),
       'member@test.invalid',
     );
+  });
+  it('validates and forwards the admin history filters and authenticated actor', async () => {
+    await request(app.getHttpServer())
+      .get('/match-ranking/admin/history?playerEmail=MEMBER@test.invalid&from=2024-01-01&to=2024-12-31&page=2')
+      .auth(token(), { type: 'bearer' })
+      .expect(200);
+    expect(service.getAdminMatchHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'ana@test.invalid' }),
+      expect.objectContaining({ playerEmail: 'member@test.invalid', from: '2024-01-01', to: '2024-12-31', page: 2 }),
+    );
+  });
+  it.each([
+    '',
+    'playerEmail=invalid',
+    'playerEmail[]=member@test.invalid',
+    'playerEmail=member@test.invalid&from=2026-02-30',
+    'playerEmail=member@test.invalid&from=2026-10-01T00:00:00Z',
+    'playerEmail=member@test.invalid&page=0',
+    'playerEmail=member@test.invalid&page=1.5',
+    'playerEmail=member@test.invalid&page=100001',
+    'playerEmail=member@test.invalid&role=admin',
+  ])('rejects malformed history query %s before reaching the service', async (query) => {
+    await request(app.getHttpServer())
+      .get('/match-ranking/admin/history?' + query)
+      .auth(token(), { type: 'bearer' })
+      .expect(400);
+    expect(service.getAdminMatchHistory).not.toHaveBeenCalled();
   });
 });

@@ -2,7 +2,7 @@ import { buildEmailShell, escapeHtml } from './email-layout.template';
 
 const paragraph = (content: string) => `<p style="margin:8px 0 0; color:#cbd5e1; font-size:15px; line-height:1.65;">${content}</p>`;
 
-export const buildPasswordResetEmail = (resetLink: string, validity: '15 minutos' | '24 horas' = '15 minutos') =>
+export const buildPasswordResetEmail = (resetLink: string, validity: '15 minutos' | '24 horas' = '24 horas') =>
   buildEmailShell({
     title: 'Restablecer contraseña',
     eyebrow: 'Seguridad de cuenta',

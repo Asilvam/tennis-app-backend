@@ -61,6 +61,7 @@ describe('EmailService', () => {
         html: expect.stringContaining('token=fixture&amp;test=1'),
       }),
     );
+    expect(service.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ html: expect.stringContaining('vence en 24 horas') }));
   });
 
   it('wraps password reset email failures', async () => {

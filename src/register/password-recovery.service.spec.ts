@@ -52,8 +52,9 @@ describe('PasswordRecoveryService', () => {
     expect(filter.email).toBe(user.email);
     expect(update.$set.passwordResetTokenHash).toBe(tokenHash);
     expect(update.$set.passwordResetExpiresAt).toEqual(new Date(now.getTime() + PASSWORD_RESET_TTL_MS));
+    expect(PASSWORD_RESET_TTL_MS).toBe(86_400_000);
     expect(update.$set).not.toHaveProperty('pwd');
-    expect(email.sendResetPasswordEmail).toHaveBeenCalledWith(user.email, `http://localhost:5173/restablecer-contrasena#token=${token}`, '15 minutos');
+    expect(email.sendResetPasswordEmail).toHaveBeenCalledWith(user.email, `http://localhost:5173/restablecer-contrasena#token=${token}`, '24 horas');
     expect(bcrypt.hash).not.toHaveBeenCalled();
   });
 
@@ -158,6 +159,27 @@ describe('PasswordRecoveryService', () => {
     model.findOneAndUpdate.mockReturnValue(query(null));
     await expect(service.confirmReset(dto)).rejects.toBeInstanceOf(BadRequestException);
     expect(model.findOneAndUpdate.mock.calls[0][0].passwordResetExpiresAt.$gt).toEqual(new Date(now.getTime() + PASSWORD_RESET_TTL_MS));
+  });
+
+  it.each([16 * 60_000, 86_400_000 - 1])('accepts a newly issued link after %i milliseconds, before 24 hours', async elapsed => {
+    await request();
+    const expiresAt = model.findOneAndUpdate.mock.calls[0][1].$set.passwordResetExpiresAt;
+    model.findOne.mockImplementation(filter => query(expiresAt > filter.passwordResetExpiresAt.$gt ? user : null));
+    model.findOneAndUpdate.mockImplementation(filter => query(expiresAt > filter.passwordResetExpiresAt.$gt ? user : null));
+    jest.setSystemTime(new Date(now.getTime() + elapsed));
+    await expect(service.confirmReset(dto)).resolves.toMatchObject({ success: true });
+    expect(bcrypt.hash).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([86_400_000, 86_400_000 + 1])('rejects a newly issued link at or after 24 hours: %i milliseconds', async elapsed => {
+    await request();
+    const expiresAt = model.findOneAndUpdate.mock.calls[0][1].$set.passwordResetExpiresAt;
+    model.findOne.mockImplementation(filter => query(expiresAt > filter.passwordResetExpiresAt.$gt ? user : null));
+    model.findOneAndUpdate.mockClear();
+    jest.setSystemTime(new Date(now.getTime() + elapsed));
+    await expect(service.confirmReset(dto)).rejects.toBeInstanceOf(BadRequestException);
+    expect(bcrypt.hash).not.toHaveBeenCalled();
+    expect(model.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it.each([

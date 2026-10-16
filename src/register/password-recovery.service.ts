@@ -8,8 +8,8 @@ import { Register } from './entities/register.entity';
 import { ConfirmPasswordResetDto } from './dto/confirm-password-reset.dto';
 import { EmailService } from '../email/email.service';
 
-export const PASSWORD_RESET_TTL_MS = 15 * 60_000;
-export const PASSWORD_RESET_ADMIN_TTL_MS = 24 * 60 * 60_000;
+export const PASSWORD_RESET_TTL_MS = 24 * 60 * 60_000;
+export const PASSWORD_RESET_ADMIN_TTL_MS = PASSWORD_RESET_TTL_MS;
 export const PASSWORD_RESET_COOLDOWN_MS = 24 * 60 * 60_000;
 export const PASSWORD_RESET_REQUEST_MESSAGE = 'Si el correo pertenece a una cuenta activa y no solicitaste recuperación en las últimas 24 horas, recibirás un enlace para restablecer tu contraseña. Revisa también tu carpeta de spam.';
 export const PASSWORD_RESET_ADMIN_MESSAGE = 'Si el correo pertenece a una cuenta activa, recibirá un enlace de un solo uso que vence en 24 horas. Revisa también la carpeta de spam.';
@@ -41,7 +41,7 @@ export class PasswordRecoveryService {
     const url = this.resetUrl();
     const now = new Date();
     const ttl = initiatedByAdmin ? PASSWORD_RESET_ADMIN_TTL_MS : PASSWORD_RESET_TTL_MS;
-    const validity = initiatedByAdmin ? '24 horas' : '15 minutos';
+    const validity = '24 horas';
     const token = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(token).digest('hex');
     let user: Register;

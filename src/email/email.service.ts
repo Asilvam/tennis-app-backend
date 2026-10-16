@@ -38,7 +38,7 @@ export class EmailService {
     }
   }
 
-  async sendResetPasswordEmail(to: string, resetLink: string, validity: '15 minutos' | '24 horas' = '15 minutos') {
+  async sendResetPasswordEmail(to: string, resetLink: string, validity: '15 minutos' | '24 horas' = '24 horas') {
     const subject = 'Restablecer contraseña - Club de Tenis Quintero';
     const html = buildPasswordResetEmail(resetLink, validity);
     try {

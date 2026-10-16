@@ -49,6 +49,7 @@ describe('Authoritative ranking result transaction', () => {
         { playerEmail: 'b@test.invalid', category: '4', isActive: true, points: 100 },
       ],
       results: [],
+      extraReserves: [],
     };
     const members = {
       db: { startSession: async () => session },
@@ -78,6 +79,7 @@ describe('Authoritative ranking result transaction', () => {
       ),
     };
     reserveModel = {
+      find: jest.fn(() => query(() => state.extraReserves)),
       findOne: () => query(() => state.reserve),
       updateOne: jest.fn((_filter, update) =>
         query(() => {
@@ -220,6 +222,48 @@ describe('Authoritative ranking result transaction', () => {
     expect(response.looser.map((row) => row.name)).toEqual(['Caro', 'Diego']);
     expect(response.pointChanges.map((row) => row.after)).toEqual([300, 400, 250, 350]);
     expect(emails.sendEmail).toHaveBeenCalledTimes(4);
+  });
+
+  it('lets an administrator register an eligible ranking result on behalf of the players', async () => {
+    const response = await service.create(dto, { email: 'admin@test.invalid', role: 'user' });
+    expect(response).toMatchObject({ recordedBy: 'admin@test.invalid', result: '6:4, 6:3' });
+    expect(state.reserve.resultMatchUpdated).toBe(true);
+    expect(state.points.map((row) => row.points)).toEqual([400, 150]);
+  });
+
+  it('keeps the administrator result queue ranking-only, leaving other bookings to history', async () => {
+    policy.currentFor.mockResolvedValue([state.reserve]);
+    policy.resultBlock = jest.fn().mockResolvedValue(null);
+    state.extraReserves = [
+      { ...state.reserve, idCourtReserve: 'friendly', isForRanking: false },
+      {
+        ...state.reserve,
+        idCourtReserve: 'future-friendly',
+        isForRanking: false,
+        dateToPlay: '2026-11-01',
+        player2: null,
+        isVisit: true,
+        visitName: 'Invitado Apellido',
+      },
+      { ...state.reserve, idCourtReserve: 'cancelled', state: false },
+      { ...state.reserve, idCourtReserve: 'unconfirmed', state: false, reservationStatus: 'PENDING_PAYMENT' },
+    ];
+    const response = await service.getPendingMatches({ email: 'admin@test.invalid', role: 'user' }, actor.email);
+    expect(response.matches).toHaveLength(1);
+    expect(response.totalPending).toBe(1);
+    expect(response.matches[0]).toMatchObject({
+      idCourtReserve: 'match',
+      isForRanking: true,
+      readOnly: false,
+      canRegister: true,
+    });
+    expect(reserveModel.find).not.toHaveBeenCalled();
+    const own = await service.getPendingMatches(actor);
+    expect(own.matches).toHaveLength(1);
+    expect(reserveModel.find).not.toHaveBeenCalled();
+    expect(state.points.map((row) => row.points)).toEqual([100, 100]);
+    expect(state.results).toHaveLength(0);
+    expect(emails.sendEmail).not.toHaveBeenCalled();
   });
 
   it('returns all matches within the deadline without a two-pending limit', async () => {
