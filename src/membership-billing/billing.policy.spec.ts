@@ -8,6 +8,7 @@ import {
   assertCanManage,
   assertConfiguration,
   assertMemberId,
+  assertPaymentPeriod,
   assertPaymentSelection,
   assertPeriod,
   dueAt,
@@ -91,6 +92,26 @@ describe('Membership billing rules (no network or database)', () => {
       '2027-01',
     ]);
     expect(periodsBetween('2027-01', '2026-10')).toEqual([]);
+  });
+  it.each(['user', 'admin', undefined])('accepts arrears and current month for role %s', (role) => {
+    for (const period of ['2026-08', '2026-09', '2026-10'])
+      expect(() => assertPaymentPeriod(period, october, role)).not.toThrow();
+  });
+  it.each(['user', 'ADMIN', undefined])('rejects future months for non-admin role %s', (role) => {
+    for (const period of ['2026-11', '2026-12', '2027-01'])
+      expect(() => assertPaymentPeriod(period, october, role)).toThrow(
+        'Solo puedes pagar mensualidades atrasadas y del mes actual.',
+      );
+  });
+  it('retains three future months for admins and applies the Chilean month boundary', () => {
+    expect(() => assertPaymentPeriod('2027-01', october, 'admin')).not.toThrow();
+    expect(() => assertPaymentPeriod('2027-02', october, 'admin')).toThrow();
+    expect(() =>
+      assertPaymentPeriod('2026-11', new Date('2026-11-01T02:59:59Z'), 'user'),
+    ).toThrow();
+    expect(() =>
+      assertPaymentPeriod('2026-11', new Date('2026-11-01T03:00:00Z'), 'user'),
+    ).not.toThrow();
   });
   it('rejects invalid dates and fractional month offsets', () => {
     expect(() => monthAt(new Date('invalid'))).toThrow();

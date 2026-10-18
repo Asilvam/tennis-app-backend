@@ -176,7 +176,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       };
       core = new MembershipBillingService(dues, payments, configs, members, () => now);
       mp = new MembershipMpService(core, cfg, payments, dues, members, audit, () => now);
-      portal = new BillingPortalService(core, cfg, members, dues, configs, mp);
+      portal = new BillingPortalService(core, cfg, members, dues, configs, () => now, mp);
       bank = new BillingAdminService(core, dues, payments, configs, members, audit, () => now);
       const first = await core.prepareDues(own, own);
       const second = await core.prepareDues(own, carga);
@@ -394,16 +394,48 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       expect(post).toHaveBeenCalledTimes(1);
       expect((await payments.findOne()).status).toBe('PENDING');
     });
-    it('opens the family portal with only own/linked dues and current plus three months', async () => {
-      const home = await portal.home(email, '2027-01');
+    it('opens the family portal with only own/linked arrears and current dues', async () => {
+      const administrator = await members.findOne({ email: 'admin@example.invalid' });
+      for (const id of [own, carga])
+        await core.prepareDues(String(administrator._id), id, '2027-01');
+      const home = await portal.home(email);
       expect(home.members.map((row) => row.id)).toEqual([own, carga]);
-      expect(home.dues).toHaveLength(8);
+      expect(home.currentPeriod).toBe('2026-10');
+      expect(home.dues).toHaveLength(2);
+      expect(home.dues.every((row) => row.period <= home.currentPeriod)).toBe(true);
+      expect(await dues.countDocuments()).toBe(8);
       expect(home.access.financiallyRestricted).toBe(false);
       const onlyCarga = await portal.home('test2@example.invalid');
       expect(onlyCarga.members).toHaveLength(1);
       await expect(portal.history('test2@example.invalid', own)).rejects.toMatchObject({
         status: 403,
       });
+    });
+    it('rejects forged future portal requests and checkout IDs without trusting JWT admin claims', async () => {
+      expect((await call('/membership-billing/me/dues', { throughPeriod: '2026-11' })).status).toBe(
+        400,
+      );
+      expect(await dues.countDocuments()).toBe(2);
+      const administrator = await members.findOne({ email: 'admin@example.invalid' });
+      const rows = await core.prepareDues(String(administrator._id), own, '2027-01');
+      const result = await call('/membership-billing/checkout', {
+        dueIds: rows.map((row) => String(row._id)),
+      });
+      expect(result.status).toBe(400);
+      expect(result.body.message).toContain('mes actual');
+      expect(post).not.toHaveBeenCalled();
+      expect(await payments.countDocuments()).toBe(0);
+    });
+    it('returns arrears and current dues using server time after a month rollover', async () => {
+      now = new Date('2026-12-01T15:00:00Z');
+      const result = await call('/membership-billing/me/dues', {});
+      expect(result.status).toBe(201);
+      expect(result.body.currentPeriod).toBe('2026-12');
+      expect([...new Set(result.body.dues.map((row) => row.period))]).toEqual([
+        '2026-10',
+        '2026-11',
+        '2026-12',
+      ]);
     });
     it('retains manual inactive state and restricts legacy financial access without changing flags', async () => {
       await members.updateOne({ _id: own }, { $set: { updatePayment: false } });

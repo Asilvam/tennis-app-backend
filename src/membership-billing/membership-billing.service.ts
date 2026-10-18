@@ -24,6 +24,7 @@ import {
   assertCanManage,
   assertConfiguration,
   assertMemberId,
+  assertPaymentPeriod,
   assertPaymentSelection,
   assertPeriod,
   dueAt,
@@ -119,6 +120,7 @@ export class MembershipBillingService {
       const actor = await this.member(actorId, session);
       const beneficiary = await this.member(beneficiaryId, session);
       assertCanManage(actor, beneficiary);
+      assertPaymentPeriod(through, now, actor.role);
       const config = await this.configuration(session);
       if (through < assertBillingStart(beneficiary, config))
         throw new BadRequestException('Periodo anterior al inicio de facturacion del socio.');
@@ -180,8 +182,7 @@ export class MembershipBillingService {
         .concat(monthAt(now))
         .sort()
         .at(-1);
-      if (through > addMonths(monthAt(now), 3))
-        throw new BadRequestException('Cuota fuera de la ventana de pago permitida.');
+      assertPaymentPeriod(through, now, actor.role);
       await this.ensureMemberDues(beneficiary, through, config, session);
       if (
         selected.some((row) => String(row.beneficiaryId) === id && row.pricingMode === 'TEST') &&

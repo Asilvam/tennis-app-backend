@@ -535,6 +535,25 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         expect(Array.isArray(data) ? data : data.logs).toEqual([]);
       }
     });
+    it('retains authenticated admin payment of current plus three future months', async () => {
+      const data = await admin.memberDues(adminEmail, titularId, '2027-01');
+      const body = await draft({ dueIds: data.dues.map((row) => row.id), amount: 920 });
+      const result = await call('payments', body);
+      expect(result.status).toBe(201);
+      expect(result.body.status).toBe('CONFIRMED');
+      expect(await dues.countDocuments({ status: 'PAID' })).toBe(8);
+      const payment = await payments.findById(result.body.id);
+      expect(payment.amount).toBe(920);
+      expect([...new Set(payment.allocations.map((row) => row.period))]).toEqual([
+        '2026-10',
+        '2026-11',
+        '2026-12',
+        '2027-01',
+      ]);
+      await expect(admin.memberDues(adminEmail, titularId, '2027-02')).rejects.toMatchObject({
+        status: 400,
+      });
+    });
     it('searches literal names safely and validates query pagination', async () => {
       expect((await call('members?search=usuario%20test')).body.total).toBe(2);
       expect((await call('members?search=.*')).body.total).toBe(0);

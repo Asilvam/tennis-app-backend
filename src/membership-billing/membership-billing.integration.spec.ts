@@ -123,7 +123,8 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         dues.create({ ...existing, _id: new mongoose.Types.ObjectId() }),
       ).rejects.toMatchObject({ code: 11000 });
     });
-    it('prepares current+3 only, and rejects paying a later month without earlier ones', async () => {
+    it('allows admins current+3 only, and rejects paying a later month without earlier ones', async () => {
+      await members.updateOne({ _id: titularId }, { $set: { role: 'admin' } });
       const rows = await service.prepareDues(titularId, titularId, '2027-01');
       expect(rows.map((row) => row.period)).toEqual(['2026-10', '2026-11', '2026-12', '2027-01']);
       await expect(service.prepareDues(titularId, titularId, '2027-02')).rejects.toMatchObject({
@@ -138,6 +139,42 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
           rows.map((row) => String(row._id)),
         ),
       ).toMatchObject({ amount: 720 });
+    });
+    it('rejects member advance generation and quotes even when an admin prepared the dues', async () => {
+      await expect(service.prepareDues(titularId, titularId, '2026-11')).rejects.toMatchObject({
+        status: 400,
+      });
+      await expect(service.prepareDues(titularId, cargaId, '2026-11')).rejects.toMatchObject({
+        status: 400,
+      });
+      expect(await dues.countDocuments()).toBe(0);
+      await members.updateOne({ _id: titularId }, { $set: { role: 'admin' } });
+      const rows = await service.prepareDues(titularId, titularId, '2027-01');
+      await members.updateOne({ _id: titularId }, { $set: { role: 'user' } });
+      await expect(
+        service.quote(
+          titularId,
+          rows.map((row) => String(row._id)),
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(await service.quote(titularId, [String(rows[0]._id)])).toMatchObject({
+        amount: 180,
+      });
+      expect(await dues.countDocuments()).toBe(4);
+    });
+    it('lets members pay all arrears and current month without allowing future dues', async () => {
+      now = new Date('2026-12-06T15:00:00Z');
+      const rows = await service.prepareDues(titularId, titularId);
+      expect(rows.map((row) => row.period)).toEqual(['2026-10', '2026-11', '2026-12']);
+      expect(
+        await service.quote(
+          titularId,
+          rows.map((row) => String(row._id)),
+        ),
+      ).toMatchObject({ amount: 540 });
+      await expect(service.quote(titularId, [String(rows[2]._id)])).rejects.toMatchObject({
+        status: 409,
+      });
     });
     it('does not grant access just because current obligations have not been generated', async () => {
       await configs.updateOne(
@@ -154,6 +191,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
     it('preserves rate snapshots when configured rates change', async () => {
       const before = await service.prepareDues(titularId, titularId);
       await configs.updateOne({}, { $set: { 'testPricing.titular': 181 } });
+      now = new Date('2026-11-01T15:00:00Z');
       const after = await service.prepareDues(titularId, titularId, '2026-11');
       expect(after[0].amount).toBe(before[0].amount);
       expect(after[1].amount).toBe(181);
@@ -183,6 +221,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       });
     });
     it('rolls back every generated due when a later write fails', async () => {
+      await members.updateOne({ _id: titularId }, { $set: { role: 'admin' } });
       const before = (await members.findById(titularId)).__v;
       const original = dues.updateOne.bind(dues);
       let writes = 0;

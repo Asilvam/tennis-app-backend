@@ -110,7 +110,8 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       audit,
       () => now,
     );
-    rows = await core.prepareDues(member, member, '2027-01');
+    const administrator = await members.findOne({ email: admin });
+    rows = await core.prepareDues(String(administrator._id), member, '2027-01');
   });
   afterEach(() => jest.restoreAllMocks());
   afterAll(async () => {

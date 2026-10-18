@@ -46,6 +46,17 @@ export function addMonths(period: string, months: number): string {
     .toFormat('yyyy-MM');
 }
 
+export function assertPaymentPeriod(period: string, now: Date, role: string): void {
+  assertPeriod(period);
+  const latest = addMonths(monthAt(now), role === 'admin' ? 3 : 0);
+  if (period > latest)
+    throw new BadRequestException(
+      role === 'admin'
+        ? 'Solo puedes adelantar tres meses ademas del actual.'
+        : 'Solo puedes pagar mensualidades atrasadas y del mes actual.',
+    );
+}
+
 export function periodsBetween(first: string, last: string): string[] {
   assertPeriod(first);
   assertPeriod(last);

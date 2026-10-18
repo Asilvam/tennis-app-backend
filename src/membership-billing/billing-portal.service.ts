@@ -1,12 +1,23 @@
-import { ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Register } from '../register/entities/register.entity';
 import { MembershipBillingConfig } from './entities/membership-billing-config.entity';
 import { MembershipDue } from './entities/membership-due.entity';
-import { MembershipBillingService } from './membership-billing.service';
-import { assertCanManage, assertConfiguration, assertMemberId } from './billing.policy';
+import { BILLING_CLOCK, MembershipBillingService } from './membership-billing.service';
+import {
+  assertCanManage,
+  assertConfiguration,
+  assertMemberId,
+  assertPaymentPeriod,
+  monthAt,
+} from './billing.policy';
 import { BILLING_CONFIG_KEY } from './billing.types';
 import { MembershipMpService } from './billing-mp.service';
 
@@ -19,6 +30,7 @@ export class BillingPortalService {
     @InjectModel(MembershipDue.name) private readonly dues: Model<MembershipDue>,
     @InjectModel(MembershipBillingConfig.name)
     private readonly configs: Model<MembershipBillingConfig>,
+    @Inject(BILLING_CLOCK) private readonly clock: () => Date,
     private readonly mp?: MembershipMpService,
   ) {}
 
@@ -67,6 +79,9 @@ export class BillingPortalService {
 
   async home(email: string, throughPeriod?: string) {
     const actor = await this.actor(email);
+    const now = this.clock();
+    const currentPeriod = monthAt(now);
+    assertPaymentPeriod(throughPeriod || currentPeriod, now, actor.role);
     const indexes = await this.dues.collection.indexes();
     if (
       !indexes.some(
@@ -85,14 +100,22 @@ export class BillingPortalService {
         person.billingStartPeriod &&
         ['Titular', 'Carga', 'Familiar'].includes(person.partnerType)
       )
-        await this.core.prepareDues(String(actor._id), String(person._id), throughPeriod);
+        await this.core.prepareDues(
+          String(actor._id),
+          String(person._id),
+          throughPeriod || currentPeriod,
+        );
     }
     const dues = await this.dues
-      .find({ beneficiaryId: { $in: people.map((person) => person._id) } })
+      .find({
+        beneficiaryId: { $in: people.map((person) => person._id) },
+        period: { $lte: currentPeriod },
+      })
       .sort({ period: 1, beneficiaryId: 1 })
       .lean();
     return {
       memberId: String(actor._id),
+      currentPeriod,
       access: await this.access(email),
       members: people.map((person) => ({
         id: String(person._id),
