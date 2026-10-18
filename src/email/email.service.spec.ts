@@ -44,6 +44,14 @@ describe('EmailService', () => {
     );
   });
 
+  it('supports a bounded timeout for monthly notifications without changing default callers', async () => {
+    (axios.post as jest.Mock).mockResolvedValue({ status: 202 });
+    await service.sendEmail({ to: 'to@example.com', subject: 'Monthly', html: 'Body' }, 'monthly-1', 15000);
+    expect(axios.post).toHaveBeenCalledWith(expect.any(String), expect.any(Object), expect.objectContaining({
+      timeout: 15000, headers: { 'x-api-key': 'api-key', 'Idempotency-Key': 'monthly-1' },
+    }));
+  });
+
   it('wraps transport failures', async () => {
     (axios.post as jest.Mock).mockRejectedValue(new Error('connection refused'));
     await expect(service.sendEmail({ to: 'to@example.com', subject: 'Subject', html: 'Body' })).rejects.toThrow(

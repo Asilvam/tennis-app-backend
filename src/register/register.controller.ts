@@ -99,8 +99,9 @@ export class RegisterController {
   @Patch('admin/:email')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))
-  updateAdmin(@Param('email') email: string, @Body() dto: AdminUpdateRegisterDto) {
-    return this.registerService.updateAdminByEmail(email, dto);
+  updateAdmin(@Param('email') email: string, @Body() dto: AdminUpdateRegisterDto,
+    @Req() request: { user: { email: string } }) {
+    return this.registerService.updateAdminByEmail(email, dto, request.user.email);
   }
 
   @Patch(':email')

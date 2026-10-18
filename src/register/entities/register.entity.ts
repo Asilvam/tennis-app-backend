@@ -50,6 +50,12 @@ export class Register {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: Register.name, required: false, index: true })
   titularId?: Types.ObjectId;
 
+  @Prop({ required: false, match: /^[2-9]\d{3}-(0[1-9]|1[0-2])$/ })
+  billingStartPeriod?: string;
+
+  @Prop({ type: { throughPeriod: String, migrationId: String, establishedAt: Date, establishedBy: String }, required: false, _id: false })
+  billingBaseline?: { throughPeriod: string; migrationId: string; establishedAt: Date; establishedBy: string };
+
   @Prop({ required: false })
   socioPrincipal?: boolean;
 

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { MembershipAccessGuard } from './membership-billing/membership-access.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -18,6 +20,7 @@ import { AuditLogModule } from './audit-log/audit-log.module';
 import { PlayerCategoryPointsModule } from './player-category-points/player-category-points.module';
 import { NewsCTQModule } from './news-ctq/news-ctq.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { MembershipBillingModule } from './membership-billing/membership-billing.module';
 
 @Module({
   imports: [
@@ -40,8 +43,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     PlayerCategoryPointsModule,
     NewsCTQModule,
     ScheduleModule.forRoot(),
+    MembershipBillingModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useExisting: MembershipAccessGuard }],
 })
 export class AppModule {}

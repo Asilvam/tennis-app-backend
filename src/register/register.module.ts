@@ -8,9 +8,11 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { EmailService } from '../email/email.service';
 import { PlayerCategoryPointsModule } from '../player-category-points/player-category-points.module';
 import { PasswordRecoveryService } from './password-recovery.service';
+import { MembershipBillingModule } from '../membership-billing/membership-billing.module';
 
 @Module({
   imports: [
+    MembershipBillingModule,
     MongooseModule.forFeature([{ name: Register.name, schema: RegisterSchema }]),
     // EmailModule,
     CloudinaryModule,

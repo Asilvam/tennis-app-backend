@@ -5,6 +5,9 @@ import { AuditLog } from './entities/audit-log.entity';
 
 export type AuditPerformer = 'USER' | 'ADMIN' | 'PROFESOR' | 'SYSTEM';
 
+// Legacy audit routes allow any authenticated user; financial events are admin-only.
+const legacyAuditScope = { entityType: { $ne: 'MEMBERSHIP_PAYMENT' } };
+
 const formatPerformer = (performedBy: AuditPerformer, email?: string): string => {
   const role = performedBy.toLowerCase();
   return email ? `role: ${role}, email: ${email}` : `role: ${role}`;
@@ -228,7 +231,7 @@ export class AuditLogService {
    * Obtiene todos los logs de una reserva específica
    */
   async getAuditsByReserve(reserveId: string) {
-    return this.auditLogModel.find({ entityId: reserveId }).sort({ timestamp: -1 }).exec();
+    return this.auditLogModel.find({ ...legacyAuditScope, entityId: reserveId }).sort({ timestamp: -1 }).exec();
   }
 
   /**
@@ -237,6 +240,7 @@ export class AuditLogService {
   async getAuditsByDateRange(startDate: Date, endDate: Date) {
     return this.auditLogModel
       .find({
+        ...legacyAuditScope,
         timestamp: { $gte: startDate, $lte: endDate },
       })
       .sort({ timestamp: -1 })
@@ -247,21 +251,21 @@ export class AuditLogService {
    * Obtiene logs por tipo de acción
    */
   async getAuditsByAction(action: string) {
-    return this.auditLogModel.find({ action }).sort({ timestamp: -1 }).limit(100).exec();
+    return this.auditLogModel.find({ ...legacyAuditScope, action }).sort({ timestamp: -1 }).limit(100).exec();
   }
 
   /**
    * Obtiene logs por usuario
    */
   async getAuditsByUser(userName: string) {
-    return this.auditLogModel.find({ performedByUser: userName }).sort({ timestamp: -1 }).exec();
+    return this.auditLogModel.find({ ...legacyAuditScope, performedByUser: userName }).sort({ timestamp: -1 }).exec();
   }
 
   /**
    * Reporte de cancelaciones
    */
   async getCancellationReport(startDate?: Date, endDate?: Date) {
-    const query: any = { action: 'DELETE' };
+    const query: any = { ...legacyAuditScope, action: 'DELETE' };
 
     if (startDate || endDate) {
       query.timestamp = {};
@@ -286,7 +290,7 @@ export class AuditLogService {
    * Reporte de creaciones
    */
   async getCreationReport(startDate?: Date, endDate?: Date) {
-    const query: any = { action: { $in: ['CREATE', 'ADMIN_CREATE', 'ADMIN_BULK_CREATE'] } };
+    const query: any = { ...legacyAuditScope, action: { $in: ['CREATE', 'ADMIN_CREATE', 'ADMIN_BULK_CREATE'] } };
 
     if (startDate || endDate) {
       query.timestamp = {};
@@ -317,6 +321,7 @@ export class AuditLogService {
 
     const logs = await this.auditLogModel
       .find({
+        ...legacyAuditScope,
         timestamp: { $gte: startDate },
       })
       .exec();

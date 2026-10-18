@@ -138,7 +138,7 @@ describe('Register HTTP permission boundaries', () => {
   it('allows only the admin route to change roles and access/payment flags', async () => {
     const body = { role: 'profesor', statePlayer: false, updatePayment: true };
     await request(app.getHttpServer()).patch('/register/admin/other@test.cl').auth(token('admin'), { type: 'bearer' }).send(body).expect(200);
-    expect(service.updateAdminByEmail).toHaveBeenCalledWith('other@test.cl', expect.objectContaining(body));
+    expect(service.updateAdminByEmail).toHaveBeenCalledWith('other@test.cl', expect.objectContaining(body), 'member@test.cl');
   });
 
   it.each([{ role: null }, { statePlayer: null }, { updatePayment: null }])('rejects null administrative permission flags: %j', async body => {

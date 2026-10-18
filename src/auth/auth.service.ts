@@ -4,12 +4,14 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { RegisterService } from '../register/register.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcryptjs from 'bcryptjs';
+import { BillingPortalService } from '../membership-billing/billing-portal.service';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +20,7 @@ export class AuthService {
   constructor(
     private readonly registerService: RegisterService,
     private readonly jwtService: JwtService,
+    @Optional() private readonly billingPortal?: BillingPortalService,
   ) {}
 
   async login({ username, password }: LoginDto) {
@@ -35,7 +38,7 @@ export class AuthService {
       throw new UnauthorizedException('user blocked');
     }
 
-    if (!user.updatePayment) {
+    if (!user.updatePayment && !this.billingPortal?.enabled()) {
       throw new UnauthorizedException('user blocked for no payment');
     }
 
@@ -44,11 +47,14 @@ export class AuthService {
       role: user.role,
     };
     const accessToken = await this.jwtService.signAsync(payload);
+    const membershipAccess = this.billingPortal?.enabled()
+      ? await this.billingPortal.access(user.email) : undefined;
     return {
       accessToken,
       username,
       namePlayer,
       role,
+      ...(membershipAccess ? { financiallyRestricted: membershipAccess.financiallyRestricted } : {}),
     };
   }
 
@@ -93,10 +99,8 @@ export class AuthService {
         return true;
       }
 
-      // Un usuario está bloqueado si:
-      // - statePlayer es false (usuario bloqueado manualmente)
-      // - updatePayment es false (bloqueado por falta de pago)
-      const isBlocked = !user.statePlayer || !user.updatePayment;
+      // Con portal habilitado, la deuda restringe capacidades sin revocar el login.
+      const isBlocked = !user.statePlayer || (!this.billingPortal?.enabled() && !user.updatePayment);
 
       this.logger.log(`User ${email} blocked status: ${isBlocked}`);
       return isBlocked;

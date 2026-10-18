@@ -9,7 +9,7 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   constructor(private readonly configService: ConfigService) {}
 
-  async sendEmail(sendEmailDto: SendEmailDto, idempotencyKey?: string) {
+  async sendEmail(sendEmailDto: SendEmailDto, idempotencyKey?: string, timeoutMs?: number) {
     const { to, subject, html } = sendEmailDto;
     const emailServiceApiUrl = this.configService.get<string>('EMAIL_SERVICE_API_URL');
     const emailServiceApiKey = this.configService.get<string>('EMAIL_SERVICE_API_KEY');
@@ -25,6 +25,7 @@ export class EmailService {
           html,
         },
         {
+          ...(timeoutMs ? { timeout: timeoutMs } : {}),
           headers: {
             'x-api-key': emailServiceApiKey,
             ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),

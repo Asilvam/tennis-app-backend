@@ -78,6 +78,41 @@ describe('AuthService', () => {
     await expect(service.profile({ email: activeUser.email })).resolves.toBe(activeUser);
   });
 
+  describe('approved payments-only login', () => {
+    const portal = { enabled: jest.fn(() => true), access: jest.fn() };
+    beforeEach(() => {
+      service = new AuthService(registerService as any, jwtService as any, portal as any);
+      portal.enabled.mockReturnValue(true);
+      portal.access.mockResolvedValue({ financiallyRestricted: true });
+      registerService.validatePlayerEmail.mockResolvedValue({ ...activeUser, updatePayment: false });
+      (bcryptjs.compare as jest.Mock).mockResolvedValue(true);
+      jwtService.signAsync.mockResolvedValue('payments-only-token');
+    });
+    it('issues identity with restricted capability instead of locking a debtor out', async () => {
+      await expect(service.login({ username: activeUser.email, password: 'secret' })).resolves.toMatchObject({
+        accessToken: 'payments-only-token', financiallyRestricted: true,
+      });
+      await expect(service.checkIfUserIsBlocked(activeUser.email)).resolves.toBe(false);
+    });
+    it('never admits an inactive account, even with the portal enabled', async () => {
+      registerService.validatePlayerEmail.mockResolvedValue({ ...activeUser, statePlayer: false });
+      const attempt = service.login({ username: activeUser.email, password: 'secret' });
+      await expect(attempt).rejects.toThrow(UnauthorizedException);
+      expect(portal.access).not.toHaveBeenCalled();
+      await expect(service.checkIfUserIsBlocked(activeUser.email)).resolves.toBe(true);
+    });
+    it('preserves the old payment restriction when the portal is disabled', async () => {
+      portal.enabled.mockReturnValue(false);
+      const attempt = service.login({ username: activeUser.email, password: 'secret' });
+      await expect(attempt).rejects.toThrow('user blocked for no payment');
+    });
+    it('fails closed if current permissions cannot be established', async () => {
+      portal.access.mockRejectedValue(new Error('configuration unavailable'));
+      const attempt = service.login({ username: activeUser.email, password: 'secret' });
+      await expect(attempt).rejects.toThrow('configuration unavailable');
+    });
+  });
+
   it('validates a valid token', async () => {
     jwtService.verifyAsync.mockResolvedValue({ email: activeUser.email });
     await expect(service.validateToken({ token: 'valid' })).resolves.toEqual({ email: activeUser.email });

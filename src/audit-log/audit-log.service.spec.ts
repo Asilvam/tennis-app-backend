@@ -144,14 +144,14 @@ describe('AuditLogService', () => {
     const end = new Date('2026-09-30');
 
     await service.getAuditsByReserve('reserve-1');
-    expect(model.find).toHaveBeenLastCalledWith({ entityId: 'reserve-1' });
+    expect(model.find).toHaveBeenLastCalledWith({ entityType: { $ne: 'MEMBERSHIP_PAYMENT' }, entityId: 'reserve-1' });
     await service.getAuditsByDateRange(start, end);
-    expect(model.find).toHaveBeenLastCalledWith({ timestamp: { $gte: start, $lte: end } });
+    expect(model.find).toHaveBeenLastCalledWith({ entityType: { $ne: 'MEMBERSHIP_PAYMENT' }, timestamp: { $gte: start, $lte: end } });
     await service.getAuditsByAction('DELETE');
-    expect(model.find).toHaveBeenLastCalledWith({ action: 'DELETE' });
+    expect(model.find).toHaveBeenLastCalledWith({ entityType: { $ne: 'MEMBERSHIP_PAYMENT' }, action: 'DELETE' });
     expect(query.limit).toHaveBeenCalledWith(100);
     await service.getAuditsByUser('Player 1');
-    expect(model.find).toHaveBeenLastCalledWith({ performedByUser: 'Player 1' });
+    expect(model.find).toHaveBeenLastCalledWith({ entityType: { $ne: 'MEMBERSHIP_PAYMENT' }, performedByUser: 'Player 1' });
   });
 
   it.each([
@@ -182,7 +182,7 @@ describe('AuditLogService', () => {
       withReason: 1,
       logs,
     });
-    expect(model.find).toHaveBeenCalledWith(expectedQuery);
+    expect(model.find).toHaveBeenCalledWith({ ...expectedQuery, entityType: { $ne: 'MEMBERSHIP_PAYMENT' } });
   });
 
   it.each([
@@ -214,7 +214,7 @@ describe('AuditLogService', () => {
       doubles: 1,
       logs,
     });
-    expect(model.find).toHaveBeenCalledWith(expectedQuery);
+    expect(model.find).toHaveBeenCalledWith({ ...expectedQuery, entityType: { $ne: 'MEMBERSHIP_PAYMENT' } });
   });
 
   it.each([undefined, 7])('aggregates general statistics for the requested period', async (days) => {
@@ -239,6 +239,6 @@ describe('AuditLogService', () => {
       paymentConfirmations: 1,
       byPerformer: { user: 1, admin: 1, profesor: 1, system: 3 },
     });
-    expect(model.find).toHaveBeenCalledWith({ timestamp: { $gte: expect.any(Date) } });
+    expect(model.find).toHaveBeenCalledWith({ entityType: { $ne: 'MEMBERSHIP_PAYMENT' }, timestamp: { $gte: expect.any(Date) } });
   });
 });

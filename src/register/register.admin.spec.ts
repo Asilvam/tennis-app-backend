@@ -43,7 +43,7 @@ describe('Administrative member edit HTTP authorization', () => {
   it('accepts an admin JWT and delegates only validated editable fields', async () => {
     const body = { partnerType: 'Carga', titularId: '000000000000000000000002', namePlayer: ' Updated ' };
     await request(app.getHttpServer()).patch('/register/admin/member@test.cl').auth(jwt.sign({ email: 'admin@test.cl', role: 'admin' }), { type: 'bearer' }).send(body).expect(200);
-    expect(service.updateAdminByEmail).toHaveBeenCalledWith('member@test.cl', expect.objectContaining({ ...body, namePlayer: 'Updated' }));
+    expect(service.updateAdminByEmail).toHaveBeenCalledWith('member@test.cl', expect.objectContaining({ ...body, namePlayer: 'Updated' }), 'admin@test.cl');
   });
 
   it.each([

@@ -10,6 +10,7 @@ import { PlayerCategoryPointsService } from '../player-category-points/player-ca
 import { AdminUpdateRegisterDto } from './dto/admin-update-register.dto';
 import { TipoSocio } from './enums/tipo-socio.enum';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { BillingDueAdjustmentService } from '../membership-billing/billing-due-adjustment.service';
 
 interface PlayerData {
   email: string;
@@ -27,6 +28,7 @@ export class RegisterService {
     private readonly registerModel: Model<Register>,
     private readonly emailService: EmailService,
     private readonly playerCategoryPointsService: PlayerCategoryPointsService,
+    private readonly billingAdjustment?: BillingDueAdjustmentService,
   ) {}
 
   async hashPassword(password: string): Promise<string> {
@@ -257,7 +259,7 @@ export class RegisterService {
     return updated;
   }
 
-  async updateAdminByEmail(email: string, dto: AdminUpdateRegisterDto): Promise<Register> {
+  async updateAdminByEmail(email: string, dto: AdminUpdateRegisterDto, actorEmail?: string): Promise<Register> {
     const normalizedEmail = email.trim();
     const changesMembership = Object.prototype.hasOwnProperty.call(dto, 'partnerType') || Object.prototype.hasOwnProperty.call(dto, 'titularId');
     if (!changesMembership) return this.updateByEmail(normalizedEmail, dto as UpdateRegisterDto);
@@ -293,6 +295,7 @@ export class RegisterService {
 
       const updated = await this.registerModel.findOneAndUpdate({ _id: current._id }, update, { new: true, runValidators: true, session }).exec();
       if (!updated) throw new NotFoundException('Socio no encontrado.');
+      await this.billingAdjustment?.repriceOpenDues(updated, actorEmail, session);
       return updated;
     }, { readPreference: 'primary' });
   }
