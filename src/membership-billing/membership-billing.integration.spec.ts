@@ -6,6 +6,7 @@ import {
   MembershipBillingConfigSchema,
 } from './entities/membership-billing-config.entity';
 import { Register, RegisterSchema } from '../register/entities/register.entity';
+import { AuditLog, AuditLogSchema } from '../audit-log/entities/audit-log.entity';
 import { MembershipBillingService } from './membership-billing.service';
 import { proposedBillingConfiguration } from './billing.types';
 
@@ -18,6 +19,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
     let payments: mongoose.Model<MembershipPayment>;
     let configs: mongoose.Model<MembershipBillingConfig>;
     let members: mongoose.Model<Register>;
+    let audit: mongoose.Model<AuditLog>;
     let service: MembershipBillingService;
     let titularId: string;
     let cargaId: string;
@@ -44,14 +46,15 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       payments = connection.model(MembershipPayment.name, MembershipPaymentSchema);
       configs = connection.model(MembershipBillingConfig.name, MembershipBillingConfigSchema);
       members = connection.model(Register.name, RegisterSchema);
-      for (const model of [dues, payments, configs, members] as mongoose.Model<any>[]) {
+      audit = connection.model(AuditLog.name, AuditLogSchema);
+      for (const model of [dues, payments, configs, members, audit] as mongoose.Model<any>[]) {
         await model.createCollection();
         await model.createIndexes();
       }
-      service = new MembershipBillingService(dues, payments, configs, members, () => now);
+      service = new MembershipBillingService(dues, payments, configs, members, () => now, audit);
     });
     beforeEach(async () => {
-      for (const model of [dues, payments, configs, members] as mongoose.Model<any>[])
+      for (const model of [dues, payments, configs, members, audit] as mongoose.Model<any>[])
         await model.deleteMany({});
       now = new Date('2026-10-17T15:00:00Z');
       const titular = await members.create({

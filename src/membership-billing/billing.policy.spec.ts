@@ -13,6 +13,7 @@ import {
   assertPeriod,
   dueAt,
   financialAccess,
+  isBillablePeriod,
   monthAt,
   periodsBetween,
   priceFor,
@@ -211,6 +212,30 @@ describe('Membership billing rules (no network or database)', () => {
         october,
       ),
     ).toThrow();
+  });
+  it('respects explicit billing intervals and preserves legacy members without an interval history', () => {
+    expect(isBillablePeriod(member(), '2026-11')).toBe(true);
+    const person = member({
+      billingPeriods: [
+        { fromPeriod: '2026-10', throughPeriod: '2026-10' },
+        { fromPeriod: '2026-12' },
+      ],
+    });
+    expect(isBillablePeriod(person, '2026-10')).toBe(true);
+    expect(isBillablePeriod(person, '2026-11')).toBe(false);
+    expect(isBillablePeriod(person, '2026-12')).toBe(true);
+    expect(isBillablePeriod(person, '2027-01')).toBe(true);
+  });
+  it.each(
+    [
+      [],
+      [{ fromPeriod: '2026-11' }],
+      [{ fromPeriod: '2026-10', throughPeriod: '2026-09' }],
+      [{ fromPeriod: '2026-10' }, { fromPeriod: '2026-12' }],
+      [{ fromPeriod: '2026-10', throughPeriod: '2026-12' }, { fromPeriod: '2026-12' }],
+    ].map((billingPeriods) => ({ billingPeriods })),
+  )('rejects invalid or overlapping billing history %j', ({ billingPeriods }) => {
+    expect(() => isBillablePeriod(member({ billingPeriods }), '2026-12')).toThrow();
   });
   it('requires earlier unpaid months, but not an unrelated carga quota', () => {
     const rows = [due('2026-10'), due('2026-11')];

@@ -30,6 +30,7 @@ export class BillingAdminQueryDto {
   @IsEnum({
     BANK_TRANSFER: 'BANK_TRANSFER',
     BANK_DEPOSIT: 'BANK_DEPOSIT',
+    CASH: 'CASH',
     MERCADO_PAGO: 'MERCADO_PAGO',
   })
   method?: string;

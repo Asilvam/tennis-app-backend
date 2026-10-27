@@ -262,13 +262,20 @@ export class RegisterService {
   async updateAdminByEmail(email: string, dto: AdminUpdateRegisterDto, actorEmail?: string): Promise<Register> {
     const normalizedEmail = email.trim();
     const changesMembership = Object.prototype.hasOwnProperty.call(dto, 'partnerType') || Object.prototype.hasOwnProperty.call(dto, 'titularId');
-    if (!changesMembership) return this.updateByEmail(normalizedEmail, dto as UpdateRegisterDto);
+    const changesState = Object.prototype.hasOwnProperty.call(dto, 'statePlayer');
+    if (!changesMembership && !changesState) return this.updateByEmail(normalizedEmail, dto as UpdateRegisterDto);
 
     // Both the assignment and titular type changes touch the titular document.
     // Transactions therefore prevent a simultaneous assignment/demotion race.
     return this.registerModel.db.transaction(async session => {
-      const current = await this.registerModel.findOne({ email: normalizedEmail }).session(session).lean().exec();
+      const current = await this.registerModel.findOne({ email: normalizedEmail }).select('+billingClosure').session(session).lean().exec();
       if (!current) throw new NotFoundException('Socio no encontrado.');
+      if (dto.statePlayer === true && current.billingClosure)
+        throw new ConflictException('El socio fue dado de baja por mensualidades. Usa la reinscripcion para aprobar una nueva vigencia.');
+      if (!changesMembership) {
+        return this.registerModel.findOneAndUpdate({ _id: current._id },
+          { $set: dto, $inc: { __v: 1 } }, { new: true, runValidators: true, session }).exec();
+      }
       const requestedType = dto.partnerType ?? current.partnerType ?? TipoSocio.TITULAR;
       const partnerType = requestedType === TipoSocio.FAMILIAR ? TipoSocio.CARGA : requestedType;
       if (![TipoSocio.TITULAR, TipoSocio.CARGA].includes(partnerType)) throw new BadRequestException('Tipo de socio inválido.');

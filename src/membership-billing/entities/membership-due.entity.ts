@@ -18,8 +18,25 @@ export class MembershipDue {
   @Prop({ required: true, immutable: true }) tariffVersionId: string;
   @Prop({ required: true, immutable: true, validate: positiveInteger }) amount: number;
   @Prop({ required: true, enum: ['CLP'], immutable: true }) currency: string;
-  @Prop({ type: String, required: true, enum: ['OPEN', 'PAID'], default: 'OPEN' })
+  @Prop({
+    type: String,
+    required: true,
+    enum: ['OPEN', 'PAID', 'VOID', 'ARCHIVED'],
+    default: 'OPEN',
+  })
   status: DueStatus;
+  @Prop({
+    type: {
+      at: Date,
+      approvedBy: MongoSchema.Types.ObjectId,
+      reason: String,
+      reenrollmentPeriod: String,
+    },
+    _id: false,
+  })
+  archive?: { at: Date; approvedBy: Types.ObjectId; reason: string; reenrollmentPeriod: string };
+  @Prop({ type: { at: Date, effectiveAt: Date, reason: String }, _id: false })
+  voided?: { at: Date; effectiveAt: Date; reason: string };
   @Prop({ type: MongoSchema.Types.ObjectId, ref: 'MembershipPayment' })
   settlementPaymentId?: Types.ObjectId;
   @Prop() paidAt?: Date;
@@ -42,4 +59,30 @@ MembershipDueSchema.pre('validate', function () {
   // eslint-disable-next-line max-len
   if (this.status === 'OPEN' && (this.settlementPaymentId || this.paidAt))
     this.invalidate('status', 'An open due cannot retain a settlement.');
+  if (
+    this.status === 'VOID' &&
+    (!this.voided?.at ||
+      !this.voided.effectiveAt ||
+      !this.voided.reason ||
+      this.settlementPaymentId ||
+      this.paidAt)
+  )
+    this.invalidate('status', 'A void due requires its reason and dates, without settlement.');
+  if (this.status !== 'VOID' && this.voided)
+    this.invalidate('voided', 'Only a void due may contain cancellation evidence.');
+  if (
+    this.status === 'ARCHIVED' &&
+    (!this.archive?.at ||
+      !this.archive.approvedBy ||
+      !this.archive.reason ||
+      !/^[2-9]\d{3}-(0[1-9]|1[0-2])$/.test(this.archive.reenrollmentPeriod || '') ||
+      this.settlementPaymentId ||
+      this.paidAt)
+  )
+    this.invalidate(
+      'status',
+      'Non-collectible history requires approval, reason and date without settlement.',
+    );
+  if (this.status !== 'ARCHIVED' && this.archive)
+    this.invalidate('archive', 'Only archived dues may contain non-collectible history evidence.');
 });

@@ -86,6 +86,15 @@ export function assertConfiguration(config: BillingConfiguration): void {
     throw new ServiceUnavailableException('Configuracion de mensualidades no disponible.');
   }
   assertPeriod(config.billingStartsAtPeriod);
+  if (
+    config.automation &&
+    (typeof config.automation.enabled !== 'boolean' ||
+      (config.automation.enabled &&
+        (!config.activation?.migrationReviewed ||
+          !config.automation.approvedBy?.trim() ||
+          !Number.isFinite(new Date(config.automation.approvedAt || NaN).getTime()))))
+  )
+    throw new ServiceUnavailableException('La automatizacion requiere revision y aprobacion.');
   if (config.autoBlockEnabled && !config.activation?.migrationReviewed)
     throw new ServiceUnavailableException('La migracion debe revisarse antes de activar bloqueos.');
   if (
@@ -168,6 +177,30 @@ export function assertBillingStart(member: BillingMember, config: BillingConfigu
   if (member.billingStartPeriod < config.billingStartsAtPeriod)
     throw new ConflictException('El inicio del socio es anterior al inicio del sistema.');
   return member.billingStartPeriod;
+}
+
+export function isBillablePeriod(member: BillingMember, period: string): boolean {
+  assertPeriod(period);
+  if (member.billingPeriods === undefined) return true;
+  if (!Array.isArray(member.billingPeriods) || !member.billingPeriods.length)
+    throw new ConflictException('El historial de vigencia requiere revision administrativa.');
+  let previousEnd: string | undefined;
+  for (const [index, interval] of member.billingPeriods.entries()) {
+    assertPeriod(interval.fromPeriod);
+    if (interval.throughPeriod !== undefined) assertPeriod(interval.throughPeriod);
+    if (
+      (index === 0 && interval.fromPeriod !== member.billingStartPeriod) ||
+      (interval.throughPeriod && interval.throughPeriod < interval.fromPeriod) ||
+      (index > 0 && (!previousEnd || interval.fromPeriod <= previousEnd))
+    )
+      throw new ConflictException('El historial de vigencia requiere revision administrativa.');
+    previousEnd = interval.throughPeriod;
+  }
+  return member.billingPeriods.some(
+    (interval) =>
+      interval.fromPeriod <= period &&
+      (!interval.throughPeriod || period <= interval.throughPeriod),
+  );
 }
 
 export function assertPaymentSelection(

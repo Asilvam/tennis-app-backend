@@ -18,15 +18,20 @@ import { MembershipPayment } from './entities/membership-payment.entity';
 import { MembershipBillingConfig } from './entities/membership-billing-config.entity';
 import { BILLING_CLOCK, MembershipBillingService } from './membership-billing.service';
 import {
+  addMonths,
   assertAmount,
   assertConfiguration,
   assertMemberId,
+  assertPeriod,
+  memberType,
   monthAt,
+  periodsBetween,
   priceFor,
 } from './billing.policy';
 import { BILLING_CONFIG_KEY, BILLING_TIMEZONE } from './billing.types';
 import { BillingAdminQueryDto } from './dto/billing-admin-query.dto';
 import { RegisterBankPaymentDto } from './dto/register-bank-payment.dto';
+import { EnrollMembershipDto } from './dto/enroll-membership.dto';
 
 @Injectable()
 export class BillingAdminService {
@@ -109,7 +114,9 @@ export class BillingAdminService {
     const [rows, total] = await Promise.all([
       this.members
         .find(filter)
-        .select('namePlayer email partnerType titularId statePlayer billingStartPeriod')
+        .select(
+          'namePlayer email partnerType titularId statePlayer billingStartPeriod +billingClosure',
+        )
         .sort({ namePlayer: 1, _id: 1 })
         .skip((page - 1) * 20)
         .limit(20)
@@ -141,6 +148,9 @@ export class BillingAdminService {
           email: row.email,
           memberType: row.partnerType,
           active: row.statePlayer,
+          canReenroll: Boolean(
+            !row.statePlayer && row.billingClosure?.reason === 'THREE_CONSECUTIVE_OVERDUE',
+          ),
           enrolled,
           status: due?.status || (enrolled ? 'NOT_GENERATED' : 'NOT_ENROLLED'),
           amount: due?.amount ?? estimatedAmount,
@@ -162,16 +172,379 @@ export class BillingAdminService {
     return this.memberContext(email, id);
   }
 
+  private async enrollmentPlan(
+    id: string,
+    startPeriod: string,
+    session?: ClientSession,
+    reenroll = false,
+  ) {
+    assertMemberId(id);
+    assertPeriod(startPeriod);
+    const config = await this.configs
+      .findOne({ key: BILLING_CONFIG_KEY })
+      .session(session || null)
+      .lean();
+    if (!config)
+      throw new ServiceUnavailableException('Mensualidades pendientes de configuracion.');
+    assertConfiguration(config);
+    const currentPeriod = monthAt(this.clock());
+    if (startPeriod < config.billingStartsAtPeriod || startPeriod > currentPeriod)
+      throw new BadRequestException(
+        'El inicio debe estar entre el inicio del sistema y el mes actual.',
+      );
+    const person = await this.members
+      .findById(id)
+      .select('+billingPeriods +billingClosure')
+      .session(session || null)
+      .lean();
+    if (!person) throw new NotFoundException('Socio no encontrado.');
+    if (!reenroll && !person.statePlayer)
+      throw new ConflictException('No se pueden habilitar mensualidades de una cuenta inactiva.');
+    memberType(person);
+    if (!reenroll && (person.billingStartPeriod || person.billingBaseline || person.billingPeriods))
+      throw new ConflictException(
+        'El socio ya tiene un inicio o historial de facturacion. No se puede reemplazar.',
+      );
+    if (reenroll) {
+      const last = person.billingPeriods?.at(-1);
+      if (
+        person.statePlayer ||
+        person.role === 'admin' ||
+        !person.billingStartPeriod ||
+        !last?.throughPeriod ||
+        last.throughPeriod !== person.billingClosure?.throughPeriod ||
+        person.billingClosure?.reason !== 'THREE_CONSECUTIVE_OVERDUE'
+      )
+        throw new ConflictException(
+          'La reinscripcion requiere una baja automatica e historial valido.',
+        );
+      if (startPeriod !== currentPeriod || startPeriod <= last.throughPeriod)
+        throw new BadRequestException(
+          'La reinscripcion comienza en el mes actual, sin cobrar meses inactivos.',
+        );
+      if (
+        await this.payments
+          .exists({
+            'allocations.beneficiaryId': person._id,
+            method: 'MERCADO_PAGO',
+            $or: [
+              { status: { $in: ['PENDING', 'REVIEW_REQUIRED'] } },
+              { 'checkout.creationStatus': { $in: ['CREATING', 'UNKNOWN'] } },
+              {
+                status: { $in: ['REJECTED', 'CANCELLED'] },
+                'checkout.expiresAt': { $gt: this.clock() },
+              },
+            ],
+          })
+          .session(session || null)
+      )
+        throw new ConflictException('Revisa los pagos inciertos antes de reinscribir.');
+      if (
+        await this.dues
+          .exists({
+            beneficiaryId: person._id,
+            period: { $gte: startPeriod },
+            status: { $ne: 'VOID' },
+          })
+          .session(session || null)
+      )
+        throw new ConflictException('Hay cuotas del nuevo periodo que requieren revision.');
+    }
+    if (person.partnerType !== 'Titular') {
+      if (!person.titularId)
+        throw new ConflictException(
+          'Asocia la carga con un titular antes de habilitar mensualidades.',
+        );
+      const titular = await this.members
+        .findById(person.titularId)
+        .session(session || null)
+        .lean();
+      if (!titular || titular.partnerType !== 'Titular')
+        throw new ConflictException('La asociacion con el titular requiere revision.');
+    }
+    if (
+      !reenroll &&
+      ((await this.dues.exists({ beneficiaryId: person._id }).session(session || null)) ||
+        (await this.payments
+          .exists({ 'allocations.beneficiaryId': person._id })
+          .session(session || null)))
+    )
+      throw new ConflictException(
+        'El socio tiene registros financieros que requieren revision antes de habilitar.',
+      );
+    const rows = periodsBetween(startPeriod, currentPeriod).map((period) => ({
+      period,
+      ...priceFor(person, period, config),
+    }));
+    const historical = reenroll
+      ? await this.dues
+          .find({
+            beneficiaryId: person._id,
+            period: { $lte: person.billingClosure.throughPeriod },
+            status: 'OPEN',
+          })
+          .session(session || null)
+          .sort({ period: 1 })
+          .lean()
+      : [];
+    const plan = {
+      memberId: id,
+      name: person.namePlayer,
+      memberType: person.partnerType,
+      startPeriod,
+      throughPeriod: currentPeriod,
+      rows,
+      total: rows.reduce((sum, row) => sum + row.amount, 0),
+      currency: 'CLP',
+      ...(reenroll
+        ? {
+            reenrollment: true,
+            previousThroughPeriod: person.billingClosure.throughPeriod,
+            historical: historical.map((due) => ({
+              id: String(due._id),
+              period: due.period,
+              amount: due.amount,
+            })),
+            historicalTotal: historical.reduce((total, due) => total + due.amount, 0),
+          }
+        : {}),
+    };
+    const approvalHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          ...plan,
+          version: person.__v || 0,
+          titularId: String(person.titularId || ''),
+        }),
+      )
+      .digest('hex');
+    return { ...plan, approvalHash };
+  }
+
+  async previewEnrollment(email: string, id: string, startPeriod: string, reenroll = false) {
+    await this.admin(email);
+    return this.enrollmentPlan(id, startPeriod, undefined, reenroll);
+  }
+
+  async enroll(
+    email: string,
+    id: string,
+    input: EnrollMembershipDto,
+    key: string,
+    reenroll = false,
+  ) {
+    this.key(key);
+    assertMemberId(id);
+    const reason = input.reason?.trim();
+    if (
+      !reason ||
+      reason.length < 5 ||
+      reason.length > 1000 ||
+      !/^[a-f\d]{64}$/.test(input.approvalHash || '')
+    )
+      throw new BadRequestException(
+        'Revisa las cuotas e indica un motivo valido antes de habilitar.',
+      );
+    await this.admin(email);
+    await this.indexesReady();
+    const requestHash = createHash('sha256')
+      .update(JSON.stringify({ id, ...input, reason, reenroll }))
+      .digest('hex');
+    const now = this.clock();
+    return this.members.db.transaction(async (session) => {
+      const actor = await this.admin(email, session);
+      const eventId = `membership:${reenroll ? 'reenrollment' : 'enrollment'}:${actor._id}:${key}`;
+      const previous = await this.audit.findOne({ eventId }).session(session).lean();
+      if (previous) {
+        if (previous.afterData?.requestHash !== requestHash)
+          throw new ConflictException('La clave de reintento pertenece a otra habilitacion.');
+        return { ...previous.afterData.result, duplicate: true };
+      }
+      const plan = await this.enrollmentPlan(id, input.startPeriod, session, reenroll);
+      if (plan.approvalHash !== input.approvalHash)
+        throw new ConflictException(
+          'Los datos o las tarifas cambiaron. Vuelve a revisar las cuotas.',
+        );
+      const updated = await this.members.updateOne(
+        reenroll
+          ? { _id: id, statePlayer: false, billingClosure: { $exists: true } }
+          : {
+              _id: id,
+              statePlayer: true,
+              billingStartPeriod: { $exists: false },
+              billingPeriods: { $exists: false },
+            },
+        reenroll
+          ? {
+              $set: { statePlayer: true },
+              $push: {
+                billingPeriods: {
+                  fromPeriod: plan.startPeriod,
+                  approvedAt: now,
+                  approvedBy: actor._id,
+                  reason,
+                },
+              },
+              $unset: { billingClosure: '' },
+              $inc: { __v: 1 },
+            }
+          : {
+              $set: {
+                billingStartPeriod: plan.startPeriod,
+                billingBaseline: {
+                  throughPeriod: addMonths(plan.startPeriod, -1),
+                  migrationId: eventId,
+                  establishedAt: now,
+                  establishedBy: actor.email,
+                },
+                billingPeriods: [
+                  { fromPeriod: plan.startPeriod, approvedAt: now, approvedBy: actor._id, reason },
+                ],
+              },
+              $inc: { __v: 1 },
+            },
+        { session, runValidators: true },
+      );
+      if (updated.modifiedCount !== 1)
+        throw new ConflictException('El socio cambio durante la habilitacion.');
+      if (reenroll) {
+        const historical = await this.dues
+          .find({ beneficiaryId: id, period: { $lte: plan.previousThroughPeriod }, status: 'OPEN' })
+          .session(session)
+          .lean();
+        if (historical.length) {
+          const archive = {
+            at: now,
+            approvedBy: actor._id,
+            reason,
+            reenrollmentPeriod: plan.startPeriod,
+          };
+          await this.dues.updateMany(
+            { _id: { $in: historical.map((due) => due._id) }, status: 'OPEN' },
+            { $set: { status: 'ARCHIVED', archive } },
+            { session, runValidators: true },
+          );
+          await this.audit.create(
+            [
+              {
+                eventId: `${eventId}:history`,
+                entityType: 'MEMBERSHIP_PAYMENT',
+                entityId: id,
+                action: 'STATE_CHANGE',
+                performedBy: 'ADMIN',
+                performedByEmail: actor.email,
+                description:
+                  'Reinscripcion: cuotas anteriores conservadas como historico no exigible, sin registrar dinero.',
+                beforeData: { dues: historical },
+                afterData: { status: 'ARCHIVED', archive },
+                metadata: { reason: 'MEMBERSHIP_REENROLLMENT_NON_COLLECTIBLE_HISTORY' },
+                timestamp: now,
+              },
+            ],
+            { session },
+          );
+        }
+        const excluded = await this.dues
+          .find({
+            beneficiaryId: id,
+            period: { $gte: plan.startPeriod, $lte: plan.throughPeriod },
+            status: 'VOID',
+          })
+          .session(session)
+          .lean();
+        for (const due of excluded) {
+          const person = await this.members.findById(id).session(session).lean();
+          const config = await this.configs
+            .findOne({ key: BILLING_CONFIG_KEY })
+            .session(session)
+            .lean();
+          const price = priceFor(person, due.period, config);
+          await this.dues.collection.updateOne(
+            { _id: due._id, status: 'VOID' },
+            {
+              $set: { status: 'OPEN', ...price, updatedAt: now },
+              $unset: { voided: '' },
+            },
+            { session },
+          );
+          await this.audit.create(
+            [
+              {
+                eventId: `${eventId}:due:${due._id}`,
+                entityType: 'MEMBERSHIP_PAYMENT',
+                entityId: String(due._id),
+                action: 'ADMIN_CREATE',
+                performedBy: 'ADMIN',
+                performedByEmail: actor.email,
+                description:
+                  'Cuota excluida reabierta por reinscripcion aprobada, sin registrar un pago.',
+                beforeData: due,
+                afterData: { status: 'OPEN', ...price },
+                timestamp: now,
+                metadata: { reason: 'MEMBERSHIP_REENROLLMENT_DUE' },
+              },
+            ],
+            { session },
+          );
+        }
+      }
+      const rows = await this.core.prepareDuesInSession(
+        String(actor._id),
+        id,
+        plan.throughPeriod,
+        session,
+        now,
+      );
+      const result = {
+        memberId: id,
+        startPeriod: plan.startPeriod,
+        createdDues: reenroll ? plan.rows.length : rows.length,
+        total: plan.total,
+      };
+      await this.audit.create(
+        [
+          {
+            eventId,
+            entityType: 'MEMBERSHIP_PAYMENT',
+            entityId: id,
+            action: 'ADMIN_CREATE',
+            performedBy: 'ADMIN',
+            performedByUser: actor.namePlayer,
+            performedByEmail: actor.email,
+            description: reenroll
+              ? 'Reinscripcion aprobada, conserva historico anterior no exigible y pagos reales.'
+              : 'Inicio de mensualidades aprobado; no registra dinero recibido.',
+            timestamp: now,
+            beforeData: reenroll ? { active: false } : { enrolled: false },
+            afterData: { requestHash, result, reason, pricing: plan.rows },
+            metadata: { reason: reenroll ? 'MEMBERSHIP_REENROLLMENT' : 'MEMBERSHIP_ENROLLMENT' },
+          },
+        ],
+        { session },
+      );
+      return { ...result, duplicate: false };
+    });
+  }
+
   private async memberContext(email: string, id: string, throughPeriod?: string, prepare = false) {
     const actor = await this.admin(email);
-    await this.config();
+    const config = await this.config();
     if (prepare) await this.indexesReady();
     assertMemberId(id);
-    const member = await this.members.findById(id).lean().exec();
+    const member = await this.members
+      .findById(id)
+      .select('+billingPeriods +billingClosure')
+      .lean()
+      .exec();
     if (!member) throw new NotFoundException('Socio no encontrado.');
     const family =
       member.partnerType === 'Titular'
-        ? await this.members.find({ titularId: member._id }).sort({ namePlayer: 1 }).lean().exec()
+        ? await this.members
+            .find({ titularId: member._id })
+            .select('+billingPeriods +billingClosure')
+            .sort({ namePlayer: 1 })
+            .lean()
+            .exec()
         : [];
     const people = [member, ...family];
     for (const person of prepare ? people : []) {
@@ -189,12 +562,26 @@ export class BillingAdminService {
       .exec();
     return {
       memberId: String(member._id),
+      billing: {
+        minimumStartPeriod: config.billingStartsAtPeriod,
+        currentPeriod: monthAt(this.clock()),
+      },
       members: people.map((person) => ({
         id: String(person._id),
         name: person.namePlayer,
         email: person.email,
         memberType: person.partnerType,
         active: person.statePlayer,
+        billingStartPeriod: person.billingStartPeriod,
+        canReenroll: Boolean(
+          !person.statePlayer && person.billingClosure?.reason === 'THREE_CONSECUTIVE_OVERDUE',
+        ),
+        billingPeriods: person.billingPeriods?.map((interval) => ({
+          fromPeriod: interval.fromPeriod,
+          throughPeriod: interval.throughPeriod,
+          approvedAt: interval.approvedAt,
+          reason: interval.reason,
+        })),
         enrolled: Boolean(
           person.billingStartPeriod &&
           ['Titular', 'Carga', 'Familiar'].includes(person.partnerType),
@@ -221,13 +608,21 @@ export class BillingAdminService {
   async registerBankPayment(email: string, input: RegisterBankPaymentDto, idempotencyKey: string) {
     this.key(idempotencyKey);
     const actor = await this.admin(email);
-    if (input.verified !== true || !['BANK_TRANSFER', 'BANK_DEPOSIT'].includes(input.method))
-      throw new BadRequestException('Debes verificar un ingreso bancario completo.');
+    if (
+      input.verified !== true ||
+      !['BANK_TRANSFER', 'BANK_DEPOSIT', 'CASH'].includes(input.method)
+    )
+      throw new BadRequestException('Debes verificar la recepcion del pago completo.');
     assertAmount(input.amount);
     const payerName = input.payerName?.trim();
     const reference = input.reference?.trim();
-    if (!payerName || !reference)
-      throw new BadRequestException('Indica pagador y referencia bancaria.');
+    const cash = input.method === 'CASH';
+    if (!payerName || (!cash && !reference))
+      throw new BadRequestException('Indica pagador y referencia bancaria cuando corresponda.');
+    if (cash && (input.reference !== undefined || input.matchingReferenceVerified === true))
+      throw new BadRequestException(
+        'El efectivo utiliza un folio interno, no una referencia bancaria.',
+      );
     const now = this.clock();
     const paid = DateTime.fromISO(input.receivedDate, { zone: BILLING_TIMEZONE });
     if (
@@ -236,9 +631,7 @@ export class BillingAdminService {
       paid.toISODate() !== input.receivedDate ||
       paid.toISODate() > DateTime.fromJSDate(now, { zone: BILLING_TIMEZONE }).toISODate()
     )
-      throw new BadRequestException(
-        'La fecha del ingreso bancario no es valida o esta en el futuro.',
-      );
+      throw new BadRequestException('La fecha del ingreso no es valida o esta en el futuro.');
     if (!Array.isArray(input.dueIds))
       throw new BadRequestException('Seleccion de cuotas invalida.');
     const canonical = {
@@ -248,7 +641,7 @@ export class BillingAdminService {
       payerName,
       payerMemberId: input.payerMemberId || null,
       receivedDate: input.receivedDate,
-      reference,
+      reference: reference || null,
       notes: input.notes?.trim() || '',
       matchingReferenceVerified: input.matchingReferenceVerified === true,
     };
@@ -275,17 +668,19 @@ export class BillingAdminService {
         throw new BadRequestException(
           'El monto debe coincidir exactamente con las cuotas completas seleccionadas.',
         );
-      const matchingPayment = await this.payments
-        .findOne({
-          status: 'CONFIRMED',
-          method: { $in: ['BANK_TRANSFER', 'BANK_DEPOSIT'] },
-          amount: quote.amount,
-          'bank.reference': reference,
-          'bank.receivedAt': paid.toJSDate(),
-        })
-        .session(session)
-        .lean()
-        .exec();
+      const matchingPayment = cash
+        ? null
+        : await this.payments
+            .findOne({
+              status: 'CONFIRMED',
+              method: { $in: ['BANK_TRANSFER', 'BANK_DEPOSIT'] },
+              amount: quote.amount,
+              'bank.reference': reference,
+              'bank.receivedAt': paid.toJSDate(),
+            })
+            .session(session)
+            .lean()
+            .exec();
       if (matchingPayment && input.matchingReferenceVerified !== true)
         throw new ConflictException({
           code: 'BANK_REFERENCE_REVIEW',
@@ -327,7 +722,14 @@ export class BillingAdminService {
               )?.namePlayer,
             })),
             registeredBy: currentAdmin._id,
-            bank: { reference, receivedAt: paid.toJSDate() },
+            ...(cash
+              ? {
+                  cash: {
+                    receiptNumber: `CTQ-${publicReference.replace('membership_', '')}`,
+                    receivedAt: paid.toJSDate(),
+                  },
+                }
+              : { bank: { reference, receivedAt: paid.toJSDate() } }),
             paidAt: paid.toJSDate(),
             confirmedAt: now,
             notes: canonical.notes,
@@ -379,8 +781,7 @@ export class BillingAdminService {
               payerId: payer.memberId,
               allocations: quote.allocations,
             },
-            description:
-              'Pago bancario de mensualidades verificado y registrado por administracion.',
+            description: 'Pago manual de mensualidades verificado y registrado por administracion.',
             timestamp: now,
           },
         ],
@@ -405,7 +806,7 @@ export class BillingAdminService {
       if (!payment) throw new NotFoundException('Pago no encontrado.');
       if (payment.method === 'MERCADO_PAGO')
         throw new BadRequestException(
-          'Esta accion solo corrige registros bancarios; no realiza reembolsos.',
+          'Esta accion solo corrige registros manuales; no realiza reembolsos.',
         );
       if (payment.status === 'REVERSED') {
         if (
@@ -418,11 +819,39 @@ export class BillingAdminService {
       }
       if (payment.status !== 'CONFIRMED')
         throw new ConflictException('Solo puedes anular un registro confirmado.');
+      const beneficiaries = new Map<string, Register>();
+      for (const memberId of [
+        ...new Set(payment.allocations.map((row) => String(row.beneficiaryId))),
+      ].sort()) {
+        await this.members.updateOne({ _id: memberId }, { $inc: { __v: 1 } }, { session });
+        const person = await this.members
+          .findById(memberId)
+          .select('+billingPeriods')
+          .session(session)
+          .lean();
+        if (!person) throw new ConflictException('El beneficiario requiere revision.');
+        beneficiaries.set(memberId, person);
+      }
+      const archivedDueIds: string[] = [];
       for (const allocation of payment.allocations) {
+        const intervals = beneficiaries.get(String(allocation.beneficiaryId)).billingPeriods;
+        const historical = intervals?.length > 1 && allocation.period < intervals.at(-1).fromPeriod;
+        const settlement = historical
+          ? {
+              status: 'ARCHIVED',
+              archive: {
+                at: now,
+                approvedBy: actor._id,
+                reason: reason.trim(),
+                reenrollmentPeriod: intervals.at(-1).fromPeriod,
+              },
+            }
+          : { status: 'OPEN' };
+        if (historical) archivedDueIds.push(String(allocation.dueId));
         const result = await this.dues
           .updateOne(
             { _id: allocation.dueId, status: 'PAID', settlementPaymentId: payment._id },
-            { $set: { status: 'OPEN' }, $unset: { settlementPaymentId: '', paidAt: '' } },
+            { $set: settlement, $unset: { settlementPaymentId: '', paidAt: '' } },
             { session },
           )
           .exec();
@@ -461,9 +890,8 @@ export class BillingAdminService {
             performedByUser: actor.namePlayer,
             performedByEmail: actor.email,
             beforeData: { status: 'CONFIRMED' },
-            afterData: { status: 'REVERSED', reason: reason.trim() },
-            description:
-              'Anulacion auditada de registro bancario; no implica devolucion de dinero.',
+            afterData: { status: 'REVERSED', reason: reason.trim(), archivedDueIds },
+            description: 'Anulacion auditada de registro manual; no implica devolucion de dinero.',
             timestamp: now,
           },
         ],
@@ -533,6 +961,7 @@ export class BillingAdminService {
           memberId: item.payer.memberId ? String(item.payer.memberId) : null,
         },
         bank: item.bank,
+        cash: item.cash,
         notes: item.notes,
         registeredBy: name(item.registeredBy),
         pricingMode: item.pricingMode,

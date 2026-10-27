@@ -32,7 +32,11 @@ export class MembershipPayment {
     required: true,
   })
   payer: { memberId?: Types.ObjectId; name?: string; email?: string };
-  @Prop({ type: String, required: true, enum: ['MERCADO_PAGO', 'BANK_TRANSFER', 'BANK_DEPOSIT'] })
+  @Prop({
+    type: String,
+    required: true,
+    enum: ['MERCADO_PAGO', 'BANK_TRANSFER', 'BANK_DEPOSIT', 'CASH'],
+  })
   method: PaymentMethod;
   @Prop({
     type: String,
@@ -106,6 +110,10 @@ export class MembershipPayment {
     receivedAt?: Date;
   };
   @Prop() evidence?: string;
+  @Prop({ type: { receiptNumber: String, receivedAt: Date }, _id: false }) cash?: {
+    receiptNumber?: string;
+    receivedAt?: Date;
+  };
   @Prop({ maxlength: 1000 }) notes?: string;
   @Prop({ type: MongoSchema.Types.ObjectId, ref: 'Register' }) registeredBy?: Types.ObjectId;
   @Prop() paidAt?: Date;
@@ -216,6 +224,12 @@ MembershipPaymentSchema.pre('validate', function () {
           'provider',
           'Mercado Pago confirmation requires verified transaction evidence.',
         );
+    } else if (this.method === 'CASH') {
+      if (!this.registeredBy || !this.cash?.receiptNumber?.trim() || !this.cash?.receivedAt)
+        this.invalidate(
+          'cash',
+          'Cash confirmation requires a receipt, effective date and responsible admin.',
+        );
     } else if (!this.registeredBy || !this.bank?.reference?.trim() || !this.bank?.receivedAt) {
       this.invalidate(
         'bank',
@@ -223,4 +237,6 @@ MembershipPaymentSchema.pre('validate', function () {
       );
     }
   }
+  if (this.method === 'CASH' && (this.bank || this.provider || this.checkout))
+    this.invalidate('cash', 'Cash cannot contain bank or provider evidence.');
 });

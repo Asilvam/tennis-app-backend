@@ -87,7 +87,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
     const config = proposedBillingConfiguration();
     config.testPricing = { enabled: true, memberIds: [titular, member], titular: 180, carga: 50 };
     await configs.create(config);
-    core = new MembershipBillingService(dues, payments, configs, members, () => now);
+    core = new MembershipBillingService(dues, payments, configs, members, () => now, audit);
     const adjust = new BillingDueAdjustmentService(
       dues,
       payments,

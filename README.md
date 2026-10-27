@@ -161,14 +161,14 @@ El backend principal mantiene una segunda barrera de idempotencia para los callb
 
 ## Usuarios y estado de pago
 
-La edición administrativa de socios usa `PATCH /register/admin/:email` con JWT admin. Permite seleccionar Titular/Carga y asociar cada carga mediante `titularId`. Los valores históricos Familiar se conservan hasta editar la asociación. No se crean cuotas ni pagos en esta etapa; ver [modelo de socios y próximas etapas](docs/membership-management-stage-1.md). Las asociaciones requieren Mongo con soporte de transacciones.
+La edición administrativa de socios usa `PATCH /register/admin/:email` con JWT admin. Permite seleccionar Titular/Carga y asociar cada carga mediante `titularId`. Los valores históricos Familiar se conservan hasta editar la asociación. La asociación por sí sola no genera cuotas ni registra pagos; un cambio de tipo ajusta las cuotas impagas del mes actual y futuros según las reglas de [Mensualidades CTQ](#mensualidades-ctq). Las asociaciones requieren Mongo con soporte de transacciones. Ver también el [diseño original de socios](docs/membership-management-stage-1.md).
 
 El acceso depende de dos propiedades del socio:
 
-- `statePlayer=false`: bloqueo administrativo.
-- `updatePayment=false`: bloqueo por pago pendiente.
+- `statePlayer=false`: cuenta inactiva; no es lo mismo que una restricción financiera.
+- `updatePayment=false`: restricción financiera legada que requiere revisión administrativa; no es un registro de deuda ni prueba de un pago.
 
-El login rechaza cualquiera de esos estados.
+El login rechaza cuentas inactivas. Con el portal de mensualidades habilitado, un socio activo con restricción financiera puede ingresar solo a pagos, sin reservar. Si el portal está deshabilitado, se conserva el rechazo legado por `updatePayment=false`. Un pago no modifica silenciosamente una baja administrativa ni ese indicador legado.
 
 ### Permisos de registro y edición
 
@@ -187,6 +187,124 @@ npm test -- --runInBand --runTestsByPath src/register/register.security.spec.ts 
 ```
 
 Esta protección no constituye una auditoría completa de seguridad. El restablecimiento inseguro se reemplazó por un enlace de un solo uso: el usuario puede solicitarlo sin sesión y un admin desde administración. Solo se envía a cuentas activas (`statePlayer=true`). El usuario espera 24 horas entre solicitudes aceptadas, incluso si falla el correo; el administrador autenticado no tiene límite de espera, pero tampoco puede enviar a cuentas inactivas. La contraseña actual no cambia hasta confirmar; no se devuelve ni se envía una contraseña por correo. El enlace público dura quince minutos y el de administración dura 24 horas; ambos requieren `PASSWORD_RESET_FRONTEND_URL` del backend. Por decisión explícita, las sesiones JWT anteriores siguen válidas hasta vencer. Ver [flujo, límites y pruebas de recuperación](docs/password-recovery.md).
+
+## Mensualidades CTQ
+
+Reglas acordadas el **26 de octubre de 2026**, con implementación local de las nuevas etapas 1 y 2 e histórico no exigible actualizados al **27 de octubre de 2026**. Esta sección es la referencia del flujo vigente; los documentos anteriores conservan decisiones históricas. Una implementación probada en local no activa tareas ni demuestra su publicación en producción.
+
+### Estado de implementación
+
+| Función | Estado |
+| --- | --- |
+| Cuotas individuales, tarifas, historial, auditoría e idempotencia | Implementado |
+| Portal del socio y registro administrativo de transferencia/depósito | Implementado |
+| Mercado Pago, conciliación, confirmación y correo mensual | Implementado; piloto real previo de Test 1 y Test 2 confirmado |
+| Socio: atrasados y mes actual; administración: actual más tres futuros | Implementado |
+| Búsqueda rápida y corrección de solapes móviles de administración | Probado en local; pendiente de publicación al documentar esta sección |
+| Permisos de lectura sin esperar disponibilidad de Mercado Pago | Optimización probada en local; pendiente de publicación |
+| Botón para habilitar mensualidades de un socio y aprobar su inicio | Implementado y probado en local, pendiente de publicación |
+| Vigencia inicial e intervalos de facturación | Implementado en local; historial privado y sin migración automática de socios anteriores |
+| Registro administrativo de efectivo | Implementado y probado en local; medio y folio propios, sin referencia bancaria ficticia |
+| Generación mensual, baja por tres cuotas y reinscripción | Implementado en local; automatización desactivada por defecto, sin activación del club |
+| Redirección global al login por sesión vencida | Fallo identificado; corrección pendiente |
+
+El piloto y sus pruebas no equivalen a habilitación general del club. El bloqueo automático por deuda quedó desactivado durante el piloto; revisar su configuración y aprobar su activación por separado. Esta documentación no consulta ni modifica el ambiente desplegado.
+
+### Reglas de cobro y estados del socio
+
+- Moneda CLP y cuotas completas: titular **$18.000**, carga **$5.000**. Sin abonos parciales; el monto recibido debe coincidir exactamente con las cuotas seleccionadas y lo calcula el backend.
+- Tarifa de prueba **$180/$50** exclusivamente para los IDs autorizados de Usuario test 1 y Usuario test 2; no se determina por nombre. Los demás socios usan tarifa general.
+- Cobro por mes calendario vencido: octubre de 2026 puede pagarse hasta el **5 de noviembre de 2026 inclusive**. Desde el día 6 está vencido. Todos los cortes usan `America/Santiago`, no la zona del servidor.
+- Primero se pagan los meses impagos más antiguos de cada beneficiario. Un titular puede pagar por sí mismo y por sus cargas vinculadas; cada socio conserva sus propias cuotas e historial.
+- El socio puede pagar atrasados y el mes actual, sin anticipar meses futuros. Administración conserva el mes actual más tres futuros, sin saltar deuda anterior ni ampliar la ventana por haber pagado el último mes disponible.
+- La deuda anterior a octubre de 2026 no se inventa al inicializar el sistema. El inicio de cada socio requiere aprobación explícita; una cuenta activa no implica mensualidades habilitadas ni cuotas pagadas.
+- Cambiar Titular/Carga ajusta solo cuotas `OPEN` del mes actual y futuros, con auditoría. Conserva cuotas pasadas y pagadas; un checkout pendiente o incierto impide cambiar importes que todavía podrían cobrarse.
+
+| Situación | Nuevas cuotas | Acceso y tratamiento |
+| --- | --- | --- |
+| Activo, con inicio de facturación aprobado | Sí, durante sus períodos de vigencia | Acceso normal si no tiene restricciones |
+| Activo, restringido por falta de pago | Sí; el bloqueo financiero no suspende su membresía | Solo mensualidades; sin reservas cuando corresponda aplicar la restricción |
+| Cuenta inactiva o dada de baja | No durante la inactividad ni después del corte efectivo | Sin login ni registro de pagos habilitado en la interfaz actual; conservar deuda e historial |
+| Sin inicio de facturación aprobado | No | Mostrar revisión pendiente, sin estimar una deuda como si estuviera emitida |
+| Administrador activo | Según su membresía e inicio aprobados | Exento del bloqueo financiero; no de la inactividad administrativa |
+
+`register` es la fuente de identidad, tipo y estado del socio. `membership_dues` guarda sus cuotas; `membership_payments`, sus pagos e imputaciones; `membership_billing_config`, las tarifas y configuración. Los booleanos de acceso nunca sustituyen esos registros financieros.
+
+### Uso por administración: habilitar y registrar pagos
+
+**Entrada existente:** Administrar usuarios → botón **Pagos del socio**. También puede buscarse al socio en Mensualidades CTQ (`/adminpayments`). La consulta global por mes es solo lectura: no debe generar cuotas ni depender de que Mercado Pago esté disponible. Desde Usuarios se conserva la búsqueda y la posición al volver.
+
+1. **Habilitación inicial, implementada en local:** desde el detalle elegir **Habilitar mensualidades**, indicar mes inicial y motivo, y pulsar **Revisar cuotas**. La vista previa muestra importes calculados por el backend; **Confirmar habilitación** exige SweetAlert2 y guarda inicio, vigencia, cuotas abiertas y auditoría en una transacción, sin registrar dinero. Solo permite socios activos y una primera habilitación sin registros financieros previos; no reemplaza inicios o historiales anteriores ni habilita cargas sin un titular válido. Si cambian precios o datos después de la vista previa, exige revisarla de nuevo. Un timeout se reintenta con la misma clave de idempotencia. Desde el listado global también hay una acción de habilitación para activos sin inicio aprobado.
+2. **Transferencia o depósito, disponible:** abrir **Registrar pago**, seleccionar cuotas completas desde la más antigua, identificar pagador y beneficiarios, elegir el medio correcto e indicar fecha efectiva, referencia y observación. Verificar el ingreso real en banco y confirmar el total calculado. Por ahora no se adjuntan comprobantes.
+3. **Persistencia:** guardar pago confirmado, imputaciones y auditoría en una transacción. El historial muestra medio, meses, monto, pagador y administrador responsable. El correo se envía después y puede reintentarse sin cobrar ni registrar otra vez.
+4. **Efectivo, implementado en local:** elegir **Efectivo** en el mismo formulario, identificar pagador, fecha y cuotas, y confirmar **Recibí este monto completo en efectivo**. El backend genera el folio y registra como receptor al administrador autenticado. No solicita referencia bancaria y rechaza evidencia bancaria o del proveedor enviada como si fuera efectivo. El historial y el correo identifican el medio y folio propios.
+5. **Corrección:** un registro manual confirmado (banco o efectivo) se anula con motivo y auditoría y se registra correctamente; no se sobrescribe el monto. Conserva folio/evidencia y reabre únicamente sus cuotas. La anulación no devuelve dinero y nunca se aplica a Mercado Pago.
+
+No registrar manualmente como depósito una operación de Mercado Pago ya recibida. Un reintento tras timeout conserva referencia, selección y clave de idempotencia; consultar primero el intento existente. Los pagos de Mercado Pago no se anulan ni modifican mediante el flujo bancario.
+
+### Uso por el socio: Mercado Pago
+
+1. Entrar a **Mis mensualidades** (`/monthlypayments`), incluso con acceso restringido por deuda si la cuenta sigue activa.
+2. Seleccionar sus cuotas y, si es titular, las de sus cargas autorizadas. El servidor revalida identidad, períodos, orden y total.
+3. Confirmar y continuar a Mercado Pago. El backend persiste el intento antes de solicitar la preferencia.
+4. Volver a la pantalla de resultado (`/monthlypayments/return`). El retorno y sus parámetros no prueban que hubo pago: confirmar solo con evidencia verificada del proveedor.
+5. Al confirmarse, las cuotas quedan pagadas y aparecen en el historial del socio y de administración. Un pago pendiente, rechazado o abandonado no cancela deuda. Un fallo de correo no revierte un pago confirmado.
+
+Regularizar cuotas permite retirar la restricción derivada de esas deudas, si no existen otras. No borra una inactividad, una baja ni un bloqueo legado sujeto a revisión. Un pago recibido después de la baja se conserva y revisa sin reactivar automáticamente la membresía. Tras reinscripción aprobada, las anteriores impagas son histórico no exigible: no se cobran ni restringen reservas.
+
+### Creación mensual y baja: implementación local
+
+Una vez aprobada la automatización no es necesario crear manualmente cada mes. Se conserva la preparación bajo demanda. La nueva tarea recuperable se ejecuta cada hora en `America/Santiago`, incluidos cambios de mes y el inicio del día 6. **Permanece desactivada** sin aprobación explícita en `membership_billing_config.automation`, independiente del bloqueo financiero. No se agregó una variable de entorno ni se activó sobre datos reales.
+
+1. Genera cuotas de activos habilitados y vigentes con tarifa de backend e índice único socio/período. Incluye restringidos por deuda; excluye inactivos y períodos sin vigencia.
+2. Recupera ejecuciones faltantes sin duplicar. El listado no ejecuta la tarea. Una transacción por socio evita que un error interrumpa a todos.
+3. Concilia intentos inciertos de Mercado Pago antes de decidir bajas. Usa fecha efectiva del pago, no llegada del webhook. Pendientes, desconocidos o en revisión retienen la baja; un timeout no prueba cancelación.
+4. Con **tres mensualidades vencidas consecutivas de la vigencia actual**, la baja es efectiva el día 6. No cuenta noventa días. Desde las 00:00 del día 6 un pago ya está fuera del plazo del día 5.
+5. Conserva cuotas anteriores al corte. Las posteriores impagas quedan `VOID`, **Sin cobro por baja**, con motivo y fechas, sin borrarse ni aparecer pagadas. Una futura ya pagada queda en revisión, sin devolución automática.
+6. Guarda cierre, corte efectivo y auditoría deduplicada. Tras una caída recupera el corte original. Historial de vigencia ausente o pagos anulados que afectan el corte requieren revisión administrativa.
+
+**Ejemplo aprobado:** octubre vence el 5 de noviembre, noviembre el 5 de diciembre y diciembre el 5 de enero. Si esas tres cuotas siguen impagas, la baja es el **6 de enero de 2027**; conserva deuda de octubre, noviembre y diciembre y **no se cobra enero**, aunque hubiera estado habilitado los primeros cinco días. Esta regla reemplaza cualquier suposición de cobrar enero completo en ese caso.
+
+El bloqueo financiero para reservas y la baja de membresía son procesos distintos. Aprobar estas reglas no activa ninguno sobre el club; su configuración, vista previa y habilitación requieren revisión administrativa. Los administradores están exentos del bloqueo financiero y no deben quedar incluidos automáticamente en una baja masiva.
+
+### Reinscripción y períodos de vigencia
+
+- Después de la baja, pagar no reactiva al socio: necesita nueva inscripción aprobada. **No se exige pagar deuda anterior para reinscribirse.**
+- Se reutiliza el mismo socio e ID, preservando cuotas, pagos y auditoría; no se sobrescribe el inicio histórico.
+- Desde Mensualidades → detalle → **Reinscribir socio**, revisar mes actual, importe nuevo e histórico anterior, indicar motivo y confirmar con SweetAlert2. Solo aplica a bajas automáticas con cierre válido; la activación genérica no puede saltarse la aprobación.
+- La aprobación abre vigencia desde el mes actual, sin cargo extra ni meses inactivos. Las anteriores `OPEN` pasan a `ARCHIVED`, **Histórico no exigible**, con responsable, motivo y fecha: no exigen pago, no bloquean reservas y no aparecen pagadas. Los pagos reales permanecen intactos.
+- Una anulación manual posterior de un pago antiguo conserva su cuota como histórico no exigible. Un cobro tardío de MP sobre `VOID`/`ARCHIVED` queda en revisión, sin imputación automática.
+- No se habilitan pagos manuales de inactivos ni devoluciones automáticas. Los anticipos o evidencias inciertas se revisan antes de una baja.
+- Una baja manual fuera del ejemplo automático requiere un período efectivo explícito; no inferir un prorrateo o un corte distinto sin decisión administrativa.
+
+Las nuevas etapas guardan `billingPeriods` y `billingClosure` privados. Generación y cotización respetan los intervalos. Socios anteriores sin historial no se migran automáticamente: se señalan para revisión antes de una baja. No se agregó una baja manual fuera de este flujo.
+
+### Mantención operativa
+
+- **Diaria:** revisar intentos pendientes o inciertos, pagos en revisión, correos fallidos y ejecuciones incompletas. Conciliar la misma referencia antes de abrir un nuevo cobro.
+- **Mensual:** comprobar ejecución de generación, cantidades por tipo de socio y períodos, sin duplicados; desde el día 6 revisar bajas y casos retenidos. Comparar banco y Mercado Pago con el historial y conciliar efectivo por sus folios.
+- **Cambios administrativos:** registrar inicio, baja, reinscripción, tipo y asociación titular/carga con fecha/período efectivo y auditoría. No editar cuotas o pagos directamente en MongoDB como procedimiento habitual.
+- **Tarifas:** mantener versiones en `membership_billing_config`; no en React ni en variables nuevas de entorno. No reescribir pagos históricos al cambiar precios.
+- **Despliegues:** conservar evidencia de pagos, inbox y auditoría; revisar pendientes antes de una reversión. Revertir código no revierte dinero. No borrar pagos reales para limpiar pruebas.
+- **Interfaz:** respetar colores CTQ, CSS de la ventana, controles móviles legibles y SweetAlert2 para confirmaciones y errores. No agregar pantallas ni campanas de notificación a este alcance sin aprobación.
+
+### Plan de implementación y aceptación
+
+Este plan completa el trabajo pendiente de habilitación general; no reabre las etapas ya entregadas ni autoriza por sí solo cambios sobre datos reales.
+
+| Etapa | Entrega y condición de cierre |
+| --- | --- |
+| 1. Habilitación y pagos administrativos | Habilitación individual con vista previa, vigencia inicial y auditoría; efectivo con folio, receptor y total exacto; historial y corrección sin alterar Mercado Pago. Implementado y probado en local. |
+| 2. Automatización mensual y bajas | Generación recuperable, corte del día 6, futuras impagas sin cobro; cierre y reinscripción con histórico no exigible, sin meses inactivos cobrados. Implementado en local, sin activación general. |
+| 3. Piloto y liberación | Piloto/regresión y respaldo/restauración locales verificados. Revisión de solo lectura de Heroku/base/proveedor realizada el 27 de octubre; quedan inicio/vigencias, metadato `UNKNOWN` confirmado y sesión vencida por resolver. Respaldo real, despliegue y activación requieren aprobación separada. |
+
+Detalles: [etapa 1, habilitación y efectivo](docs/membership-billing-enrollment-cash-stage-1.md), [etapa 2, automatización y reinscripción](docs/membership-billing-lifecycle-stage-2.md) y [etapa 3, piloto y liberación](docs/membership-billing-release-stage-3.md). Estas tres etapas consolidan el plan operativo; no cambian la numeración histórica de las entregas originales.
+
+**Pruebas obligatorias:** pagos completos y por medio, titular/carga, idempotencia y concurrencia, privacidad, cuentas inactivas, restringidos que siguen generando, límites del día 5/6 y zona chilena, tres cuotas vencidas, enero sin cobro en el ejemplo, cuota futura ya emitida, pausas/reinscripción, evidencia de pago recibida tarde, recuperación de tareas, fallo de correo y regresión de reservas/luz/visitas. Verificar también iPhone/iPad/escritorio; una simulación no certifica Safari en un equipo físico.
+
+Las pruebas de integración requieren un replica set local aislado mediante `BILLING_TEST_MONGO_URI` y una base `ctq_billing_test_*`; no usar la URI de producción. Sin esa configuración las integraciones se omiten, no se consideran aprobadas. Proveedor y correo deben simularse salvo el piloto real autorizado explícitamente.
+
+Referencias técnicas históricas: [base de cuotas](docs/membership-billing-stage-2.md), [registro bancario e historial](docs/membership-billing-stage-3.md), [portal y Mercado Pago](docs/membership-billing-stage-4-5.md) y [criterios de liberación](docs/membership-billing-stage-5-release.md). Ante diferencias de reglas, prevalecen las decisiones fechadas de esta sección; el estado desplegado debe verificarse por separado.
 
 ## Correo
 

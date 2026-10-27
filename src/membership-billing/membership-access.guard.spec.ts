@@ -19,7 +19,8 @@ describe('Approved membership access boundary: login identity and booking capabi
   beforeEach(() => {
     portal = {
       enabled: jest.fn(() => true),
-      access: jest
+      access: jest.fn().mockRejectedValue(new Error('Provider availability must not gate access')),
+      permissions: jest
         .fn()
         .mockResolvedValue({ financiallyRestricted: false, accountActive: true, role: 'user' }),
     };
@@ -28,7 +29,7 @@ describe('Approved membership access boundary: login identity and booking capabi
   it('preserves existing behavior while the portal flag is disabled', async () => {
     portal.enabled.mockReturnValue(false);
     expect(await guard.canActivate(request('/court-reserve'))).toBe(true);
-    expect(portal.access).not.toHaveBeenCalled();
+    expect(portal.permissions).not.toHaveBeenCalled();
   });
   it.each(['/court-reserve', '/court-reserve/holds', '/booking/multiple', '/mp/init-point'])(
     'requires a JWT on booking/payment writes: %s',
@@ -48,13 +49,13 @@ describe('Approved membership access boundary: login identity and booking capabi
     await expect(
       guard.canActivate(request('/court-reserve/adminreserve', 'POST', token())),
     ).rejects.toMatchObject({ status: 403 });
-    portal.access.mockResolvedValue({ role: 'admin', financiallyRestricted: false });
+    portal.permissions.mockResolvedValue({ role: 'admin', financiallyRestricted: false });
     expect(await guard.canActivate(request('/court-reserve/adminreserve', 'POST', token()))).toBe(
       true,
     );
   });
   it('allows a debtor to use only dues, checkout, own status and reconciliation routes', async () => {
-    portal.access.mockResolvedValue({
+    portal.permissions.mockResolvedValue({
       role: 'user',
       financiallyRestricted: true,
       reason: 'OVERDUE_DUES',
@@ -81,7 +82,7 @@ describe('Approved membership access boundary: login identity and booking capabi
   it('does not revoke identity for a debtor at login or checkBlocked', async () => {
     expect(await guard.canActivate(request('/auth/login'))).toBe(true);
     expect(await guard.canActivate(request('/auth/checkBlocked'))).toBe(true);
-    expect(portal.access).not.toHaveBeenCalled();
+    expect(portal.permissions).not.toHaveBeenCalled();
   });
   it('leaves internal callbacks to their mandatory internal-key guards', async () => {
     expect(await guard.canActivate(request('/membership-billing/internal/mercado-pago'))).toBe(
@@ -92,9 +93,16 @@ describe('Approved membership access boundary: login identity and booking capabi
     );
   });
   it('rechecks account activity on every authenticated operation, including the portal', async () => {
-    portal.access.mockRejectedValue(Object.assign(new Error('inactive'), { status: 403 }));
+    portal.permissions.mockRejectedValue(Object.assign(new Error('inactive'), { status: 403 }));
     await expect(
       guard.canActivate(request('/membership-billing/me/dues', 'POST', token())),
     ).rejects.toMatchObject({ status: 403 });
+  });
+  it('checks permissions without provider availability on authenticated reads', async () => {
+    expect(
+      await guard.canActivate(request('/membership-billing/admin/members', 'GET', token())),
+    ).toBe(true);
+    expect(portal.permissions).toHaveBeenCalledWith('member@example.invalid');
+    expect(portal.access).not.toHaveBeenCalled();
   });
 });

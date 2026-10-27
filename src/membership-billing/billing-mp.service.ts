@@ -326,15 +326,27 @@ export class MembershipMpService {
   }
 
   async reconcile(email: string, reference: string) {
-    const settings = this.settings();
     await this.state(email, reference);
     const actor = await this.actor(email);
+    await this.requestReconciliation(reference, actor._id);
+    return this.state(email, reference);
+  }
+
+  // Internal worker only: evidence still comes from the authenticated payment service.
+  async reconcileForBilling(reference: string) {
+    this.reference(reference);
+    await this.requestReconciliation(reference);
+  }
+
+  private async requestReconciliation(reference: string, payerId?: unknown) {
+    const settings = this.settings();
     const now = this.clock();
     const payment = await this.payments
       .findOneAndUpdate(
         {
           publicReference: reference,
-          'payer.memberId': actor._id,
+          method: 'MERCADO_PAGO',
+          ...(payerId ? { 'payer.memberId': payerId } : {}),
           $or: [
             { 'checkout.lastReconciledAt': { $exists: false } },
             { 'checkout.lastReconciledAt': { $lt: new Date(now.getTime() - 15000) } },
@@ -344,7 +356,7 @@ export class MembershipMpService {
         { new: true },
       )
       .lean();
-    if (!payment) return this.state(email, reference);
+    if (!payment) return;
     const response = await axios.post(
       `${settings.base}/membership/reconcile`,
       { reference },
@@ -375,7 +387,6 @@ export class MembershipMpService {
           );
       });
     }
-    return this.state(email, reference);
   }
 
   async receive(paymentId: string) {

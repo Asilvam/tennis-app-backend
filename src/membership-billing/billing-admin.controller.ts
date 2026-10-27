@@ -18,6 +18,7 @@ import { BillingAdminService } from './billing-admin.service';
 import { BillingAdminQueryDto, PrepareAdminDuesDto } from './dto/billing-admin-query.dto';
 import { RegisterBankPaymentDto, ReverseBankPaymentDto } from './dto/register-bank-payment.dto';
 import { SelectMembershipDuesDto } from './dto/select-membership-dues.dto';
+import { EnrollMembershipDto, PreviewMembershipEnrollmentDto } from './dto/enroll-membership.dto';
 
 type AdminRequest = { user: { email: string; role: string } };
 
@@ -47,9 +48,47 @@ export class BillingAdminController {
     return this.billing.quote(request.user.email, body.dueIds);
   }
 
+  @Post('members/:id/enrollment/preview')
+  previewEnrollment(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @Body() body: PreviewMembershipEnrollmentDto,
+  ) {
+    return this.billing.previewEnrollment(request.user.email, id, body.startPeriod);
+  }
+
+  @Post('members/:id/enrollment')
+  enroll(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @Body() body: EnrollMembershipDto,
+    @Headers('idempotency-key') key: string,
+  ) {
+    return this.billing.enroll(request.user.email, id, body, key);
+  }
+
   @Get('payments')
   history(@Req() request: AdminRequest, @Query() query: BillingAdminQueryDto) {
     return this.billing.history(request.user.email, query);
+  }
+
+  @Post('members/:id/reenrollment/preview')
+  previewReenrollment(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @Body() body: PreviewMembershipEnrollmentDto,
+  ) {
+    return this.billing.previewEnrollment(request.user.email, id, body.startPeriod, true);
+  }
+
+  @Post('members/:id/reenrollment')
+  reenroll(
+    @Req() request: AdminRequest,
+    @Param('id') id: string,
+    @Body() body: EnrollMembershipDto,
+    @Headers('idempotency-key') key: string,
+  ) {
+    return this.billing.enroll(request.user.email, id, body, key, true);
   }
 
   @Post('payments')

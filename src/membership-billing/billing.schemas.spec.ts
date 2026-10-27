@@ -65,6 +65,44 @@ describe('Membership schemas (validation only; no connection)', () => {
     await expect(row.validate()).resolves.toBeUndefined();
     expect(row.status).toBe('OPEN');
   });
+  it('requires auditable void evidence without pretending the due was paid', async () => {
+    await expect(new Due({ ...due(), status: 'VOID' }).validate()).rejects.toThrow();
+    const voided = { at: new Date(), effectiveAt: new Date(), reason: 'MEMBERSHIP_TERMINATED' };
+    await expect(new Due({ ...due(), status: 'VOID', voided }).validate()).resolves.toBeUndefined();
+    await expect(
+      new Due({ ...due(), status: 'VOID', voided, paidAt: new Date() }).validate(),
+    ).rejects.toThrow();
+    await expect(new Due({ ...due(), status: 'OPEN', voided }).validate()).rejects.toThrow();
+  });
+  it('keeps non-collectible history distinct from a paid or void due', async () => {
+    await expect(new Due({ ...due(), status: 'ARCHIVED' }).validate()).rejects.toThrow();
+    const archive = {
+      at: new Date(),
+      approvedBy: id,
+      reason: 'Reinscripcion aprobada',
+      reenrollmentPeriod: '2027-03',
+    };
+    await expect(
+      new Due({ ...due(), status: 'ARCHIVED', archive }).validate(),
+    ).resolves.toBeUndefined();
+    await expect(
+      new Due({ ...due(), status: 'ARCHIVED', archive, settlementPaymentId: id }).validate(),
+    ).rejects.toThrow();
+    await expect(new Due({ ...due(), status: 'OPEN', archive }).validate()).rejects.toThrow();
+  });
+  it('keeps automation disabled by absence and requires explicit review and approval', async () => {
+    expect(new Config(proposedBillingConfiguration()).automation).toBeUndefined();
+    await expect(
+      new Config({ ...proposedBillingConfiguration(), automation: { enabled: true } }).validate(),
+    ).rejects.toThrow();
+    await expect(
+      new Config({
+        ...proposedBillingConfiguration(),
+        activation: { migrationReviewed: true },
+        automation: { enabled: true, approvedAt: new Date(), approvedBy: 'admin@example.invalid' },
+      }).validate(),
+    ).resolves.toBeUndefined();
+  });
   it.each([
     { amount: 1.2 },
     { amount: 0 },
@@ -121,6 +159,25 @@ describe('Membership schemas (validation only; no connection)', () => {
         bank: { reference: 'bank-123', receivedAt: new Date() },
       }).validate(),
     ).resolves.toBeUndefined();
+  });
+  it('requires cash receipt and responsible admin without accepting bank or provider evidence', async () => {
+    const data = {
+      ...payment(),
+      method: 'CASH',
+      status: 'CONFIRMED',
+      paidAt: new Date(),
+      confirmedAt: new Date(),
+      registeredBy: id,
+    };
+    await expect(new Payment(data).validate()).rejects.toThrow();
+    const cash = { receiptNumber: 'CTQ-fixture', receivedAt: new Date() };
+    await expect(new Payment({ ...data, cash }).validate()).resolves.toBeUndefined();
+    await expect(
+      new Payment({ ...data, cash, bank: { reference: 'fake' } }).validate(),
+    ).rejects.toThrow();
+    await expect(
+      new Payment({ ...data, cash, provider: { name: 'MERCADO_PAGO' } }).validate(),
+    ).rejects.toThrow();
   });
   it('requires traceable evidence for reversal instead of erasing a payment', async () => {
     await expect(new Payment({ ...payment(), status: 'REVERSED' }).validate()).rejects.toThrow();

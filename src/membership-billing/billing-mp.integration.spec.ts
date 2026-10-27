@@ -97,6 +97,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       }
       const portalProxy = {
         enabled: () => portal.enabled(),
+        permissions: (email: string) => portal.permissions(email),
         access: (email: string) => portal.access(email),
         home: (email: string, through?: string) => portal.home(email, through),
         history: (email: string, id?: string, page?: number) => portal.history(email, id, page),
@@ -174,7 +175,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         MP_API_URL: 'http://127.0.0.1:8099/mercadopago',
         INTERNAL_API_KEY: 'isolated-internal-key',
       };
-      core = new MembershipBillingService(dues, payments, configs, members, () => now);
+      core = new MembershipBillingService(dues, payments, configs, members, () => now, audit);
       mp = new MembershipMpService(core, cfg, payments, dues, members, audit, () => now);
       portal = new BillingPortalService(core, cfg, members, dues, configs, () => now, mp);
       bank = new BillingAdminService(core, dues, payments, configs, members, audit, () => now);
@@ -345,6 +346,21 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       );
       expect(await dues.countDocuments({ status: 'PAID' })).toBe(2);
     });
+    it('keeps a provider capture for review if a due was excluded by termination', async () => {
+      await checkout();
+      await dues.updateOne(
+        { beneficiaryId: own },
+        {
+          $set: {
+            status: 'VOID',
+            voided: { at: now, effectiveAt: now, reason: 'MEMBERSHIP_TERMINATED' },
+          },
+        },
+      );
+      expect((await mp.receive('123')).status).toBe('REVIEW_REQUIRED');
+      expect(await dues.countDocuments({ status: 'PAID' })).toBe(0);
+      expect(await payments.countDocuments({ status: 'REVIEW_REQUIRED' })).toBe(1);
+    });
     it('does not partially allocate captured funds if a bank payment already settled one due', async () => {
       await checkout();
       await bank.registerBankPayment(
@@ -436,6 +452,27 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         '2026-11',
         '2026-12',
       ]);
+    });
+    it('does not wait for payment-provider availability on ordinary authenticated operations', async () => {
+      const get = jest.mocked(axios.get);
+      get.mockRejectedValue(new Error('simulated provider outage'));
+      expect((await call('/court-reserve', {})).status).toBe(201);
+      expect(get).not.toHaveBeenCalled();
+      const access = await call('/membership-billing/me/access');
+      expect(access.status).toBe(200);
+      expect(access.body.mpEnabled).toBe(false);
+      expect(get).toHaveBeenCalledTimes(1);
+    });
+    it('still denies debtors booking access while the payment provider is unavailable', async () => {
+      const get = jest.mocked(axios.get);
+      get.mockRejectedValue(new Error('simulated provider outage'));
+      await configs.updateOne(
+        {},
+        { $set: { autoBlockEnabled: true, 'activation.migrationReviewed': true } },
+      );
+      now = new Date('2026-11-06T15:00:00Z');
+      expect((await call('/court-reserve', {})).status).toBe(403);
+      expect(get).not.toHaveBeenCalled();
     });
     it('retains manual inactive state and restricts legacy financial access without changing flags', async () => {
       await members.updateOne({ _id: own }, { $set: { updatePayment: false } });

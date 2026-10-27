@@ -24,7 +24,7 @@ export class BillingNotificationsService {
     if (this.running) return;
     const methods =
       this.config.get<string>('MEMBERSHIP_BILLING_ADMIN_ENABLED') === 'true'
-        ? ['BANK_TRANSFER', 'BANK_DEPOSIT', 'MERCADO_PAGO']
+        ? ['BANK_TRANSFER', 'BANK_DEPOSIT', 'CASH', 'MERCADO_PAGO']
         : ['MERCADO_PAGO'];
     this.running = true;
     try {

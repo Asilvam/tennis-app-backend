@@ -47,6 +47,13 @@ export class BillingPortalService {
   }
 
   async access(email: string) {
+    return {
+      ...(await this.permissions(email)),
+      mpEnabled: this.mp ? await this.mp.available() : false,
+    };
+  }
+
+  async permissions(email: string) {
     const actor = await this.actor(email);
     const config = await this.configs.findOne({ key: BILLING_CONFIG_KEY }).lean();
     if (!config)
@@ -73,7 +80,6 @@ export class BillingPortalService {
       name: actor.namePlayer,
       role: actor.role,
       memberId: String(actor._id),
-      mpEnabled: this.mp ? await this.mp.available() : false,
     };
   }
 

@@ -9,6 +9,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { Register } from '../register/entities/register.entity';
+import { AuditLog } from '../audit-log/entities/audit-log.entity';
 import { MembershipDue } from './entities/membership-due.entity';
 import { MembershipPayment } from './entities/membership-payment.entity';
 import { MembershipBillingConfig } from './entities/membership-billing-config.entity';
@@ -29,6 +30,7 @@ import {
   assertPeriod,
   dueAt,
   financialAccess,
+  isBillablePeriod,
   monthAt,
   periodsBetween,
   priceFor,
@@ -45,6 +47,7 @@ export class MembershipBillingService {
     private readonly configs: Model<MembershipBillingConfig>,
     @InjectModel(Register.name) private readonly members: Model<Register>,
     @Inject(BILLING_CLOCK) private readonly clock: () => Date,
+    @InjectModel(AuditLog.name) private readonly audit: Model<AuditLog>,
   ) {}
 
   private async configuration(session?: ClientSession): Promise<BillingConfiguration> {
@@ -62,6 +65,7 @@ export class MembershipBillingService {
     assertMemberId(id);
     const member = await this.members
       .findById(id)
+      .select('+billingPeriods')
       .session(session || null)
       .lean()
       .exec();
@@ -69,12 +73,13 @@ export class MembershipBillingService {
     return member;
   }
 
-  private async ensureMemberDues(
+  async ensureMemberDues(
     member: BillingMember,
     through: string,
     config: BillingConfiguration,
     session: ClientSession,
   ) {
+    assertPeriod(through);
     const start = assertBillingStart(member, config);
     if (!member.statePlayer)
       throw new ConflictException(
@@ -87,8 +92,60 @@ export class MembershipBillingService {
     if (lock.matchedCount !== 1)
       throw new ConflictException('El socio cambio durante la operacion.');
     for (const period of periodsBetween(start, through)) {
-      const exists = await this.dues.exists({ beneficiaryId: member._id, period }).session(session);
-      if (exists) continue;
+      if (!isBillablePeriod(member, period)) continue;
+      const exists = await this.dues
+        .findOne({ beneficiaryId: member._id, period })
+        .session(session)
+        .lean();
+      if (exists) {
+        const interval = member.billingPeriods?.find(
+          (row, index) =>
+            index > 0 &&
+            row.fromPeriod <= period &&
+            (!row.throughPeriod || row.throughPeriod >= period),
+        );
+        if (
+          exists.status === 'VOID' &&
+          exists.voided?.reason === 'MEMBERSHIP_TERMINATED' &&
+          interval
+        ) {
+          if (!interval.approvedAt || !interval.approvedBy)
+            throw new ConflictException('La reinscripcion requiere evidencia administrativa.');
+          const now = this.clock();
+          const price = priceFor(member, period, config);
+          // Reopen only months covered by an explicitly approved new validity interval.
+          const reopened = await this.dues.collection.updateOne(
+            { _id: exists._id, status: 'VOID' },
+            {
+              $set: { status: 'OPEN', ...price, updatedAt: now },
+              $unset: { voided: '' },
+            },
+            { session },
+          );
+          if (reopened.modifiedCount !== 1)
+            throw new ConflictException('La cuota cambio durante la recuperacion de vigencia.');
+          await this.audit.create(
+            [
+              {
+                eventId: `membership:future-due:${exists._id}:${interval.fromPeriod}`,
+                entityType: 'MEMBERSHIP_PAYMENT',
+                entityId: String(exists._id),
+                action: 'STATE_CHANGE',
+                performedBy: 'SYSTEM',
+                performedByUser: 'Mensualidades CTQ',
+                timestamp: now,
+                description:
+                  'Cuota futura reabierta por vigencia de reinscripcion aprobada, sin registrar dinero.',
+                beforeData: exists,
+                afterData: { status: 'OPEN', ...price, approvedInterval: interval },
+                metadata: { reason: 'MEMBERSHIP_REENROLLMENT_FUTURE_DUE' },
+              },
+            ],
+            { session },
+          );
+        }
+        continue;
+      }
       const price = priceFor(member, period, config);
       await this.dues
         .updateOne(
@@ -116,24 +173,34 @@ export class MembershipBillingService {
     assertPeriod(through);
     if (through > addMonths(monthAt(now), 3))
       throw new BadRequestException('Solo puedes adelantar tres meses ademas del actual.');
-    return this.dues.db.transaction(async (session) => {
-      const actor = await this.member(actorId, session);
-      const beneficiary = await this.member(beneficiaryId, session);
-      assertCanManage(actor, beneficiary);
-      assertPaymentPeriod(through, now, actor.role);
-      const config = await this.configuration(session);
-      if (through < assertBillingStart(beneficiary, config))
-        throw new BadRequestException('Periodo anterior al inicio de facturacion del socio.');
-      if (actorId !== beneficiaryId)
-        await this.members.updateOne({ _id: actor._id }, { $inc: { __v: 1 } }, { session }).exec();
-      await this.ensureMemberDues(beneficiary, through, config, session);
-      return this.dues
-        .find({ beneficiaryId: beneficiary._id, period: { $lte: through } })
-        .session(session)
-        .sort({ period: 1 })
-        .lean()
-        .exec();
-    });
+    return this.dues.db.transaction((session) =>
+      this.prepareDuesInSession(actorId, beneficiaryId, through, session, now),
+    );
+  }
+
+  async prepareDuesInSession(
+    actorId: string,
+    beneficiaryId: string,
+    through: string,
+    session: ClientSession,
+    now: Date,
+  ) {
+    const actor = await this.member(actorId, session);
+    const beneficiary = await this.member(beneficiaryId, session);
+    assertCanManage(actor, beneficiary);
+    assertPaymentPeriod(through, now, actor.role);
+    const config = await this.configuration(session);
+    if (through < assertBillingStart(beneficiary, config))
+      throw new BadRequestException('Periodo anterior al inicio de facturacion del socio.');
+    if (actorId !== beneficiaryId)
+      await this.members.updateOne({ _id: actor._id }, { $inc: { __v: 1 } }, { session }).exec();
+    await this.ensureMemberDues(beneficiary, through, config, session);
+    return this.dues
+      .find({ beneficiaryId: beneficiary._id, period: { $lte: through } })
+      .session(session)
+      .sort({ period: 1 })
+      .lean()
+      .exec();
   }
 
   async quote(actorId: string, dueIds: string[]) {
@@ -176,6 +243,12 @@ export class MembershipBillingService {
     for (const id of beneficiaryIds.sort()) {
       const beneficiary = await this.member(id, session);
       assertCanManage(actor, beneficiary);
+      if (
+        selected.some(
+          (row) => String(row.beneficiaryId) === id && !isBillablePeriod(beneficiary, row.period),
+        )
+      )
+        throw new ConflictException('Una cuota seleccionada esta fuera de la vigencia del socio.');
       const through = selected
         .filter((row) => String(row.beneficiaryId) === id)
         .map((row) => row.period)

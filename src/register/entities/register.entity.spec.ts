@@ -79,6 +79,11 @@ describe('Register Entity & Schema', () => {
     expect(user.role).toBe('profesor');
   });
 
+  it('keeps billing approval history private and absent on legacy records by default', () => {
+    expect(RegisterSchema.path('billingPeriods').options.select).toBe(false);
+    const member = new RegisterModel({ namePlayer: 'Fixture', email: 'fixture@example.invalid', cellular: 'fixture', pwd: 'fixture' });
+    expect(member.billingPeriods).toBeUndefined();
+  });
   it('stores a stable ObjectId reference to the titular', () => {
     const user = new RegisterModel({ namePlayer: 'Member', email: 'member@test.cl', cellular: '123', pwd: 'hashed', partnerType: 'Carga', titularId: '000000000000000000000002' });
     expect(user.validateSync()).toBeUndefined();

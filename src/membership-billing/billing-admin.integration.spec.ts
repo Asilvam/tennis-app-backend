@@ -99,7 +99,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         await model.createCollection();
         await model.createIndexes();
       }
-      core = new MembershipBillingService(dues, payments, configs, members, () => now);
+      core = new MembershipBillingService(dues, payments, configs, members, () => now, audit);
       admin = new BillingAdminService(core, dues, payments, configs, members, audit, () => now);
       worker = new BillingNotificationsService(payments, email as any, config as any, () => now);
       const module = await Test.createTestingModule({
@@ -553,6 +553,258 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       await expect(admin.memberDues(adminEmail, titularId, '2027-02')).rejects.toMatchObject({
         status: 400,
       });
+    });
+    const unenrolled = async (id = titularId) => {
+      await members.updateOne({ _id: id }, { $unset: { billingStartPeriod: 1 } });
+      return id;
+    };
+    const enrollment = async (id = titularId, startPeriod = '2026-10') => {
+      const preview = await call(`members/${id}/enrollment/preview`, { startPeriod });
+      expect(preview.status).toBe(201);
+      return {
+        startPeriod,
+        approvalHash: preview.body.approvalHash,
+        reason: 'Inicio aprobado en prueba aislada',
+      };
+    };
+    const cashDraft = async () => {
+      const body = await draft({ method: 'CASH' });
+      delete body.reference;
+      return body;
+    };
+    it('previews enrollment without writing dues, payments, activity or audit', async () => {
+      await unenrolled();
+      const before = await members.findById(titularId).lean();
+      const result = await call(`members/${titularId}/enrollment/preview`, {
+        startPeriod: '2026-10',
+      });
+      expect(result.status).toBe(201);
+      expect(result.body).toMatchObject({ total: 180, currency: 'CLP', startPeriod: '2026-10' });
+      expect(result.body.rows).toHaveLength(1);
+      expect(result.body.rows[0].pricingMode).toBe('TEST');
+      expect(await dues.countDocuments()).toBe(0);
+      expect(await payments.countDocuments()).toBe(0);
+      expect(await audit.countDocuments()).toBe(0);
+      expect(await members.findById(titularId).lean()).toEqual(before);
+    });
+    it('enrolls only the approved member with history and OPEN dues, never a fake payment', async () => {
+      await unenrolled();
+      await members.updateOne({ _id: titularId }, { $set: { updatePayment: false } });
+      const body = await enrollment();
+      const result = await call(`members/${titularId}/enrollment`, body);
+      expect(result.status).toBe(201);
+      expect(result.body).toMatchObject({ createdDues: 1, total: 180, duplicate: false });
+      const member = await members.findById(titularId).select('+billingPeriods').lean();
+      expect(member).toMatchObject({
+        statePlayer: true,
+        updatePayment: false,
+        billingStartPeriod: '2026-10',
+      });
+      expect(member.billingPeriods).toHaveLength(1);
+      expect(member.billingPeriods[0].fromPeriod).toBe('2026-10');
+      expect(String(member.billingPeriods[0].approvedBy)).toBe(adminId);
+      expect(member.billingBaseline.throughPeriod).toBe('2026-09');
+      expect(await dues.countDocuments({ status: 'OPEN' })).toBe(1);
+      expect(await dues.countDocuments({ beneficiaryId: cargaId })).toBe(0);
+      expect(await payments.countDocuments()).toBe(0);
+      expect(await audit.countDocuments({ 'metadata.reason': 'MEMBERSHIP_ENROLLMENT' })).toBe(1);
+      const detail = await call(`members/${titularId}`);
+      expect(detail.body.members[0].billingPeriods[0].fromPeriod).toBe('2026-10');
+    });
+    it('deduplicates simultaneous enrollment and rejects a reused key with changed content', async () => {
+      await unenrolled();
+      const body = await enrollment();
+      const results = await Promise.all([
+        call(`members/${titularId}/enrollment`, body),
+        call(`members/${titularId}/enrollment`, body),
+      ]);
+      expect(results.map((row) => row.status)).toEqual([201, 201]);
+      expect(results.map((row) => row.body.duplicate).sort()).toEqual([false, true]);
+      expect(await dues.countDocuments()).toBe(1);
+      expect(await audit.countDocuments()).toBe(1);
+      expect(
+        (await call(`members/${titularId}/enrollment`, { ...body, reason: 'Otra razon valida' }))
+          .status,
+      ).toBe(409);
+      expect(
+        (await call(`members/${titularId}/enrollment/preview`, { startPeriod: '2026-10' })).status,
+      ).toBe(409);
+    });
+    it('refuses stale enrollment prices and rolls back everything if audit fails', async () => {
+      await unenrolled();
+      const body = await enrollment();
+      await configs.updateOne({}, { $set: { 'testPricing.titular': 181 } });
+      expect((await call(`members/${titularId}/enrollment`, body)).status).toBe(409);
+      expect((await members.findById(titularId)).billingStartPeriod).toBeUndefined();
+      const fresh = await enrollment();
+      const spy = jest
+        .spyOn(audit, 'create')
+        .mockRejectedValueOnce(new Error('isolated enrollment audit failure') as never);
+      try {
+        await expect(admin.enroll(adminEmail, titularId, fresh, key())).rejects.toThrow(
+          'isolated enrollment audit failure',
+        );
+      } finally {
+        spy.mockRestore();
+      }
+      expect((await members.findById(titularId)).billingStartPeriod).toBeUndefined();
+      expect(await dues.countDocuments()).toBe(0);
+      expect(await audit.countDocuments()).toBe(0);
+    });
+    it('validates enrollment period, activity, parent association, role and strict request fields', async () => {
+      await unenrolled();
+      for (const startPeriod of ['2026-09', '2026-11', '2026-13'])
+        expect(
+          (await call(`members/${titularId}/enrollment/preview`, { startPeriod })).status,
+        ).toBe(400);
+      expect(
+        (
+          await call(`members/${titularId}/enrollment/preview`, {
+            startPeriod: '2026-10',
+            amount: 1,
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await call(
+            `members/${titularId}/enrollment/preview`,
+            { startPeriod: '2026-10' },
+            token('test1@example.invalid', 'user'),
+          )
+        ).status,
+      ).toBe(403);
+      await members.updateOne({ _id: titularId }, { $set: { statePlayer: false } });
+      expect(
+        (await call(`members/${titularId}/enrollment/preview`, { startPeriod: '2026-10' })).status,
+      ).toBe(409);
+      await unenrolled(cargaId);
+      await members.updateOne({ _id: cargaId }, { $unset: { titularId: 1 } });
+      expect(
+        (await call(`members/${cargaId}/enrollment/preview`, { startPeriod: '2026-10' })).status,
+      ).toBe(409);
+      expect(await dues.countDocuments()).toBe(0);
+    });
+    it('prices linked carga enrollment at 50 and ordinary membership at the real rate', async () => {
+      await unenrolled(cargaId);
+      const carga = await call(`members/${cargaId}/enrollment/preview`, { startPeriod: '2026-10' });
+      expect(carga.body.total).toBe(50);
+      await unenrolled();
+      await configs.updateOne({}, { $set: { 'testPricing.enabled': false } });
+      const titular = await call(`members/${titularId}/enrollment/preview`, {
+        startPeriod: '2026-10',
+      });
+      expect(titular.body.total).toBe(18000);
+      expect(titular.body.rows[0].pricingMode).toBe('STANDARD');
+    });
+    it('never resets existing financial records to approve a new billing start', async () => {
+      await draft();
+      await unenrolled();
+      expect(
+        (await call(`members/${titularId}/enrollment/preview`, { startPeriod: '2026-10' })).status,
+      ).toBe(409);
+      expect(await dues.countDocuments()).toBe(2);
+    });
+    it('records cash with its own folio, responsible admin, email and filtered history', async () => {
+      const result = await call('payments', await cashDraft());
+      expect(result.status).toBe(201);
+      const payment = await payments.findById(result.body.id);
+      expect(payment.method).toBe('CASH');
+      expect(payment.cash.receiptNumber).toMatch(/^CTQ-/);
+      expect(payment.bank).toBeUndefined();
+      expect(payment.provider).toBeUndefined();
+      expect(String(payment.registeredBy)).toBe(adminId);
+      expect(await dues.countDocuments({ status: 'PAID' })).toBe(2);
+      expect((await call('payments?method=CASH')).body.items[0].cash.receiptNumber).toBe(
+        payment.cash.receiptNumber,
+      );
+      expect((await call('payments?method=BANK_DEPOSIT')).body.total).toBe(0);
+      await worker.drain();
+      expect(email.sendEmail.mock.calls[0][0].html).toContain('Efectivo');
+      expect(email.sendEmail.mock.calls[0][0].html).toContain('Folio de efectivo');
+      expect((await payments.findById(result.body.id)).notifications[0].status).toBe('SENT');
+    });
+    it('deduplicates cash retries and reverses only its own allocations without deleting evidence', async () => {
+      const body = await cashDraft();
+      const outcomes = await Promise.all([call('payments', body), call('payments', body)]);
+      expect(outcomes.map((row) => row.status)).toEqual([201, 201]);
+      expect(await payments.countDocuments()).toBe(1);
+      const id = outcomes[0].body.id;
+      const folio = (await payments.findById(id)).cash.receiptNumber;
+      const reversed = await call(
+        `payments/${id}/reversal`,
+        { reason: 'Correccion de efectivo de prueba' },
+        token(),
+        key('cash-reversal'),
+      );
+      expect(reversed.status).toBe(201);
+      expect((await payments.findById(id)).cash.receiptNumber).toBe(folio);
+      expect((await payments.findById(id)).status).toBe('REVERSED');
+      expect(await dues.countDocuments({ status: 'OPEN' })).toBe(2);
+    });
+    it('rejects incomplete cash, bank evidence and client-supplied receipt/admin fields', async () => {
+      const body = await cashDraft();
+      for (const change of [
+        { amount: 229 },
+        { verified: false },
+        { reference: 'FAKE-BANK' },
+        { cash: { receiptNumber: 'FAKE' } },
+        { registeredBy: adminId },
+      ])
+        expect((await call('payments', { ...body, ...change })).status).toBe(400);
+      expect(await payments.countDocuments()).toBe(0);
+      expect(await dues.countDocuments({ status: 'OPEN' })).toBe(2);
+    });
+    it('generates only approved intervals and never fills inactive gaps', async () => {
+      now = new Date('2026-12-17T15:00:00Z');
+      const approval = {
+        approvedBy: new mongoose.Types.ObjectId(adminId),
+        approvedAt: now,
+        reason: 'Vigencia de prueba aislada',
+      };
+      await members.updateOne(
+        { _id: titularId },
+        {
+          $set: {
+            billingPeriods: [
+              { ...approval, fromPeriod: '2026-10', throughPeriod: '2026-10' },
+              { ...approval, fromPeriod: '2026-12' },
+            ],
+          },
+        },
+      );
+      const rows = await core.prepareDues(adminId, titularId);
+      expect(rows.map((row) => row.period)).toEqual(['2026-10', '2026-12']);
+      expect((await members.findById(titularId).lean()).billingPeriods).toBeUndefined();
+      const copy = rows[0];
+      const invalid = await dues.create({
+        ...copy,
+        _id: new mongoose.Types.ObjectId(),
+        period: '2026-11',
+      });
+      await expect(core.quote(adminId, [String(invalid._id)])).rejects.toMatchObject({
+        status: 409,
+      });
+      await members.updateOne({ _id: titularId }, { $set: { statePlayer: false } });
+      await expect(core.prepareDues(adminId, titularId, '2027-01')).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(await dues.countDocuments({ period: '2027-01' })).toBe(0);
+    });
+    it('rolls back cash and all allocations if the mandatory audit fails', async () => {
+      const body = await cashDraft();
+      const spy = jest
+        .spyOn(audit, 'create')
+        .mockRejectedValueOnce(new Error('isolated cash audit failure') as never);
+      try {
+        await expect(admin.registerBankPayment(adminEmail, body, key())).rejects.toThrow(
+          'isolated cash audit failure',
+        );
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await payments.countDocuments()).toBe(0);
+      expect(await dues.countDocuments({ status: 'PAID' })).toBe(0);
     });
     it('searches literal names safely and validates query pagination', async () => {
       expect((await call('members?search=usuario%20test')).body.total).toBe(2);

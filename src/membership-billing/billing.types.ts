@@ -4,8 +4,8 @@ export const BILLING_START_PERIOD = '2026-10';
 
 export type PricingMode = 'STANDARD' | 'TEST';
 export type BillingMemberType = 'TITULAR' | 'CARGA';
-export type DueStatus = 'OPEN' | 'PAID';
-export type PaymentMethod = 'MERCADO_PAGO' | 'BANK_TRANSFER' | 'BANK_DEPOSIT';
+export type DueStatus = 'OPEN' | 'PAID' | 'VOID' | 'ARCHIVED';
+export type PaymentMethod = 'MERCADO_PAGO' | 'BANK_TRANSFER' | 'BANK_DEPOSIT' | 'CASH';
 export type PaymentStatus =
   'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'REVIEW_REQUIRED' | 'REVERSED';
 
@@ -18,6 +18,13 @@ export interface BillingMember {
   partnerType: string;
   titularId?: unknown;
   billingStartPeriod?: string;
+  billingPeriods?: {
+    fromPeriod: string;
+    throughPeriod?: string;
+    approvedAt?: Date;
+    approvedBy?: unknown;
+    reason?: string;
+  }[];
 }
 
 export interface TariffVersion {
@@ -36,6 +43,7 @@ export interface BillingConfiguration {
   maxAdvanceMonths: number;
   autoBlockEnabled: boolean;
   activation?: { migrationReviewed?: boolean };
+  automation?: { enabled: boolean; approvedAt?: Date; approvedBy?: string };
   tariffVersions: TariffVersion[];
   testPricing: { enabled: boolean; memberIds: string[]; titular: number; carga: number };
 }
@@ -49,6 +57,7 @@ export interface BillingDue {
   amount: number;
   currency: string;
   pricingMode: PricingMode;
+  paidAt?: Date;
 }
 
 // A proposal only: callers must explicitly approve and persist configuration/baselines.

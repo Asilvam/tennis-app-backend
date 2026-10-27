@@ -53,6 +53,42 @@ export class Register {
   @Prop({ required: false, match: /^[2-9]\d{3}-(0[1-9]|1[0-2])$/ })
   billingStartPeriod?: string;
 
+  @Prop({
+    type: [{
+      _id: false,
+      fromPeriod: { type: String, required: true, match: /^[2-9]\d{3}-(0[1-9]|1[0-2])$/ },
+      throughPeriod: { type: String, match: /^[2-9]\d{3}-(0[1-9]|1[0-2])$/ },
+      approvedAt: { type: Date, required: true },
+      approvedBy: { type: MongooseSchema.Types.ObjectId, required: true },
+      reason: { type: String, required: true, minlength: 5, maxlength: 1000 },
+      closedAt: Date,
+      closureReason: String,
+    }],
+    default: undefined,
+    select: false,
+  })
+  billingPeriods?: {
+    fromPeriod: string;
+    throughPeriod?: string;
+    approvedAt: Date;
+    approvedBy: Types.ObjectId;
+    reason: string;
+    closedAt?: Date;
+    closureReason?: string;
+  }[];
+
+  @Prop({
+    type: { throughPeriod: String, effectiveAt: Date, processedAt: Date, reason: String },
+    _id: false,
+    select: false,
+  })
+  billingClosure?: {
+    throughPeriod: string;
+    effectiveAt: Date;
+    processedAt: Date;
+    reason: string;
+  };
+
   @Prop({ type: { throughPeriod: String, migrationId: String, establishedAt: Date, establishedBy: String }, required: false, _id: false })
   billingBaseline?: { throughPeriod: string; migrationId: string; establishedAt: Date; establishedBy: string };
 

@@ -43,6 +43,17 @@ function fixture(type = TipoSocio.TITULAR) {
 }
 
 describe('Administrative member associations', () => {
+  it('requires reenrollment instead of a generic active flag after billing termination', async () => {
+    const { service, rows, model } = fixture();
+    rows()[0].billingClosure = { reason: 'THREE_CONSECUTIVE_OVERDUE' };
+    await expect(service.updateAdminByEmail('member@test.cl', { statePlayer: true })).rejects.toBeInstanceOf(ConflictException);
+    expect(model.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+  it('retains normal activation for non-terminated accounts and serializes it in a transaction', async () => {
+    const { service, model } = fixture();
+    await expect(service.updateAdminByEmail('member@test.cl', { statePlayer: true })).resolves.toMatchObject({ statePlayer: true });
+    expect(model.db.transaction).toHaveBeenCalledTimes(1);
+  });
   it('assigns a carga and its titular in the same transaction, preserving role and access flags', async () => {
     const { service, model, session } = fixture();
     const result = await service.updateAdminByEmail(' member@test.cl ', { partnerType: TipoSocio.CARGA, titularId, namePlayer: 'Updated' });

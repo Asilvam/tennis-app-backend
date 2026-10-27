@@ -8,7 +8,9 @@ export function buildMembershipPaymentEmail(payment: MembershipPayment, reversed
       ? 'Mercado Pago'
       : payment.method === 'BANK_TRANSFER'
         ? 'Transferencia bancaria'
-        : 'Deposito bancario';
+        : payment.method === 'CASH'
+          ? 'Efectivo'
+          : 'Deposito bancario';
   const title = reversed ? 'Registro de pago anulado' : 'Mensualidades pagadas';
   const rows = payment.allocations
     .map(
@@ -22,14 +24,18 @@ export function buildMembershipPaymentEmail(payment: MembershipPayment, reversed
     )
     .join('');
   const message = reversed
-    ? 'Administracion anulo este registro bancario. Esto no representa una devolucion de dinero.'
+    ? 'Administracion anulo este registro de pago. Esto no representa una devolucion de dinero.'
     : payment.method === 'MERCADO_PAGO'
       ? 'Mercado Pago confirmo el pago de las siguientes mensualidades. El club verifico la operacion en el proveedor.'
-      : 'Administracion verifico y registro el ingreso bancario de las siguientes mensualidades.';
+      : payment.method === 'CASH'
+        ? 'Administracion recibio y registro el pago en efectivo de las siguientes mensualidades.'
+        : 'Administracion verifico y registro el ingreso bancario de las siguientes mensualidades.';
   const operation =
     payment.method === 'MERCADO_PAGO'
       ? `Operacion Mercado Pago: ${escapeHtml(payment.provider?.paymentId || '')}`
-      : `Referencia bancaria: ${escapeHtml(payment.bank?.reference || '')}`;
+      : payment.method === 'CASH'
+        ? `Folio de efectivo: ${escapeHtml(payment.cash?.receiptNumber || '')}`
+        : `Referencia bancaria: ${escapeHtml(payment.bank?.reference || '')}`;
   const content = `
     <p>Hola ${escapeHtml(payment.payer.name || 'socio')},</p>
     <p>${message}</p>
