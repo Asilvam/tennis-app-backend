@@ -1,6 +1,7 @@
 import { assertConfiguration, isBillablePeriod, monthAt, priceFor } from './billing.policy';
 import { overdueClosure } from './billing-lifecycle.policy';
 import { BillingConfiguration, BillingDue, BillingMember } from './billing.types';
+import { uncertainMembershipPayment } from './billing-payment-state.policy';
 
 type Row = Record<string, any>;
 export interface BillingReleaseSnapshot {
@@ -163,11 +164,7 @@ export function buildBillingReleaseReport(
       return false;
     }
   }).length;
-  const attemptsToReview = payments.filter(
-    (row) =>
-      ['PENDING', 'REVIEW_REQUIRED'].includes(row.status) ||
-      ['CREATING', 'UNKNOWN'].includes(row.checkout?.creationStatus),
-  ).length;
+  const attemptsToReview = payments.filter((row) => uncertainMembershipPayment(row, now)).length;
   const mailToReview = payments
     .flatMap((row) => row.notifications || [])
     .filter((row) => row.status === 'FAILED').length;

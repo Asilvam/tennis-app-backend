@@ -156,6 +156,7 @@ describe('Read-only release readiness', () => {
   it('keeps uncertain attempts and failed email visible without retrying external effects', () => {
     const input = fixture();
     input.membership_payments.push({
+      method: 'MERCADO_PAGO',
       status: 'PENDING',
       amount: 180,
       checkout: { creationStatus: 'UNKNOWN' },

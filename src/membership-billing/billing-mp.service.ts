@@ -18,6 +18,7 @@ import { AuditLog } from '../audit-log/entities/audit-log.entity';
 import { MembershipPayment } from './entities/membership-payment.entity';
 import { MembershipDue } from './entities/membership-due.entity';
 import { MembershipBillingService, BILLING_CLOCK } from './membership-billing.service';
+import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
 import { assertCanManage, assertMemberId } from './billing.policy';
 
 export interface MembershipProviderSnapshot {
@@ -177,13 +178,8 @@ export class MembershipMpService {
       for (const person of people) assertCanManage({ ...actor, role: 'user' }, person);
       const overlapping = await this.payments
         .findOne({
-          method: 'MERCADO_PAGO',
+          ...uncertainMembershipPaymentFilter(now),
           'allocations.dueId': { $in: dueIds },
-          $or: [
-            { status: { $in: ['PENDING', 'REVIEW_REQUIRED'] } },
-            { 'checkout.creationStatus': 'UNKNOWN' },
-            { 'checkout.expiresAt': { $gt: now }, status: { $in: ['REJECTED', 'CANCELLED'] } },
-          ],
         })
         .session(session)
         .lean();

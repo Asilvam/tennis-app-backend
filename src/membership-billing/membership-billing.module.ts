@@ -23,6 +23,8 @@ import { MembershipAccessGuard } from './membership-access.guard';
 import { BillingDueAdjustmentService } from './billing-due-adjustment.service';
 import { BillingLifecycleService } from './billing-lifecycle.service';
 import { BillingLifecycleController } from './billing-lifecycle.controller';
+import { BillingEnrollmentService } from './billing-enrollment.service';
+import { BillingEnrollmentController } from './billing-enrollment.controller';
 
 // Routes and notifications remain disabled without explicit configuration; there is no seeding.
 @Module({
@@ -47,6 +49,7 @@ import { BillingLifecycleController } from './billing-lifecycle.controller';
     MembershipMpController,
     BillingPortalController,
     BillingLifecycleController,
+    BillingEnrollmentController,
   ],
   providers: [
     MembershipBillingService,
@@ -60,6 +63,7 @@ import { BillingLifecycleController } from './billing-lifecycle.controller';
     MembershipAccessGuard,
     BillingDueAdjustmentService,
     BillingLifecycleService,
+    BillingEnrollmentService,
     { provide: BILLING_CLOCK, useValue: () => new Date() },
   ],
   exports: [

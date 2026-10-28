@@ -29,6 +29,9 @@ import { BillingLifecycleController } from './billing-lifecycle.controller';
 import { BillingAdminController } from './billing-admin.controller';
 import { BillingAdminService } from './billing-admin.service';
 import { BillingAdminEnabledGuard } from './billing-admin.guard';
+import { BillingEnrollmentService } from './billing-enrollment.service';
+import { BillingEnrollmentController } from './billing-enrollment.controller';
+import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
 import { proposedBillingConfiguration } from './billing.types';
 
 const uri = process.env.BILLING_TEST_MONGO_URI;
@@ -51,6 +54,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       own: string,
       carga: string;
     let httpEnabled = true;
+    let enrollment: BillingEnrollmentService;
     const mp = { reconcileForBilling: jest.fn() };
     const settings = {
       get: (key: string) =>
@@ -103,6 +107,15 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       }
       core = new MembershipBillingService(dues, payments, configs, members, () => now, audit);
       admin = new BillingAdminService(core, dues, payments, configs, members, audit, () => now);
+      enrollment = new BillingEnrollmentService(
+        admin,
+        members,
+        dues,
+        payments,
+        configs,
+        audit,
+        () => now,
+      );
       lifecycle = new BillingLifecycleService(
         core,
         dues,
@@ -119,13 +132,18 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
           PassportModule.register({ defaultStrategy: 'jwt' }),
           JwtModule.register({ secret: settings.get('SECRET_KEY') }),
         ],
-        controllers: [BillingLifecycleController, BillingAdminController],
+        controllers: [
+          BillingLifecycleController,
+          BillingAdminController,
+          BillingEnrollmentController,
+        ],
         providers: [
           JwtStrategy,
           BillingAdminEnabledGuard,
           { provide: ConfigService, useValue: settings },
           { provide: BillingLifecycleService, useValue: lifecycle },
           { provide: BillingAdminService, useValue: admin },
+          { provide: BillingEnrollmentService, useValue: enrollment },
         ],
       }).compile();
       app = module.createNestApplication({ logger: false });
@@ -443,6 +461,283 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         await audit.countDocuments({ 'metadata.reason': 'MEMBERSHIP_AUTOMATIC_TERMINATION' }),
       ).toBe(1);
       expect(await dues.countDocuments({ beneficiaryId: own, status: 'VOID' })).toBe(1);
+    });
+    const clearStarts = async () =>
+      members.updateMany(
+        { _id: { $in: [own, carga] } },
+        {
+          $unset: { billingStartPeriod: '', billingPeriods: '', billingBaseline: '' },
+        },
+      );
+    const batchInput = (preview) => ({
+      startPeriod: preview.startPeriod,
+      reason: 'Habilitacion revisada de prueba',
+      items: preview.items
+        .filter((row) => row.status === 'ELIGIBLE')
+        .map((row) => ({ memberId: row.memberId, approvalHash: row.plan.approvalHash })),
+    });
+    it('previews families read-only and excludes admin from the global batch', async () => {
+      await clearStarts();
+      const preview = await call('enrollment/preview', {
+        startPeriod: '2026-10',
+        familyMemberId: own,
+      });
+      expect(preview.status).toBe(201);
+      expect(preview.body.items).toHaveLength(2);
+      expect(preview.body.items.map((row) => row.plan.total).sort((a, b) => a - b)).toEqual([
+        50, 180,
+      ]);
+      expect(await dues.countDocuments()).toBe(0);
+      expect(await audit.countDocuments()).toBe(0);
+      const global = await call('enrollment/preview', { startPeriod: '2026-10' });
+      expect(global.body.items).toHaveLength(2);
+      expect((await call('enrollment/preview', { startPeriod: '2026-10' }, 'user')).status).toBe(
+        403,
+      );
+    });
+    it('manual activation wins a race with the mass preview and is never replaced', async () => {
+      await clearStarts();
+      now = new Date('2026-11-17T15:00:00Z');
+      const preview = await enrollment.previewBatch('admin@example.invalid', {
+        startPeriod: '2026-11',
+      });
+      const manualPlan = await admin.previewEnrollment('admin@example.invalid', own, '2026-10');
+      await admin.enroll(
+        'admin@example.invalid',
+        own,
+        {
+          startPeriod: '2026-10',
+          approvalHash: manualPlan.approvalHash,
+          reason: 'Alta manual anterior',
+        },
+        'manual-before-batch-001',
+      );
+      const before = JSON.stringify(await members.findById(own).select('+billingPeriods').lean());
+      const result = await enrollment.applyBatch(
+        'admin@example.invalid',
+        batchInput(preview),
+        'mass-after-manual-001',
+      );
+      expect(result.counts).toMatchObject({ enrolled: 1, skipped: 1 });
+      expect(JSON.stringify(await members.findById(own).select('+billingPeriods').lean())).toBe(
+        before,
+      );
+      expect((await members.findById(own)).billingStartPeriod).toBe('2026-10');
+      expect(await dues.countDocuments({ beneficiaryId: own })).toBe(2);
+    });
+    it('batch retries and concurrent requests do not duplicate approvals or dues', async () => {
+      await clearStarts();
+      const preview = await enrollment.previewBatch('admin@example.invalid', {
+        startPeriod: '2026-10',
+      });
+      const payload = batchInput(preview);
+      const results = await Promise.all([
+        enrollment.applyBatch('admin@example.invalid', payload, 'batch-concurrent-key-001'),
+        enrollment.applyBatch('admin@example.invalid', payload, 'batch-concurrent-key-001'),
+      ]);
+      expect(results.reduce((sum, row) => sum + row.counts.enrolled, 0)).toBe(2);
+      expect(await dues.countDocuments()).toBe(2);
+      expect(await audit.countDocuments({ 'metadata.reason': 'MEMBERSHIP_ENROLLMENT' })).toBe(2);
+      expect(await audit.countDocuments({ 'metadata.reason': 'MEMBERSHIP_BATCH_REQUEST' })).toBe(1);
+      await expect(
+        enrollment.applyBatch(
+          'admin@example.invalid',
+          { ...payload, reason: 'Otro motivo distinto' },
+          'batch-concurrent-key-001',
+        ),
+      ).rejects.toThrow('clave');
+    });
+    it('a reviewed existing member is omitted from all later mass previews', async () => {
+      const before = JSON.stringify(await members.findById(own).select('+billingPeriods').lean());
+      const preview = await enrollment.previewBatch('admin@example.invalid', {
+        startPeriod: '2026-10',
+      });
+      expect(preview.counts).toMatchObject({ alreadyEnabled: 2, eligible: 0 });
+      expect(preview.items[0].plan).toBeUndefined();
+      expect(JSON.stringify(await members.findById(own).select('+billingPeriods').lean())).toBe(
+        before,
+      );
+    });
+    it('inactive accounts, incomplete baselines and orphan cargas are review-only', async () => {
+      await clearStarts();
+      await members.updateOne({ _id: own }, { $set: { statePlayer: false } });
+      await members.updateOne({ _id: carga }, { $unset: { titularId: '' } });
+      const preview = await enrollment.previewBatch('admin@example.invalid', {
+        startPeriod: '2026-10',
+      });
+      expect(preview.counts.reviewRequired).toBe(2);
+      expect(preview.counts.eligible).toBe(0);
+      expect(await dues.countDocuments()).toBe(0);
+    });
+    it('rejects forged, duplicate, empty and unreviewed mass requests before applying data', async () => {
+      await clearStarts();
+      const preview = await enrollment.previewBatch('admin@example.invalid', {
+        startPeriod: '2026-10',
+      });
+      const payload = batchInput(preview);
+      for (const body of [
+        { ...payload, statePlayer: true },
+        { ...payload, items: [] },
+        { ...payload, items: [null] },
+        {
+          ...payload,
+          items: Array.from({ length: 26 }, (_, index) => ({
+            ...payload.items[0],
+            memberId: (index + 1).toString(16).padStart(24, '0'),
+          })),
+        },
+        { ...payload, items: [payload.items[0], payload.items[0]] },
+        { ...payload, items: [{ ...payload.items[0], approvalHash: 'invalid' }] },
+      ])
+        expect((await call('enrollment', body)).status).toBe(400);
+      expect(await dues.countDocuments()).toBe(0);
+      expect(await audit.countDocuments()).toBe(0);
+    });
+    it('changed prices require review again and uncertain failures resume the same batch', async () => {
+      await clearStarts();
+      let preview = await enrollment.previewBatch('admin@example.invalid', {
+        startPeriod: '2026-10',
+      });
+      await configs.updateOne({}, { $set: { 'testPricing.titular': 181 } });
+      const stale = await enrollment.applyBatch(
+        'admin@example.invalid',
+        batchInput(preview),
+        'stale-batch-prices-001',
+      );
+      expect(stale.counts.reviewRequired).toBe(1);
+      preview = await enrollment.previewBatch('admin@example.invalid', { startPeriod: '2026-10' });
+      jest.spyOn(admin, 'enroll').mockRejectedValueOnce(new Error('Temporarily unavailable'));
+      const payload = batchInput(preview);
+      expect(
+        (await enrollment.applyBatch('admin@example.invalid', payload, 'retry-partial-batch-001'))
+          .counts.errors,
+      ).toBe(1);
+      expect(
+        (await enrollment.applyBatch('admin@example.invalid', payload, 'retry-partial-batch-001'))
+          .counts.enrolled,
+      ).toBe(1);
+      expect(await dues.countDocuments()).toBe(2);
+    });
+    const legacyPaid = async () => {
+      await core.prepareDues(adminId, own);
+      const row = await dues.findOne({ beneficiaryId: own });
+      const receipt = await payments.create({
+        publicReference: 'membership-legacy-confirmed-fixture',
+        method: 'MERCADO_PAGO',
+        status: 'CONFIRMED',
+        amount: 180,
+        currency: 'CLP',
+        pricingMode: 'TEST',
+        payer: { name: 'Fixture' },
+        allocations: [{ dueId: row._id, beneficiaryId: own, period: '2026-10', amount: 180 }],
+        paidAt: now,
+        confirmedAt: now,
+        provider: {
+          name: 'MERCADO_PAGO',
+          paymentId: '999001',
+          status: 'approved',
+          verifiedAt: now,
+        },
+        checkout: { creationStatus: 'UNKNOWN' },
+      });
+      await dues.updateOne(
+        { _id: row._id },
+        { $set: { status: 'PAID', paidAt: now, settlementPaymentId: receipt._id } },
+      );
+      await members.updateOne(
+        { _id: own },
+        {
+          $unset: { billingPeriods: '' },
+          $set: {
+            billingBaseline: {
+              throughPeriod: '2026-09',
+              migrationId: 'ctq-monthly-test-pilot-2026-10',
+              establishedAt: now,
+              establishedBy: adminId,
+            },
+          },
+        },
+      );
+    };
+    it('completes an old pilot validity without enrolling, repricing, archiving or creating payments', async () => {
+      await legacyPaid();
+      expect(await payments.countDocuments(uncertainMembershipPaymentFilter(now))).toBe(0);
+      const beforeDues = JSON.stringify(await dues.find().lean()),
+        beforePayments = JSON.stringify(await payments.find().lean());
+      const preview = await call(`members/${own}/billing-history/preview`);
+      expect(preview.status).toBe(200);
+      expect(await audit.countDocuments()).toBe(0);
+      const payload = {
+        approvalHash: preview.body.approvalHash,
+        reason: 'Vigencia del piloto revisada',
+      };
+      const results = await Promise.all([
+        call(`members/${own}/billing-history`, payload),
+        call(`members/${own}/billing-history`, payload),
+      ]);
+      expect(results.every((row) => row.status === 201)).toBe(true);
+      expect((await members.findById(own).select('+billingPeriods')).billingPeriods).toHaveLength(
+        1,
+      );
+      expect(JSON.stringify(await dues.find().lean())).toBe(beforeDues);
+      expect(JSON.stringify(await payments.find().lean())).toBe(beforePayments);
+      expect(
+        await audit.countDocuments({ 'metadata.reason': 'MEMBERSHIP_LEGACY_HISTORY_APPROVAL' }),
+      ).toBe(1);
+    });
+    it('history approval rejects changed ledgers and invalid baselines, and rolls back if audit fails', async () => {
+      await legacyPaid();
+      let preview = await enrollment.previewHistory('admin@example.invalid', own);
+      await dues.updateOne(
+        { beneficiaryId: own },
+        { $set: { tariffVersionId: 'unchanged-test-version' } },
+      );
+      // New financial rows invalidate the reviewed snapshot, without rewriting the confirmed receipt.
+      await core.prepareDues(adminId, own, '2026-11');
+      await expect(
+        enrollment.approveHistory(
+          'admin@example.invalid',
+          own,
+          { approvalHash: preview.approvalHash, reason: 'Revision anterior' },
+          'history-stale-review-001',
+        ),
+      ).rejects.toThrow('cambio');
+      preview = await enrollment.previewHistory('admin@example.invalid', own);
+      jest.spyOn(audit, 'create').mockRejectedValueOnce(new Error('Audit unavailable') as never);
+      await expect(
+        enrollment.approveHistory(
+          'admin@example.invalid',
+          own,
+          { approvalHash: preview.approvalHash, reason: 'Revision valida' },
+          'history-audit-failure-001',
+        ),
+      ).rejects.toThrow();
+      expect(
+        (await members.findById(own).select('+billingPeriods')).billingPeriods,
+      ).toBeUndefined();
+      await members.updateOne(
+        { _id: own },
+        { $set: { 'billingBaseline.throughPeriod': '2026-08' } },
+      );
+      await expect(enrollment.previewHistory('admin@example.invalid', own)).rejects.toThrow(
+        'vigencia',
+      );
+    });
+    it('real uncertainty still blocks legacy review and refund evidence is not ignored', async () => {
+      await legacyPaid();
+      await payments.updateOne({}, { $set: { status: 'REVIEW_REQUIRED' } });
+      expect(await payments.countDocuments(uncertainMembershipPaymentFilter(now))).toBe(1);
+      await expect(enrollment.previewHistory('admin@example.invalid', own)).rejects.toThrow(
+        'incierto',
+      );
+      await payments.updateOne(
+        {},
+        { $set: { status: 'CONFIRMED', 'provider.status': 'refunded' } },
+      );
+      expect(await payments.countDocuments(uncertainMembershipPaymentFilter(now))).toBe(1);
+      await expect(enrollment.previewHistory('admin@example.invalid', own)).rejects.toThrow(
+        'incierto',
+      );
     });
     it.each(['worker', 'on-demand'])(
       'restores an excluded future due after reenrollment via %s',

@@ -21,6 +21,7 @@ import { MembershipMpService } from './billing-mp.service';
 import { BILLING_CONFIG_KEY, BILLING_TIMEZONE, BillingDue, BillingMember } from './billing.types';
 import { assertConfiguration, isBillablePeriod, monthAt, periodsBetween } from './billing.policy';
 import { overdueClosure } from './billing-lifecycle.policy';
+import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
 
 @Injectable()
 export class BillingLifecycleService implements OnApplicationBootstrap {
@@ -45,14 +46,7 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
   }
 
   private uncertain(now: Date) {
-    return {
-      method: 'MERCADO_PAGO',
-      $or: [
-        { status: { $in: ['PENDING', 'REVIEW_REQUIRED'] } },
-        { 'checkout.creationStatus': { $in: ['CREATING', 'UNKNOWN'] } },
-        { status: { $in: ['REJECTED', 'CANCELLED'] }, 'checkout.expiresAt': { $gt: now } },
-      ],
-    };
+    return uncertainMembershipPaymentFilter(now);
   }
 
   private async configuration(session?: ClientSession) {

@@ -32,6 +32,8 @@ import { BILLING_CONFIG_KEY, BILLING_TIMEZONE } from './billing.types';
 import { BillingAdminQueryDto } from './dto/billing-admin-query.dto';
 import { RegisterBankPaymentDto } from './dto/register-bank-payment.dto';
 import { EnrollMembershipDto } from './dto/enroll-membership.dto';
+import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
+import { initialEnrollmentPlan } from './billing-enrollment.policy';
 
 @Injectable()
 export class BillingAdminService {
@@ -177,7 +179,13 @@ export class BillingAdminService {
     startPeriod: string,
     session?: ClientSession,
     reenroll = false,
-  ) {
+  ): Promise<
+    ReturnType<typeof initialEnrollmentPlan> & {
+      previousThroughPeriod?: string;
+      historicalTotal?: number;
+      historical?: { id: string; period: string; amount: number }[];
+    }
+  > {
     assertMemberId(id);
     assertPeriod(startPeriod);
     const config = await this.configs
@@ -226,15 +234,7 @@ export class BillingAdminService {
         await this.payments
           .exists({
             'allocations.beneficiaryId': person._id,
-            method: 'MERCADO_PAGO',
-            $or: [
-              { status: { $in: ['PENDING', 'REVIEW_REQUIRED'] } },
-              { 'checkout.creationStatus': { $in: ['CREATING', 'UNKNOWN'] } },
-              {
-                status: { $in: ['REJECTED', 'CANCELLED'] },
-                'checkout.expiresAt': { $gt: this.clock() },
-              },
-            ],
+            ...uncertainMembershipPaymentFilter(this.clock()),
           })
           .session(session || null)
       )
@@ -272,6 +272,7 @@ export class BillingAdminService {
       throw new ConflictException(
         'El socio tiene registros financieros que requieren revision antes de habilitar.',
       );
+    if (!reenroll) return initialEnrollmentPlan(person, startPeriod, config, this.clock());
     const rows = periodsBetween(startPeriod, currentPeriod).map((period) => ({
       period,
       ...priceFor(person, period, config),
@@ -573,6 +574,13 @@ export class BillingAdminService {
         memberType: person.partnerType,
         active: person.statePlayer,
         billingStartPeriod: person.billingStartPeriod,
+        historyReviewAvailable: Boolean(
+          person.statePlayer &&
+          person.billingStartPeriod &&
+          person.billingBaseline &&
+          person.billingPeriods === undefined &&
+          !person.billingClosure,
+        ),
         canReenroll: Boolean(
           !person.statePlayer && person.billingClosure?.reason === 'THREE_CONSECUTIVE_OVERDUE',
         ),

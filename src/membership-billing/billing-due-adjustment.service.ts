@@ -16,6 +16,7 @@ import { MembershipBillingConfig } from './entities/membership-billing-config.en
 import { BILLING_CLOCK } from './membership-billing.service';
 import { BILLING_CONFIG_KEY, BillingMember } from './billing.types';
 import { memberType, monthAt, priceFor } from './billing.policy';
+import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
 
 @Injectable()
 export class BillingDueAdjustmentService {
@@ -55,13 +56,8 @@ export class BillingDueAdjustmentService {
     if (!config) throw new ServiceUnavailableException('Falta la configuracion de mensualidades.');
     const activePayment = await this.payments
       .exists({
-        method: 'MERCADO_PAGO',
+        ...uncertainMembershipPaymentFilter(now),
         'allocations.dueId': { $in: rows.map((row) => row._id) },
-        $or: [
-          { status: { $in: ['PENDING', 'REVIEW_REQUIRED'] } },
-          { 'checkout.creationStatus': { $in: ['CREATING', 'UNKNOWN'] } },
-          { status: { $in: ['REJECTED', 'CANCELLED'] }, 'checkout.expiresAt': { $gt: now } },
-        ],
       })
       .session(session);
     if (activePayment)
