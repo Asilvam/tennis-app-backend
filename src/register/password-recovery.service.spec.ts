@@ -67,6 +67,24 @@ describe('PasswordRecoveryService', () => {
     expect(model.findOne).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])('uses the CTQ domain and preserves the token fragment for admin=%s', async (admin) => {
+    config.get.mockReturnValue('https://ctq.serviciosasm.cl/restablecer-contrasena');
+    const pending = service.requestReset(user.email, admin);
+    await jest.advanceTimersByTimeAsync(300);
+    await expect(pending).resolves.toMatchObject({ success: true });
+    expect(email.sendResetPasswordEmail).toHaveBeenCalledWith(
+      user.email,
+      `https://ctq.serviciosasm.cl/restablecer-contrasena#token=${token}`,
+      '24 horas',
+    );
+    const link = new URL(email.sendResetPasswordEmail.mock.calls[0][1]);
+    expect(link.search).toBe('');
+    expect(link.hash).toBe(`#token=${token}`);
+    expect(model.findOneAndUpdate.mock.calls[0][1].$set.passwordResetExpiresAt)
+      .toEqual(new Date(now.getTime() + PASSWORD_RESET_TTL_MS));
+    expect(bcrypt.hash).not.toHaveBeenCalled();
+  });
+
   it.each(['missing account', 'inactive account', '24-hour request limit'])('returns the same generic message for %s and sends no email', async () => {
     model.findOneAndUpdate.mockReturnValue(query(null));
     await expect(request()).resolves.toEqual({ success: true, message: PASSWORD_RESET_REQUEST_MESSAGE });

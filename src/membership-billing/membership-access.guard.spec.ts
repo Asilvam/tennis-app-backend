@@ -84,6 +84,21 @@ describe('Approved membership access boundary: login identity and booking capabi
     expect(await guard.canActivate(request('/auth/checkBlocked'))).toBe(true);
     expect(portal.permissions).not.toHaveBeenCalled();
   });
+  it('allows only a read of reservation payment return to a restricted member, never checkout writes', async () => {
+    portal.permissions.mockResolvedValue({ role: 'user', financiallyRestricted: true });
+    expect(await guard.canActivate(request('/mp/reservations/abc123/status', 'GET', token()))).toBe(
+      true,
+    );
+    for (const [path, method] of [
+      ['/mp/reservations/abc123/status', 'POST'],
+      ['/mp/init-point', 'POST'],
+      ['/court-reserve', 'POST'],
+      ['/mp/reservations/abc123/other', 'GET'],
+    ])
+      await expect(guard.canActivate(request(path, method, token()))).rejects.toMatchObject({
+        status: 403,
+      });
+  });
   it('leaves internal callbacks to their mandatory internal-key guards', async () => {
     expect(await guard.canActivate(request('/membership-billing/internal/mercado-pago'))).toBe(
       true,

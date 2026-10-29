@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Post, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Post, Body, Req, UseGuards, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 import { MpService } from './mp.service';
@@ -13,6 +13,13 @@ export class MpController {
   @Header('Cache-Control', 'no-store')
   getRates() {
     return this.mpService.getRates();
+  }
+
+  @Get('reservations/:id/status')
+  @UseGuards(JwtAuthGuard)
+  @Header('Cache-Control', 'no-store')
+  reservationStatus(@Param('id') id: string, @Req() request: { user: { email: string } }) {
+    return this.mpService.reservationStatus(id, request.user.email);
   }
 
   @Post('init-point')

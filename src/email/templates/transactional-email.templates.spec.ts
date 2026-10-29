@@ -22,6 +22,14 @@ describe('transactional email templates', () => {
     expect(message).not.toContain('Nueva contraseña</div>');
   });
 
+  it('keeps the CTQ password reset URL and fragment in the outgoing template', () => {
+    const link = 'https://ctq.serviciosasm.cl/restablecer-contrasena#token=isolated-fixture';
+    const html = buildPasswordResetEmail(link, '24 horas');
+    expect(html).toContain(`href="${link}"`);
+    expect(html).toContain('vence en 24 horas');
+    expect(html).not.toContain('herokuapp.com');
+  });
+
   it('describes public and admin links as 24-hour one-use links', () => {
     const admin = buildPasswordResetEmail('https://front.example/reset#token=fixture', '24 horas');
     expect(admin).toContain('vence en 24 horas');

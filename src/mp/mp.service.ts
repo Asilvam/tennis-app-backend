@@ -32,6 +32,20 @@ export class MpService {
     };
   }
 
+  async reservationStatus(id: string, email: string) {
+    if (!/^[a-z\d_-]{1,80}$/i.test(id) || !email) throw new NotFoundException('Reserva no disponible.');
+    const query = this.courtReserveModel.findOne({ idCourtReserve: id, ownerEmail: email.trim().toLowerCase() });
+    const reserve = await query.select('idCourtReserve wasPaid paymentStatus reservationStatus state').lean().exec();
+    if (!reserve) throw new NotFoundException('Reserva no disponible.');
+    // A provider return URL is never evidence of payment or slot confirmation.
+    const paid = reserve.wasPaid === true && reserve.paymentStatus === 'approved';
+    const confirmed = paid && reserve.state === true && reserve.reservationStatus === 'CONFIRMED';
+    return {
+      reservationId: reserve.idCourtReserve,
+      status: confirmed ? 'CONFIRMED' : paid ? 'REVIEW' : 'WAITING',
+    };
+  }
+
   async create(createMpDto: CreateMpDto, ownerEmail?: string) {
     const mpApiUrl = this.configService.get<string>('MP_API_URL');
     const internalApiKey = this.configService.get<string>('INTERNAL_API_KEY');

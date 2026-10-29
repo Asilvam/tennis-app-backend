@@ -2,6 +2,28 @@
 
 Backend principal del Club de Tenis Quintero. Está construido con NestJS y MongoDB y administra autenticación, socios, canchas, reservas, ranking, pagos, auditoría, correo transaccional, imágenes y noticias.
 
+## Retorno autenticado de pagos de reserva (2026-10-29)
+
+`GET /mp/reservations/:id/status`, JWT obligatorio, `Cache-Control: no-store`.
+La consulta filtra por `idCourtReserve` y `ownerEmail` normalizado del JWT;
+ajenas/inexistentes/legacy sin propietario devuelven 404 indistinguible.
+No hay permiso global de administrador para este endpoint. Respuesta minima:
+`{ reservationId, status: 'CONFIRMED' | 'REVIEW' | 'WAITING' }`.
+
+- `CONFIRMED`: `wasPaid === true`, `paymentStatus === 'approved'`,
+  `state === true`, `reservationStatus === 'CONFIRMED'` en BD.
+- `REVIEW`: pago aprobado persistido, pero reserva no confirmada/activa.
+- `WAITING`: no hay evidencia completa de pago aprobado. No significa rechazo,
+  cancelacion del pago ni disponibilidad de la cancha.
+
+No escribe reservas/slots/auditoria ni consulta Mercado Pago. La confirmacion
+sigue dependiendo del callback interno existente. Una restriccion financiera
+permite este GET, sin permitir POST, nuevas reservas o checkout.
+Sin variables nuevas. Estado: implementado localmente, no desplegado.
+Pruebas: `src/mp/reservation-status.spec.ts`, `src/mp/mp.controller.spec.ts`,
+`src/membership-billing/membership-access.guard.spec.ts`; E2E y evidencia
+tecnica en `../tennis-court-front/docs/correccion-retorno-reservas.md`.
+
 ## Requisitos
 
 - Node.js `22.19.0`
@@ -363,6 +385,58 @@ Este backend ya no incluye:
 - Configuración de Fly.io.
 
 ## Seguridad operativa
+
+### Dominio CTQ: etapa 2 (2026-10-29)
+
+El frontend sigue en Heroku y ahora tambien se publica como
+`https://ctq.serviciosasm.cl`. Se actualizo en Heroku **solo** la variable
+existente `PASSWORD_RESET_FRONTEND_URL` a
+`https://ctq.serviciosasm.cl/restablecer-contrasena`. El valor previo fue
+`https://app-tenis-qtro-2-be6b838be293.herokuapp.com/restablecer-contrasena`.
+La configuracion local sugerida sigue siendo `http://localhost:5173/restablecer-contrasena`.
+
+No se cambio la construccion del enlace: token en fragmento `#token=...`,
+vigencia de 24 horas y consumo unico. Las pruebas del servicio cubren el nuevo
+dominio tanto en recuperacion publica como administrativa, con BD y envio
+simulados; no se solicitaron resets de cuentas reales por este cambio.
+
+CORS se verifico en el backend desplegado con el origen nuevo y el anterior:
+preflight 204 para `Authorization`, `Content-Type` e `Idempotency-Key`.
+El frontend utiliza JWT sin cookies/`withCredentials`. No se cambio CORS ni se
+desplego codigo: la configuracion actual `origin: '*'` con `credentials: true`
+permite el flujo sin cookies, pero **no** admite credenciales cross-origin con
+origen comodin y no restringe origenes. Una futura migracion a cookies requiere
+una allowlist explicita y sus pruebas; no introducir una variable nueva como
+parte implicita de este dominio.
+
+Las rutas de API, verificacion de correo, webhooks, servicios internos,
+credenciales y datos permanecen intactos. El cambio de config reinicia el dyno
+con el codigo ya desplegado; no publica cambios locales pendientes. La direccion
+anterior del frontend se conserva para enlaces existentes y recuperacion.
+El informe central esta en `tennis-court-front/docs/mejora-ctq-cloudflare.md`;
+el estado de la etapa 3 se detalla a continuacion.
+
+Actualizacion de etapa 3 (2026-10-29): suite completa del backend, **826 pruebas
+aprobadas en 54 suites, sin omisiones**, con bases MongoDB temporales en un
+replica set local. La matriz de navegador uso AuthService, bcrypt, JWT, guards,
+cuotas, liquidacion y recuperacion reales sobre fixtures, sin AppModule/cron ni
+acceso a la BD del club. Junto con los otros proyectos se aprobaron 96 puntos
+de control en Chromium/WebKit. Login/perfil del piloto tambien se observaron
+en produccion sin operaciones financieras. No hubo cambios de config o codigo
+publicado en esta etapa. El cierre global sigue pendiente por el aviso de
+exito no verificado en la pagina de retorno de reservas del frontend;
+ver `tennis-court-front/docs/ctq-cloudflare-stage3-validacion.md`.
+
+Pruebas aisladas relacionadas:
+
+```bash
+npm test -- --runInBand password-recovery transactional-email membership-access.guard auth.service jwt.strategy --silent
+```
+
+Para revertir, revisar primero enlaces ya emitidos y restaurar unicamente la URL
+anterior documentada; no rotar secretos ni cambiar el transporte de correo.
+
+### Reglas generales
 
 - Usa secretos largos y distintos por ambiente.
 - No publiques `.env`, credenciales de MongoDB, tokens de Mercado Pago ni claves de Cloudinary.

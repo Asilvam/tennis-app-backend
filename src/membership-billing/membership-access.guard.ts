@@ -48,6 +48,7 @@ export class MembershipAccessGuard implements CanActivate {
     if (!payload.email) throw new UnauthorizedException('La sesion no es valida.');
     const access = await this.portal.permissions(payload.email);
     const allowed =
+      (method === 'GET' && /^\/mp\/reservations\/[a-z\d_-]{1,80}\/status$/i.test(path)) ||
       /^\/membership-billing\/me(?:\/|$)/.test(path) ||
       path === '/membership-billing/checkout' ||
       /^\/membership-billing\/payments\/membership-[a-f\d-]{36}(?:\/reconcile)?$/i.test(path);
