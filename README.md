@@ -2,6 +2,23 @@
 
 Backend principal del Club de Tenis Quintero. Está construido con NestJS y MongoDB y administra autenticación, socios, canchas, reservas, ranking, pagos, auditoría, correo transaccional, imágenes y noticias.
 
+## Creacion revisada de cuotas: etapa 1
+
+Backend implementado localmente: alta inicial con rango inclusivo, razon de
+auditoria automatica normal y preview/confirmacion idempotente de cuotas
+posteriores. Octubre a enero crea cuatro periodos; no registra pagos ni
+reemplaza cuotas pagadas. Reinscripcion y anulacion conservan motivo obligatorio.
+
+Contrato, compatibilidad, pruebas y evidencia:
+[membership-dues-generation-stage-1.md](docs/membership-dues-generation-stage-1.md).
+Regresion final: 883 pruebas, 56 suites, sin fallos ni omisiones, con MongoDB
+fixture local. No hay variables nuevas, migraciones ni cambios desplegados.
+
+React queda para etapa 2. Por compatibilidad, POST de cuotas sin approvalHash
+sigue atendiendo al frontend anterior; el protocolo revisado incluye huella y
+Idempotency-Key. No confundir disponibilidad del contrato con correccion de
+la pantalla publicada. Commit, push y despliegue pendientes de autorizacion.
+
 ## Retorno autenticado de pagos de reserva (2026-10-29)
 
 `GET /mp/reservations/:id/status`, JWT obligatorio, `Cache-Control: no-store`.

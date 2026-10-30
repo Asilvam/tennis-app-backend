@@ -24,9 +24,14 @@ import {
   assertConfiguration,
   assertMemberId,
   assertPeriod,
+  assertPaymentPeriod,
   monthAt,
 } from './billing.policy';
-import { enrollmentState, initialEnrollmentPlan } from './billing-enrollment.policy';
+import {
+  enrollmentReason,
+  enrollmentState,
+  initialEnrollmentPlan,
+} from './billing-enrollment.policy';
 import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
 import {
   ApplyBatchEnrollmentDto,
@@ -83,6 +88,12 @@ export class BillingEnrollmentService {
     await this.actor(email);
     const config = await this.config();
     assertPeriod(input.startPeriod);
+    const now = this.clock();
+    const throughPeriod = input.throughPeriod ?? monthAt(now);
+    assertPeriod(throughPeriod);
+    assertPaymentPeriod(throughPeriod, now, 'admin');
+    if (throughPeriod < input.startPeriod)
+      throw new BadRequestException('El mes final es anterior al inicio.');
     if (
       input.startPeriod < config.billingStartsAtPeriod ||
       input.startPeriod > monthAt(this.clock())
@@ -131,12 +142,13 @@ export class BillingEnrollmentService {
         active: person.statePlayer,
         ...state,
         ...(state.status === 'ELIGIBLE'
-          ? { plan: initialEnrollmentPlan(person, input.startPeriod, config, this.clock()) }
+          ? { plan: initialEnrollmentPlan(person, input.startPeriod, config, now, throughPeriod) }
           : {}),
       };
     });
     return {
       startPeriod: input.startPeriod,
+      throughPeriod,
       currentPeriod: monthAt(this.clock()),
       minimumStartPeriod: config.billingStartsAtPeriod,
       items,
@@ -152,16 +164,20 @@ export class BillingEnrollmentService {
     this.validateKey(key);
     const actor = await this.actor(email);
     await this.auditReady();
+    const reason = enrollmentReason(input.reason);
     if (
-      !input.reason?.trim() ||
-      input.reason.trim().length < 5 ||
-      input.reason.trim().length > 1000 ||
       !input.items?.length ||
       input.items.length > 25 ||
       new Set(input.items.map((row) => row.memberId)).size !== input.items.length
     )
       throw new BadRequestException('Revisa seleccion y motivo.');
     assertPeriod(input.startPeriod);
+    if (input.throughPeriod !== undefined) {
+      assertPeriod(input.throughPeriod);
+      assertPaymentPeriod(input.throughPeriod, this.clock(), 'admin');
+      if (input.throughPeriod < input.startPeriod)
+        throw new BadRequestException('El mes final es anterior al inicio.');
+    }
     for (const row of input.items) {
       assertMemberId(row.memberId);
       if (!/^[a-f\d]{64}$/.test(row.approvalHash))
@@ -169,7 +185,8 @@ export class BillingEnrollmentService {
     }
     const canonical = {
       startPeriod: input.startPeriod,
-      reason: input.reason.trim(),
+      ...(input.throughPeriod !== undefined ? { throughPeriod: input.throughPeriod } : {}),
+      reason,
       items: [...input.items].sort((a, b) => a.memberId.localeCompare(b.memberId)),
     };
     const requestHash = digest(canonical),
@@ -219,6 +236,7 @@ export class BillingEnrollmentService {
             startPeriod: input.startPeriod,
             reason: canonical.reason,
             approvalHash: row.approvalHash,
+            ...(input.throughPeriod !== undefined ? { throughPeriod: input.throughPeriod } : {}),
           },
           digest({ actor: String(actor._id), key, memberId: row.memberId }),
         );

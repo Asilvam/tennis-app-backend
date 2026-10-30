@@ -495,6 +495,53 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         403,
       );
     });
+    it('applies a family range with automatic audit reason and idempotent batch approval', async () => {
+      await clearStarts();
+      const preview = await call('enrollment/preview', {
+        startPeriod: '2026-10',
+        throughPeriod: '2027-01',
+        familyMemberId: own,
+      });
+      expect(preview.status).toBe(201);
+      expect(preview.body.items.every((row) => row.plan.rows.length === 4)).toBe(true);
+      const payload = {
+        startPeriod: '2026-10',
+        throughPeriod: '2027-01',
+        items: preview.body.items.map((row) => ({
+          memberId: row.memberId,
+          approvalHash: row.plan.approvalHash,
+        })),
+      };
+      const result = await call('enrollment', payload);
+      expect(result.status).toBe(201);
+      expect(result.body.counts.enrolled).toBe(2);
+      expect(await dues.countDocuments({ beneficiaryId: own, amount: 180 })).toBe(4);
+      expect(await dues.countDocuments({ beneficiaryId: carga, amount: 50 })).toBe(4);
+      expect(await payments.countDocuments()).toBe(0);
+      expect((await call('enrollment', payload)).body.counts.skipped).toBe(2);
+      const people = await members
+        .find({ _id: { $in: [own, carga] } })
+        .select('+billingPeriods')
+        .lean();
+      expect(
+        people.every(
+          (row) => row.billingPeriods[0].reason === 'Habilitacion inicial de mensualidades',
+        ),
+      ).toBe(true);
+    });
+    it('rejects out-of-range batch generation before creating request audit or partial enrollments', async () => {
+      await clearStarts();
+      const preview = await enrollment.previewBatch('admin@example.invalid', {
+        startPeriod: '2026-10',
+      });
+      const payload = { ...batchInput(preview), throughPeriod: '2027-02' };
+      expect((await call('enrollment', payload)).status).toBe(400);
+      expect(await dues.countDocuments()).toBe(0);
+      expect(await audit.countDocuments()).toBe(0);
+      expect(
+        (await call('enrollment/preview', { startPeriod: '2026-10', throughPeriod: null })).status,
+      ).toBe(400);
+    });
     it('manual activation wins a race with the mass preview and is never replaced', async () => {
       await clearStarts();
       now = new Date('2026-11-17T15:00:00Z');

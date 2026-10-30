@@ -29,11 +29,12 @@ import {
   priceFor,
 } from './billing.policy';
 import { BILLING_CONFIG_KEY, BILLING_TIMEZONE } from './billing.types';
-import { BillingAdminQueryDto } from './dto/billing-admin-query.dto';
+import { BillingAdminQueryDto, PrepareAdminDuesDto } from './dto/billing-admin-query.dto';
 import { RegisterBankPaymentDto } from './dto/register-bank-payment.dto';
 import { EnrollMembershipDto } from './dto/enroll-membership.dto';
 import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
-import { initialEnrollmentPlan } from './billing-enrollment.policy';
+import { enrollmentReason, initialEnrollmentPlan } from './billing-enrollment.policy';
+import { duesGenerationPlan } from './billing-generation.policy';
 
 @Injectable()
 export class BillingAdminService {
@@ -174,11 +175,153 @@ export class BillingAdminService {
     return this.memberContext(email, id);
   }
 
+  private async generationPlan(id: string, through: string, now: Date, session?: ClientSession) {
+    assertMemberId(id);
+    assertPeriod(through);
+    const person = await this.members
+      .findById(id)
+      .select('+billingPeriods +billingClosure')
+      .session(session || null)
+      .lean()
+      .exec();
+    if (!person) throw new NotFoundException('Socio no encontrado.');
+    await this.validTitular(person, session);
+    const config = await this.configs
+      .findOne({ key: BILLING_CONFIG_KEY })
+      .session(session || null)
+      .lean()
+      .exec();
+    if (!config)
+      throw new ServiceUnavailableException('Mensualidades pendientes de configuracion.');
+    const existing = await this.dues
+      .find({ beneficiaryId: id, period: { $lte: through } })
+      .select({
+        period: 1,
+        status: 1,
+        amount: 1,
+        currency: 1,
+        pricingMode: 1,
+        tariffVersionId: 1,
+        memberTypeSnapshot: 1,
+        settlementPaymentId: 1,
+        paidAt: 1,
+        voided: 1,
+        archive: 1,
+      })
+      .sort({ period: 1, _id: 1 })
+      .session(session || null)
+      .lean()
+      .exec();
+    return duesGenerationPlan(person, existing, through, config, now);
+  }
+
+  async previewDues(email: string, id: string, through: string) {
+    await this.admin(email);
+    return this.generationPlan(id, through, this.clock());
+  }
+
+  async generateDues(email: string, id: string, input: PrepareAdminDuesDto, key: string) {
+    this.key(key);
+    assertMemberId(id);
+    assertPeriod(input.throughPeriod);
+    if (!/^[a-f\d]{64}$/.test(input.approvalHash || ''))
+      throw new BadRequestException('Revisa las cuotas antes de generar.');
+    const actor = await this.admin(email);
+    await this.indexesReady();
+    const eventId = `membership:dues-generation:${actor._id}:${key}`;
+    const requestHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          id,
+          throughPeriod: input.throughPeriod,
+          approvalHash: input.approvalHash,
+        }),
+      )
+      .digest('hex');
+    const priorResult = (prior: AuditLog) => {
+      if (prior.afterData?.requestHash !== requestHash)
+        throw new ConflictException('La clave pertenece a otra generacion de cuotas.');
+      return { ...prior.afterData.result, duplicate: true };
+    };
+    const now = this.clock();
+    try {
+      return await this.members.db.transaction(async (session) => {
+        const currentActor = await this.admin(email, session);
+        const prior = await this.audit.findOne({ eventId }).session(session).lean();
+        if (prior) return priorResult(prior);
+        const plan = await this.generationPlan(id, input.throughPeriod, now, session);
+        if (plan.approvalHash !== input.approvalHash)
+          throw new ConflictException('Los datos o las cuotas cambiaron. Vuelve a revisar.');
+        if (plan.newCount)
+          await this.core.prepareDuesInSession(
+            String(currentActor._id),
+            id,
+            plan.throughPeriod,
+            session,
+            now,
+          );
+        const result = {
+          memberId: id,
+          startPeriod: plan.startPeriod,
+          throughPeriod: plan.throughPeriod,
+          createdDues: plan.newCount,
+          existingDues: plan.existingCount,
+          total: plan.total,
+        };
+        await this.audit.create(
+          [
+            {
+              eventId,
+              entityType: 'MEMBERSHIP_PAYMENT',
+              entityId: id,
+              action: 'ADMIN_CREATE',
+              performedBy: 'ADMIN',
+              performedByUser: currentActor.namePlayer,
+              performedByEmail: currentActor.email,
+              timestamp: now,
+              description: 'Generacion revisada de cuotas; no registra dinero recibido.',
+              afterData: {
+                requestHash,
+                result,
+                pricing: plan.newRows,
+                existing: plan.existingRows,
+              },
+              metadata: { reason: 'MEMBERSHIP_DUES_GENERATION' },
+            },
+          ],
+          { session },
+        );
+        return { ...result, duplicate: false };
+      });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      const prior = await this.audit.findOne({ eventId }).lean().exec();
+      if (prior) return priorResult(prior);
+      throw new ConflictException('Las cuotas cambiaron durante la generacion. Vuelve a revisar.');
+    }
+  }
+
+  private async validTitular(person: Register, session?: ClientSession) {
+    if (person.partnerType === 'Titular') return;
+    if (!person.titularId)
+      throw new ConflictException(
+        'Asocia la carga con un titular antes de habilitar mensualidades.',
+      );
+    const titular = await this.members
+      .findById(person.titularId)
+      .session(session || null)
+      .lean()
+      .exec();
+    if (!titular || titular.partnerType !== 'Titular')
+      throw new ConflictException('La asociacion con el titular requiere revision.');
+  }
+
   private async enrollmentPlan(
     id: string,
     startPeriod: string,
     session?: ClientSession,
     reenroll = false,
+    throughPeriod?: string,
   ): Promise<
     ReturnType<typeof initialEnrollmentPlan> & {
       previousThroughPeriod?: string;
@@ -250,18 +393,7 @@ export class BillingAdminService {
       )
         throw new ConflictException('Hay cuotas del nuevo periodo que requieren revision.');
     }
-    if (person.partnerType !== 'Titular') {
-      if (!person.titularId)
-        throw new ConflictException(
-          'Asocia la carga con un titular antes de habilitar mensualidades.',
-        );
-      const titular = await this.members
-        .findById(person.titularId)
-        .session(session || null)
-        .lean();
-      if (!titular || titular.partnerType !== 'Titular')
-        throw new ConflictException('La asociacion con el titular requiere revision.');
-    }
+    await this.validTitular(person, session);
     if (
       !reenroll &&
       ((await this.dues.exists({ beneficiaryId: person._id }).session(session || null)) ||
@@ -272,7 +404,8 @@ export class BillingAdminService {
       throw new ConflictException(
         'El socio tiene registros financieros que requieren revision antes de habilitar.',
       );
-    if (!reenroll) return initialEnrollmentPlan(person, startPeriod, config, this.clock());
+    if (!reenroll)
+      return initialEnrollmentPlan(person, startPeriod, config, this.clock(), throughPeriod);
     const rows = periodsBetween(startPeriod, currentPeriod).map((period) => ({
       period,
       ...priceFor(person, period, config),
@@ -322,9 +455,23 @@ export class BillingAdminService {
     return { ...plan, approvalHash };
   }
 
-  async previewEnrollment(email: string, id: string, startPeriod: string, reenroll = false) {
+  async previewEnrollment(
+    email: string,
+    id: string,
+    startPeriod: string,
+    reenroll = false,
+    throughPeriod?: string,
+  ) {
     await this.admin(email);
-    return this.enrollmentPlan(id, startPeriod, undefined, reenroll);
+    const plan = await this.enrollmentPlan(id, startPeriod, undefined, reenroll, throughPeriod);
+    if (reenroll) return plan;
+    return {
+      ...plan,
+      newRows: plan.rows,
+      existingRows: [],
+      newCount: plan.rows.length,
+      existingCount: 0,
+    };
   }
 
   async enroll(
@@ -336,13 +483,10 @@ export class BillingAdminService {
   ) {
     this.key(key);
     assertMemberId(id);
-    const reason = input.reason?.trim();
-    if (
-      !reason ||
-      reason.length < 5 ||
-      reason.length > 1000 ||
-      !/^[a-f\d]{64}$/.test(input.approvalHash || '')
-    )
+    const reason = enrollmentReason(input.reason, reenroll);
+    if (reenroll && input.throughPeriod !== undefined)
+      throw new BadRequestException('La reinscripcion conserva su revision administrativa.');
+    if (!/^[a-f\d]{64}$/.test(input.approvalHash || ''))
       throw new BadRequestException(
         'Revisa las cuotas e indica un motivo valido antes de habilitar.',
       );
@@ -361,7 +505,13 @@ export class BillingAdminService {
           throw new ConflictException('La clave de reintento pertenece a otra habilitacion.');
         return { ...previous.afterData.result, duplicate: true };
       }
-      const plan = await this.enrollmentPlan(id, input.startPeriod, session, reenroll);
+      const plan = await this.enrollmentPlan(
+        id,
+        input.startPeriod,
+        session,
+        reenroll,
+        input.throughPeriod,
+      );
       if (plan.approvalHash !== input.approvalHash)
         throw new ConflictException(
           'Los datos o las tarifas cambiaron. Vuelve a revisar las cuotas.',
@@ -499,6 +649,7 @@ export class BillingAdminService {
       const result = {
         memberId: id,
         startPeriod: plan.startPeriod,
+        throughPeriod: plan.throughPeriod,
         createdDues: reenroll ? plan.rows.length : rows.length,
         total: plan.total,
       };

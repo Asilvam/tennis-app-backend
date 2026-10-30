@@ -4,6 +4,7 @@ import { BillingConfiguration, BillingMember } from './billing.types';
 import {
   assertConfiguration,
   assertPeriod,
+  assertPaymentPeriod,
   isBillablePeriod,
   monthAt,
   periodsBetween,
@@ -11,6 +12,17 @@ import {
 } from './billing.policy';
 
 type EnrollmentMember = BillingMember & { __v?: number; billingBaseline?: unknown };
+export const INITIAL_ENROLLMENT_REASON = 'Habilitacion inicial de mensualidades';
+
+export function enrollmentReason(value: unknown, required = false): string {
+  if (value !== undefined && typeof value !== 'string')
+    throw new BadRequestException('El motivo debe ser un texto valido.');
+  const reason = typeof value === 'string' ? value.trim() : '';
+  if (!reason && !required) return INITIAL_ENROLLMENT_REASON;
+  if (reason.length < 5 || reason.length > 1000)
+    throw new BadRequestException('Indica un motivo de entre 5 y 1000 caracteres.');
+  return reason;
+}
 export type EnrollmentState = 'ELIGIBLE' | 'ALREADY_ENABLED' | 'REVIEW_REQUIRED';
 
 export function enrollmentState(
@@ -59,15 +71,20 @@ export function initialEnrollmentPlan(
   startPeriod: string,
   config: BillingConfiguration,
   now: Date,
+  throughPeriod = monthAt(now),
 ) {
   assertConfiguration(config);
   assertPeriod(startPeriod);
+  assertPeriod(throughPeriod);
+  assertPaymentPeriod(throughPeriod, now, 'admin');
   if (startPeriod < config.billingStartsAtPeriod || startPeriod > monthAt(now))
     throw new BadRequestException(
       'El inicio debe estar entre el inicio del sistema y el mes actual.',
     );
   if (!member.statePlayer) throw new ConflictException('Cuenta inactiva.');
-  const rows = periodsBetween(startPeriod, monthAt(now)).map((period) => ({
+  if (throughPeriod < startPeriod)
+    throw new BadRequestException('El mes final es anterior al inicio.');
+  const rows = periodsBetween(startPeriod, throughPeriod).map((period) => ({
     period,
     ...priceFor(member, period, config),
   }));
@@ -76,7 +93,7 @@ export function initialEnrollmentPlan(
     name: member.namePlayer,
     memberType: member.partnerType,
     startPeriod,
-    throughPeriod: monthAt(now),
+    throughPeriod,
     rows,
     total: rows.reduce((sum, row) => sum + row.amount, 0),
     currency: 'CLP',

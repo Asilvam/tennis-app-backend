@@ -333,7 +333,9 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       });
       await expect(
         admin.registerBankPayment(adminEmail, { ...body, reference: 'other' }, key()),
-      ).rejects.toMatchObject({ status: 409 });
+      ).rejects.toMatchObject({
+        status: 409,
+      });
       expect(await payments.countDocuments()).toBe(1);
       expect(await audit.countDocuments()).toBe(1);
     });
@@ -473,7 +475,9 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       });
       await expect(
         admin.registerBankPayment(adminEmail, body, key('matching')),
-      ).rejects.toMatchObject({ response: { code: 'BANK_REFERENCE_REVIEW' } });
+      ).rejects.toMatchObject({
+        response: { code: 'BANK_REFERENCE_REVIEW' },
+      });
       expect(await payments.countDocuments()).toBe(1);
       const second = await admin.registerBankPayment(
         adminEmail,
@@ -704,6 +708,325 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         (await call(`members/${titularId}/enrollment/preview`, { startPeriod: '2026-10' })).status,
       ).toBe(409);
       expect(await dues.countDocuments()).toBe(2);
+    });
+    it('enrolls four months with automatic audit reason and no payment', async () => {
+      await unenrolled();
+      const range = { startPeriod: '2026-10', throughPeriod: '2027-01' };
+      const preview = await call(`members/${titularId}/enrollment/preview`, range);
+      expect(preview.status).toBe(201);
+      expect(preview.body).toMatchObject({ newCount: 4, existingCount: 0, total: 720 });
+      const body = { ...range, approvalHash: preview.body.approvalHash };
+      const result = await call(`members/${titularId}/enrollment`, body);
+      expect(result.status).toBe(201);
+      expect(result.body).toMatchObject({ createdDues: 4, throughPeriod: '2027-01', total: 720 });
+      const rows = await dues.find({ beneficiaryId: titularId }).sort({ period: 1 }).lean();
+      expect(rows.map((row) => row.period)).toEqual(['2026-10', '2026-11', '2026-12', '2027-01']);
+      expect(rows.every((row) => row.amount === 180 && row.status === 'OPEN')).toBe(true);
+      const actor = await members.findById(titularId).select('+billingPeriods').lean();
+      expect(actor.billingPeriods[0].reason).toBe('Habilitacion inicial de mensualidades');
+      expect(await payments.countDocuments()).toBe(0);
+      expect(await dues.countDocuments({ beneficiaryId: cargaId })).toBe(0);
+      const replay = await call(`members/${titularId}/enrollment`, body);
+      expect(replay.body.duplicate).toBe(true);
+      expect(await audit.countDocuments()).toBe(1);
+    });
+    it('supports a blank initial reason and prices carga ranges without granting future member access', async () => {
+      await unenrolled(cargaId);
+      const range = { startPeriod: '2026-10', throughPeriod: '2027-01' };
+      const preview = await call(`members/${cargaId}/enrollment/preview`, range);
+      expect(preview.body.total).toBe(200);
+      const result = await call(`members/${cargaId}/enrollment`, {
+        ...range,
+        approvalHash: preview.body.approvalHash,
+        reason: '   ',
+      });
+      expect(result.status).toBe(201);
+      expect(await dues.countDocuments({ beneficiaryId: cargaId, amount: 50 })).toBe(4);
+      expect(
+        (
+          await call(
+            `members/${cargaId}/dues/preview`,
+            { throughPeriod: '2027-01' },
+            token('test2@example.invalid', 'user'),
+          )
+        ).status,
+      ).toBe(403);
+    });
+    it('rejects a changed initial range or excessive future range without storing an enrollment', async () => {
+      await unenrolled();
+      const preview = await call(`members/${titularId}/enrollment/preview`, {
+        startPeriod: '2026-10',
+        throughPeriod: '2027-01',
+      });
+      expect(
+        (
+          await call(`members/${titularId}/enrollment`, {
+            startPeriod: '2026-10',
+            throughPeriod: '2026-12',
+            approvalHash: preview.body.approvalHash,
+          })
+        ).status,
+      ).toBe(409);
+      expect(
+        (
+          await call(`members/${titularId}/enrollment/preview`, {
+            startPeriod: '2026-10',
+            throughPeriod: '2027-02',
+          })
+        ).status,
+      ).toBe(400);
+      expect(await dues.countDocuments()).toBe(0);
+      expect((await members.findById(titularId)).billingStartPeriod).toBeUndefined();
+    });
+    const generation = async (id = titularId, throughPeriod = '2027-01') => {
+      const preview = await call(`members/${id}/dues/preview`, { throughPeriod });
+      expect(preview.status).toBe(201);
+      return { throughPeriod, approvalHash: preview.body.approvalHash };
+    };
+    it('previews generation without changing members, dues, audit or payments', async () => {
+      const before = await members.find({}).lean();
+      const result = await call(`members/${titularId}/dues/preview`, { throughPeriod: '2027-01' });
+      expect(result.status).toBe(201);
+      expect(result.body).toMatchObject({ newCount: 4, existingCount: 0, total: 720 });
+      expect(await members.find({}).lean()).toEqual(before);
+      expect(await dues.countDocuments()).toBe(0);
+      expect(await audit.countDocuments()).toBe(0);
+      expect(await payments.countDocuments()).toBe(0);
+    });
+    it('generates only the explicitly selected beneficiary and deduplicates concurrent confirmations', async () => {
+      const body = await generation();
+      const results = await Promise.all([
+        call(`members/${titularId}/dues`, body),
+        call(`members/${titularId}/dues`, body),
+      ]);
+      expect(results.map((row) => row.status)).toEqual([201, 201]);
+      expect(results.map((row) => row.body.duplicate).sort()).toEqual([false, true]);
+      expect(results[0].body).toMatchObject({ createdDues: 4, existingDues: 0, total: 720 });
+      expect(await dues.countDocuments({ beneficiaryId: titularId })).toBe(4);
+      expect(await dues.countDocuments({ beneficiaryId: cargaId })).toBe(0);
+      expect(await payments.countDocuments()).toBe(0);
+      expect(await audit.countDocuments({ 'metadata.reason': 'MEMBERSHIP_DUES_GENERATION' })).toBe(
+        1,
+      );
+      expect(
+        (await call(`members/${titularId}/dues`, { ...body, throughPeriod: '2026-12' })).status,
+      ).toBe(409);
+    });
+    it('rejects a concurrent distinct key with stale preview without duplicating periods', async () => {
+      const body = await generation();
+      const results = await Promise.all([
+        call(`members/${titularId}/dues`, body, token(), key('distinct-one')),
+        call(`members/${titularId}/dues`, body, token(), key('distinct-two')),
+      ]);
+      expect(results.map((row) => row.status).sort()).toEqual([201, 409]);
+      expect(await dues.countDocuments()).toBe(4);
+      expect(await audit.countDocuments()).toBe(1);
+    });
+    it('serializes with the existing monthly generation engine without duplicate or partial ranges', async () => {
+      const body = await generation();
+      const [response] = await Promise.all([
+        call(`members/${titularId}/dues`, body),
+        core.prepareDues(adminId, titularId),
+      ]);
+      expect([201, 409]).toContain(response.status);
+      const rows = await dues.find({ beneficiaryId: titularId }).lean();
+      expect(rows).toHaveLength(response.status === 201 ? 4 : 1);
+      expect(new Set(rows.map((row) => row.period)).size).toBe(rows.length);
+      expect(await payments.countDocuments()).toBe(0);
+    });
+    it('does not reopen excluded dues or lose archived history when generating later valid months', async () => {
+      await core.prepareDues(adminId, titularId);
+      await dues.collection.updateOne(
+        { beneficiaryId: new mongoose.Types.ObjectId(titularId) },
+        {
+          $set: {
+            status: 'VOID',
+            voided: { at: now, effectiveAt: now, reason: 'MEMBERSHIP_TERMINATED' },
+          },
+        },
+      );
+      expect(
+        (await call(`members/${titularId}/dues/preview`, { throughPeriod: '2027-01' })).status,
+      ).toBe(409);
+      await members.updateOne(
+        { _id: titularId },
+        {
+          $set: {
+            billingPeriods: [
+              {
+                fromPeriod: '2026-10',
+                throughPeriod: '2026-10',
+                approvedAt: now,
+                approvedBy: adminId,
+                reason: 'Vigencia fixture',
+              },
+              {
+                fromPeriod: '2026-12',
+                approvedAt: now,
+                approvedBy: adminId,
+                reason: 'Vigencia fixture',
+              },
+            ],
+          },
+        },
+      );
+      await dues.collection.updateOne(
+        { beneficiaryId: new mongoose.Types.ObjectId(titularId) },
+        {
+          $set: {
+            status: 'ARCHIVED',
+            archive: {
+              at: now,
+              approvedBy: new mongoose.Types.ObjectId(adminId),
+              reason: 'Historia fixture',
+              reenrollmentPeriod: '2026-12',
+            },
+          },
+          $unset: { voided: '' },
+        },
+      );
+      const before = await dues.findOne().lean();
+      const body = await generation();
+      const result = await call(`members/${titularId}/dues`, body);
+      expect(result.status).toBe(201);
+      expect(result.body).toMatchObject({ createdDues: 2, existingDues: 1 });
+      expect(await dues.findById(before._id).lean()).toEqual(before);
+      expect(await dues.exists({ beneficiaryId: titularId, period: '2026-11' })).toBeNull();
+    });
+    it('preserves paid dues and payments, counting them separately from three missing months', async () => {
+      const bank = await call('payments', await draft());
+      expect(bank.status).toBe(201);
+      const paid = await dues.findOne({ beneficiaryId: titularId }).lean();
+      const storedPayment = await payments.find({}).lean();
+      const preview = await call(`members/${titularId}/dues/preview`, { throughPeriod: '2027-01' });
+      expect(preview.body).toMatchObject({ newCount: 3, existingCount: 1, total: 540 });
+      expect(preview.body.existingRows[0].status).toBe('PAID');
+      const result = await call(`members/${titularId}/dues`, {
+        throughPeriod: '2027-01',
+        approvalHash: preview.body.approvalHash,
+      });
+      expect(result.body.createdDues).toBe(3);
+      expect(await dues.findById(paid._id).lean()).toEqual(paid);
+      expect(await payments.find({}).lean()).toEqual(storedPayment);
+    });
+    it('records a no-change confirmation without changing member versions or existing rows', async () => {
+      await core.prepareDues(adminId, titularId);
+      const before = await dues.find({}).lean();
+      const member = await members.findById(titularId).lean();
+      const body = await generation(titularId, '2026-10');
+      const result = await call(`members/${titularId}/dues`, body);
+      expect(result.status).toBe(201);
+      expect(result.body).toMatchObject({ createdDues: 0, existingDues: 1, total: 0 });
+      expect(await dues.find({}).lean()).toEqual(before);
+      expect(await members.findById(titularId).lean()).toEqual(member);
+    });
+    it('rejects stale generation after new dues, tariff change or account deactivation', async () => {
+      const body = await generation();
+      await core.prepareDues(adminId, titularId);
+      expect((await call(`members/${titularId}/dues`, body)).status).toBe(409);
+      const fresh = await generation();
+      await configs.updateOne({}, { $set: { 'testPricing.titular': 181 } });
+      expect((await call(`members/${titularId}/dues`, fresh)).status).toBe(409);
+      const newer = await generation();
+      await members.updateOne({ _id: titularId }, { $set: { statePlayer: false } });
+      expect((await call(`members/${titularId}/dues`, newer)).status).toBe(409);
+      expect(await dues.countDocuments()).toBe(1);
+      expect(await audit.countDocuments()).toBe(0);
+    });
+    it('rolls back new dues and member versions when generation audit fails', async () => {
+      const body = await generation();
+      const before = await members.findById(titularId).lean();
+      const spy = jest
+        .spyOn(audit, 'create')
+        .mockRejectedValueOnce(new Error('generation audit fixture failure') as never);
+      try {
+        await expect(admin.generateDues(adminEmail, titularId, body, key())).rejects.toThrow(
+          'generation audit fixture failure',
+        );
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await dues.countDocuments()).toBe(0);
+      expect(await audit.countDocuments()).toBe(0);
+      expect(await members.findById(titularId).lean()).toEqual(before);
+      expect((await call(`members/${titularId}/dues`, body)).body.createdDues).toBe(4);
+    });
+    it('replays the stored generation after month rollover but rejects an unapplied stale preview', async () => {
+      const own = await generation();
+      const carga = await generation(cargaId);
+      expect((await call(`members/${titularId}/dues`, own)).status).toBe(201);
+      now = new Date('2026-11-01T04:00:00Z');
+      expect((await call(`members/${titularId}/dues`, own)).body).toMatchObject({
+        duplicate: true,
+        createdDues: 4,
+        throughPeriod: '2027-01',
+      });
+      expect((await call(`members/${cargaId}/dues`, carga)).status).toBe(409);
+    });
+    it('keeps exceptional reasons mandatory and rejects future-range fields on reenrollment', async () => {
+      for (const reason of [undefined, '', '   ']) {
+        expect(
+          (
+            await call(`members/${titularId}/reenrollment`, {
+              startPeriod: '2026-10',
+              approvalHash: 'a'.repeat(64),
+              ...(reason === undefined ? {} : { reason }),
+            })
+          ).status,
+        ).toBe(400);
+      }
+      expect(
+        (
+          await call(`members/${titularId}/reenrollment/preview`, {
+            startPeriod: '2026-10',
+            throughPeriod: '2027-01',
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await call(`members/${titularId}/reenrollment`, {
+            startPeriod: '2026-10',
+            throughPeriod: '2027-01',
+            approvalHash: 'a'.repeat(64),
+            reason: 'Motivo valido',
+          })
+        ).status,
+      ).toBe(400);
+      expect(await dues.countDocuments()).toBe(0);
+    });
+    it('enforces generation DTOs, preview bounds, active admin and idempotency key', async () => {
+      for (const body of [
+        {},
+        { throughPeriod: '2027-02' },
+        { throughPeriod: '2026-09' },
+        { throughPeriod: null },
+        { throughPeriod: '2027-01', amount: 1 },
+      ])
+        expect((await call(`members/${titularId}/dues/preview`, body)).status).toBe(400);
+      const body = await generation();
+      expect((await call(`members/${titularId}/dues`, body, token(), 'bad')).status).toBe(400);
+      expect((await call(`members/${titularId}/dues`, { ...body, actor: adminId })).status).toBe(
+        400,
+      );
+      expect(
+        (await call(`members/${titularId}/dues`, { approvalHash: body.approvalHash })).status,
+      ).toBe(400);
+      expect(
+        (
+          await call(
+            `members/${titularId}/dues/preview`,
+            { throughPeriod: '2027-01' },
+            token('test1@example.invalid', 'user'),
+          )
+        ).status,
+      ).toBe(403);
+      expect(
+        (await call(`members/${titularId}/dues/preview`, { throughPeriod: '2027-01' }, '')).status,
+      ).toBe(401);
+      await members.updateOne({ _id: adminId }, { $set: { statePlayer: false } });
+      expect((await call(`members/${titularId}/dues`, body)).status).toBe(403);
+      expect(await dues.countDocuments()).toBe(0);
     });
     it('records cash with its own folio, responsible admin, email and filtered history', async () => {
       const result = await call('payments', await cashDraft());

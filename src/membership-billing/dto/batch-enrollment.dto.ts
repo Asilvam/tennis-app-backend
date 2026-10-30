@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -11,6 +11,7 @@ import {
   MaxLength,
   MinLength,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import { PreviewMembershipEnrollmentDto } from './enroll-membership.dto';
 
@@ -29,7 +30,12 @@ export class ApplyBatchEnrollmentDto extends PreviewMembershipEnrollmentDto {
   @ValidateNested({ each: true })
   @Type(() => BatchEnrollmentItemDto)
   items: BatchEnrollmentItemDto[];
-  @IsString() @MinLength(5) @MaxLength(1000) reason: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() || undefined : value))
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @MinLength(5)
+  @MaxLength(1000)
+  reason?: string;
 }
 export class ApproveBillingHistoryDto {
   @IsString() @Matches(/^[a-f\d]{64}$/) approvalHash: string;

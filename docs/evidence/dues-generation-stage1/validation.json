@@ -1,0 +1,532 @@
+{
+  "date": "2026-10-29",
+  "stage": 1,
+  "scope": "Backend only; real HTTP/JWT and isolated MongoDB; external providers mocked",
+  "baseHead": "2fc86e99130527858293891310e85200823d2f56",
+  "deployed": false,
+  "frontendChanged": false,
+  "productionDataTouched": false,
+  "runtime": {
+    "node": "v22.22.2",
+    "npm": "10.9.7",
+    "mongo": "8",
+    "replicaSet": "ctqDuesStage1"
+  },
+  "regression": {
+    "tests": 883,
+    "passed": 883,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 56,
+    "rawReportSha256": "d7ea8808f16cd75a18419120b439731715b35778ba6ee4eea5689be04a553447"
+  },
+  "checks": {
+    "types": {
+      "command": "npx tsc --noEmit --incremental false",
+      "exitCode": 0
+    },
+    "lint": {
+      "printWidthOverride": 100,
+      "scope": [
+        "src/membership-billing/billing-generation.policy.ts",
+        "src/membership-billing/billing-generation.policy.spec.ts",
+        "src/membership-billing/billing-enrollment.policy.ts",
+        "src/membership-billing/billing-enrollment.service.ts",
+        "src/membership-billing/billing-admin.service.ts",
+        "src/membership-billing/billing-admin.controller.ts",
+        "src/membership-billing/billing-admin.integration.spec.ts",
+        "src/membership-billing/billing-lifecycle.integration.spec.ts",
+        "src/membership-billing/dto/enroll-membership.dto.ts",
+        "src/membership-billing/dto/billing-admin-query.dto.ts",
+        "src/membership-billing/dto/batch-enrollment.dto.ts"
+      ],
+      "exitCode": 0,
+      "note": "Local user .prettierrc is preserved; this is not a claim of global repository lint"
+    }
+  },
+  "suites": [
+    {
+      "file": "src/membership-billing/billing-lifecycle.integration.spec.ts",
+      "status": "passed",
+      "tests": [
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does nothing without explicit reviewed DB activation or with the existing admin switch off",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT previews read-only, verifies the current admin and protects the HTTP route",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT generates in Chile, includes restricted members and skips inactive or unenrolled accounts",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT generates the carga at 50 and all other IDs at standard prices",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT concurrent retries issue one due and one generation audit",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT closes on day 6, keeps Oct-Dec debt and voids January and later issued unpaid dues",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT recovers a missed run at the original cutoff, not at the restart month",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT holds uncertain MP attempts, reconciles first and deduplicates review audits",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT leaves legacy interval-less records in review instead of inventing an approval",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does not terminate admin members, or modify their legacy access flags",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT uses effective bank dates, not the date the administrator recorded the receipt",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a late verified payment preserves money but does not retroactively avoid termination",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does not void a prepaid future month or automatically refund it",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rolls back generation, voiding and account state if the financial audit fails",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT isolates one member failure so the next member can still be processed",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT re-enrolls in the current month without requiring old debt or losing history",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT concurrent termination retries close only once",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT previews families read-only and excludes admin from the global batch",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT applies a family range with automatic audit reason and idempotent batch approval",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rejects out-of-range batch generation before creating request audit or partial enrollments",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT manual activation wins a race with the mass preview and is never replaced",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT batch retries and concurrent requests do not duplicate approvals or dues",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a reviewed existing member is omitted from all later mass previews",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT inactive accounts, incomplete baselines and orphan cargas are review-only",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rejects forged, duplicate, empty and unreviewed mass requests before applying data",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT changed prices require review again and uncertain failures resume the same batch",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT completes an old pilot validity without enrolling, repricing, archiving or creating payments",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT history approval rejects changed ledgers and invalid baselines, and rolls back if audit fails",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT real uncertainty still blocks legacy review and refund evidence is not ignored",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT restores an excluded future due after reenrollment via worker",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT restores an excluded future due after reenrollment via on-demand",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a readonly release snapshot excludes credentials and never changes billing records",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a future-due audit failure rolls back reopening and repricing after reenrollment",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT financial backup is private, exclusive, checksum checked and restorable as BSON",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT release audit on an empty local database never creates collections or indexes",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a closure audit failure rolls back an existing account and issued future dues",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT re-enrollment rollback preserves inactive state, old debt and excluded months",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT keeps old real payments and reverses them without resurrecting non-collectible debt",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT prevents generic activation bypasses and keeps inactive payments disabled",
+          "status": "passed"
+        },
+        {
+          "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rejects invalid reenrollment dates, data, accounts and stale approvals",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "src/membership-billing/billing-admin.integration.spec.ts",
+      "status": "passed",
+      "tests": [
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB reads a member detail without generating dues, modifying the member or creating audit events",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB allows reading inactive/unenrolled members without enrolling or activating them",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB validates member detail IDs and active admin authorization",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB filters history by beneficiary rather than by the person who paid",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB matches period and beneficiary within the same allocation in a family payment",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records transfer, allocations and responsible admin atomically through authenticated HTTP",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB requires actual active admin role, not only a signed role claim",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB leaves endpoints disabled by default without creating configuration or obligations",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects spoofed actor, partial/excess amounts, unverified deposits, future and invalid dates",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB deduplicates the same confirmed request and rejects a changed body on the same key",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB handles concurrent same-key submissions without a duplicate payment",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB allows only one of two distinct registrations to settle the same dues",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back payment, all dues and member locks when mandatory audit fails",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records a bank deposit with an external payer without inventing a user or sending an email",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB keeps a confirmed payment if email delivery fails, then retries without another charge",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB leases notifications across two workers without sending twice",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB reverses a bank entry without deleting evidence or refunding money",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back reversal if one allocation no longer points at the original payment",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB fails closed if the unique payment index is missing",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB requires an audited review for a second income matching bank reference/date/amount",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB ends an exhausted notification lease after a simulated worker crash",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back a reversal if its mandatory audit fails",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB does not expose financial audit events through the legacy user-accessible audit routes",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB retains authenticated admin payment of current plus three future months",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB previews enrollment without writing dues, payments, activity or audit",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB enrolls only the approved member with history and OPEN dues, never a fake payment",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB deduplicates simultaneous enrollment and rejects a reused key with changed content",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB refuses stale enrollment prices and rolls back everything if audit fails",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB validates enrollment period, activity, parent association, role and strict request fields",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB prices linked carga enrollment at 50 and ordinary membership at the real rate",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB never resets existing financial records to approve a new billing start",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB enrolls four months with automatic audit reason and no payment",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB supports a blank initial reason and prices carga ranges without granting future member access",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects a changed initial range or excessive future range without storing an enrollment",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB previews generation without changing members, dues, audit or payments",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB generates only the explicitly selected beneficiary and deduplicates concurrent confirmations",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects a concurrent distinct key with stale preview without duplicating periods",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB serializes with the existing monthly generation engine without duplicate or partial ranges",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB does not reopen excluded dues or lose archived history when generating later valid months",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB preserves paid dues and payments, counting them separately from three missing months",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records a no-change confirmation without changing member versions or existing rows",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects stale generation after new dues, tariff change or account deactivation",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back new dues and member versions when generation audit fails",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB replays the stored generation after month rollover but rejects an unapplied stale preview",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB keeps exceptional reasons mandatory and rejects future-range fields on reenrollment",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB enforces generation DTOs, preview bounds, active admin and idempotency key",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records cash with its own folio, responsible admin, email and filtered history",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB deduplicates cash retries and reverses only its own allocations without deleting evidence",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects incomplete cash, bank evidence and client-supplied receipt/admin fields",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB generates only approved intervals and never fills inactive gaps",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back cash and all allocations if the mandatory audit fails",
+          "status": "passed"
+        },
+        {
+          "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB searches literal names safely and validates query pagination",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "src/membership-billing/billing-generation.policy.spec.ts",
+      "status": "passed",
+      "tests": [
+        {
+          "name": "Explicit billing range and automatic initial audit reason keeps legacy single-month previews identical when the upper bound is omitted",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason previews four months inclusively across a year boundary for titular and carga",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason rejects an invalid initial upper bound: 2027-02",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason rejects an invalid initial upper bound: 2026-09",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason rejects an invalid initial upper bound: 2026-13",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason rejects an invalid initial upper bound: null",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason rejects a future start even when the chosen end is within admin allowance",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason normal enrollment defaults audit reason in backend, while exceptions remain explicit",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason accepts initial DTO reason undefined without weakening reenrollment",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason accepts initial DTO reason  without weakening reenrollment",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason accepts initial DTO reason     without weakening reenrollment",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason accepts initial DTO reason Motivo antiguo valido without weakening reenrollment",
+          "status": "passed"
+        },
+        {
+          "name": "Explicit billing range and automatic initial audit reason rejects nulls, caller-supplied money/actors and future ranges on the exceptional DTO",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members counts existing dues separately and charges no new amount for a paid row",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members returns a zero-new plan when all requested months already exist",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members does not reopen cancelled dues or create months between validity intervals",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members rejects invalid member eligibility {\"statePlayer\":false}",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members rejects invalid member eligibility {}",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members rejects invalid member eligibility {\"partnerType\":\"Unknown\"}",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members rejects invalid member eligibility {\"billingPeriods\":[]}",
+          "status": "passed"
+        },
+        {
+          "name": "Read-only plan for already enrolled members fingerprints range, member version, settled state, pricing and local calendar month",
+          "status": "passed"
+        }
+      ]
+    }
+  ],
+  "sourceHashes": {
+    "src/membership-billing/billing-generation.policy.ts": "b6287285edf769be153305975e466ac1a091823bed74a7c687d2615d31286c40",
+    "src/membership-billing/billing-generation.policy.spec.ts": "ee99a8076cfdd05099eb01e8ec7615d6625a5da665c9759bc9ee36da0cf7e253",
+    "src/membership-billing/billing-enrollment.policy.ts": "40abb2ba9c18f9181e86c351b3bb8568fc79576055aa5a2bbd99a1839c22b0ed",
+    "src/membership-billing/billing-enrollment.service.ts": "bbefaa84950185a30cd1065b3722bb74ab40f2ebd834966e7c5666bf6f3f2a5f",
+    "src/membership-billing/billing-admin.service.ts": "46b509d9967284e08a8a28fa97873c5c54e1c9eb0370d1657e0da053b348a139",
+    "src/membership-billing/billing-admin.controller.ts": "6a86460cde0e113bd6a905116d44befc1959a006620705c8e78d71b036152aa1",
+    "src/membership-billing/billing-admin.integration.spec.ts": "75d05ef302b41d4ff59fac112b23bb6d24cde424bc9079bb58eeb8f0800091e8",
+    "src/membership-billing/billing-lifecycle.integration.spec.ts": "efc359d9f8998dd627d9e5c3d227ef942a80273bc40dff4b7922f707e84d69ad",
+    "src/membership-billing/dto/enroll-membership.dto.ts": "dff39607e76bc3deb65bfe90f613a54c1bb614b838f2cb5d588381e675ec6286",
+    "src/membership-billing/dto/billing-admin-query.dto.ts": "097d2e1a0a989ed36c75dc9de5d7b5ebf4d0658dadaf9cebaba714458a88bfe3",
+    "src/membership-billing/dto/batch-enrollment.dto.ts": "e4df69b90e50ff7ca250370fe79f29ee3205b5f7a091e3208dc74775c0beb1a9"
+  }
+}

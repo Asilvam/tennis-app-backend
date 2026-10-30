@@ -9,6 +9,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class BillingAdminQueryDto {
@@ -38,4 +39,14 @@ export class BillingAdminQueryDto {
 
 export class PrepareAdminDuesDto {
   @IsOptional() @Matches(/^[2-9]\d{3}-(0[1-9]|1[0-2])$/) throughPeriod?: string;
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @Matches(/^[a-f\d]{64}$/)
+  approvalHash?: string;
+}
+
+export class PreviewAdminDuesDto {
+  @IsString()
+  @Matches(/^[2-9]\d{3}-(0[1-9]|1[0-2])$/)
+  throughPeriod: string;
 }
