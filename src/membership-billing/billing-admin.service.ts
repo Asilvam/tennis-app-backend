@@ -893,18 +893,6 @@ export class BillingAdminService {
             confirmedAt: now,
             notes: canonical.notes,
             idempotency: { actorId: currentAdmin._id, key: idempotencyKey, hash },
-            notifications: payer.email
-              ? [
-                  {
-                    recipient: payer.email,
-                    eventKey: `${publicReference}:confirmed`,
-                    kind: 'CONFIRMED',
-                    status: 'PENDING',
-                    attempts: 0,
-                    nextAttemptAt: now,
-                  },
-                ]
-              : [],
           },
         ],
         { session },
@@ -1026,17 +1014,6 @@ export class BillingAdminService {
         reversedAt: now,
         idempotencyKey: key,
       };
-      for (const notification of payment.notifications)
-        if (['PENDING', 'FAILED'].includes(notification.status)) notification.status = 'CANCELLED';
-      if (payment.payer.email)
-        payment.notifications.push({
-          recipient: payment.payer.email,
-          eventKey: `${payment.publicReference}:reversed`,
-          kind: 'REVERSED',
-          status: 'PENDING',
-          attempts: 0,
-          nextAttemptAt: now,
-        });
       await payment.save({ session });
       await this.audit.create(
         [
@@ -1146,7 +1123,7 @@ export class BillingAdminService {
           period: row.period,
           amount: row.amount,
         })),
-        notificationStatus: item.notifications.at(-1)?.status || null,
+        notificationStatus: null,
       })),
     };
   }

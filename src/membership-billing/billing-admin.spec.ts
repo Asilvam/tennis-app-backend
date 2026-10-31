@@ -2,10 +2,8 @@ import { validate } from 'class-validator';
 import { ConfigService } from '@nestjs/config';
 import { BillingAdminEnabledGuard } from './billing-admin.guard';
 import { RegisterBankPaymentDto, ReverseBankPaymentDto } from './dto/register-bank-payment.dto';
-import { buildMembershipPaymentEmail } from './billing-payment-email';
-import { MembershipPayment } from './entities/membership-payment.entity';
 
-describe('Bank administration contracts and monthly email', () => {
+describe('Bank administration contracts', () => {
   it('disables the administrative flow unless explicitly enabled', () => {
     for (const value of [undefined, 'false', true, '1']) {
       expect(() =>
@@ -62,25 +60,5 @@ describe('Bank administration contracts and monthly email', () => {
     expect(
       await validate(Object.assign(new ReverseBankPaymentDto(), { reason: 'Registro equivocado' })),
     ).toHaveLength(0);
-  });
-  it('escapes names/references and identifies bank method, beneficiaries and months without promising access', () => {
-    const payment = {
-      publicReference: 'membership-test',
-      payer: { name: '<script>payer</script>' },
-      bank: { reference: '<reference>' },
-      method: 'BANK_TRANSFER',
-      amount: 230,
-      allocations: [
-        { beneficiaryName: '<socio>', period: '2026-10', amount: 180 },
-        { beneficiaryName: 'usuario test 2', period: '2026-10', amount: 50 },
-      ],
-    } as MembershipPayment;
-    const email = buildMembershipPaymentEmail(payment, false);
-    expect(email.html).toContain('&lt;script&gt;');
-    expect(email.html).toContain('&lt;reference&gt;');
-    expect(email.html).toContain('2026-10');
-    expect(email.html).toContain('Transferencia bancaria');
-    expect(email.html).not.toContain('<script>');
-    expect(email.html).not.toContain('habilitada exitosamente');
   });
 });

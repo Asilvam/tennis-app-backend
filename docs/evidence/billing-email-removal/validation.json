@@ -1,0 +1,141 @@
+{
+  "generatedAt": "2026-10-31T19:51:08.419Z",
+  "timezone": "America/Santiago",
+  "scope": "Remove automatic membership payment email only",
+  "environment": {
+    "database": "isolated localhost replica set",
+    "host": "127.0.0.1",
+    "port": 27371,
+    "replicaSet": "ctqNoEmail20261031",
+    "externalProviders": "mocked",
+    "productionDatabaseUsed": false,
+    "realPayments": false,
+    "realEmails": false,
+    "deployed": false,
+    "temporaryServerStopped": true
+  },
+  "regression": {
+    "startedAt": "2026-10-31T19:49:00.594Z",
+    "passed": 883,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 56,
+    "integrations": [
+      {
+        "file": "src/membership-billing/billing-lifecycle.integration.spec.ts",
+        "passed": 40,
+        "status": "passed"
+      },
+      {
+        "file": "src/membership-billing/billing-admin.integration.spec.ts",
+        "passed": 50,
+        "status": "passed"
+      },
+      {
+        "file": "src/membership-billing/billing-mp.integration.spec.ts",
+        "passed": 40,
+        "status": "passed"
+      },
+      {
+        "file": "src/membership-billing/billing-due-adjustment.integration.spec.ts",
+        "passed": 16,
+        "status": "passed"
+      },
+      {
+        "file": "src/membership-billing/membership-billing.integration.spec.ts",
+        "passed": 20,
+        "status": "passed"
+      },
+      {
+        "file": "src/match-ranking/match-ranking.integration.spec.ts",
+        "passed": 6,
+        "status": "passed"
+      },
+      {
+        "file": "src/player-category-points/player-category-points.integration.spec.ts",
+        "passed": 10,
+        "status": "passed"
+      }
+    ],
+    "removalTests": [
+      {
+        "name": "Monthly payments without automatic email does not register an email worker or import the email module",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly payments without automatic email creates no notification for a new payment with a payer email",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly payments without automatic email retains legacy notification evidence without changing or rescheduling it",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness reports pilot prices but never authorizes changes, charges or general activation",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness does not permit new billing initialization based only on an active account",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness requires approved validity history before a general release review",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness flags already enabled autoBlockEnabled instead of disabling it",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness flags already enabled automation instead of disabling it",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness rejects incorrect test allowlists, normal rates and a carga assigned to another titular",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness requires existing unique indexes without creating them",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness detects duplicate dues and test pricing outside the two approved IDs",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness does not report a paid due without a matching confirmed receipt",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness flags mismatched payments and allocations, instead of fixing financial records",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness keeps uncertain payment attempts visible without retrying external effects",
+        "status": "passed"
+      },
+      {
+        "name": "Read-only release readiness does not block release for legacy failed emails or mutate their history",
+        "status": "passed"
+      }
+    ]
+  },
+  "checks": {
+    "typeScript": "passed",
+    "nestBuild": "passed",
+    "targetedEslint": "passed with explicit printWidth 100 to avoid changing unrelated local .prettierrc",
+    "gitDiffCheck": "passed",
+    "removedWorkerAndTemplateAbsentFromDist": true
+  },
+  "hashes": {
+    "src/membership-billing/membership-billing.module.ts": "5566ed1224a1f763f1aff34b32a5ce190d714ec403e64e38bd2e3e300c0aa137",
+    "src/membership-billing/entities/membership-payment.entity.ts": "7c7fb5a1b3b07d666c676693ff1ad0a4c9dd8a7486745fd2e952b0a2d0d1b8be",
+    "src/membership-billing/billing-admin.service.ts": "feaf8cbbf18f25d9cfdb3b05643df6816f2a9e2ab4e906030b8088c627b603f5",
+    "src/membership-billing/billing-mp.service.ts": "1d0795e996f4b59e5a1e1a45fe3cc7fdd49ef8919c306318352ea1fd496d2fca",
+    "src/membership-billing/billing-release-check.ts": "ab0cb17934df5d9917c7044dd162be0cf76f1885d4a70c680374a5cd0a81f5bf",
+    "src/membership-billing/billing-no-email.spec.ts": "c74f8e9126a48dd648a8e6270f6dd509bed9d5812acd60227fa6f1fa8b809f9e",
+    "src/membership-billing/billing-admin.integration.spec.ts": "3e12cbe94ae0368141f1a320c45c061d98200441dcb2cad922852d76c7fd83a6",
+    "src/membership-billing/billing-mp.integration.spec.ts": "a235e839ebe83a1fde3229b9e3aba14e3d644c761a5dca258c3b2c1076a9ce9b",
+    "src/membership-billing/billing-release-check.spec.ts": "6c6181351d620c219533a7f9192e21dd2c9de7ab1c61ad0361392f5017299645"
+  }
+}

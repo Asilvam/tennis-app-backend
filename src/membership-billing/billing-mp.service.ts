@@ -561,17 +561,6 @@ export class MembershipMpService {
             status = 'CONFIRMED';
             set.paidAt = approvedAt;
             set.confirmedAt = now;
-            if (payment.payer.email)
-              set.notifications = [
-                {
-                  recipient: payment.payer.email,
-                  eventKey: `${payment.publicReference}:confirmed`,
-                  kind: 'CONFIRMED',
-                  status: 'PENDING',
-                  attempts: 0,
-                  nextAttemptAt: now,
-                },
-              ];
           }
         }
       } else if (!wasConfirmed) {
@@ -582,7 +571,7 @@ export class MembershipMpService {
               ? 'CANCELLED'
               : 'PENDING';
       }
-      // A late pending/rejected event cannot degrade the confirmed evidence or cancel its mail.
+      // A late pending/rejected event cannot degrade the confirmed evidence.
       const preserve =
         wasConfirmed && !returned && snapshot.status !== 'approved' && !reasons.length;
       if (!preserve) set.provider = { ...payment.provider, ...evidence };

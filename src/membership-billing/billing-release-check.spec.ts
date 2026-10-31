@@ -153,7 +153,7 @@ describe('Read-only release readiness', () => {
       buildBillingReleaseReport(input, ids, indexes, now).issues.map((row) => row.code),
     ).toEqual(expect.arrayContaining(['PAYMENT_ALLOCATION_MISMATCH', 'ALLOCATION_DUE_MISMATCH']));
   });
-  it('keeps uncertain attempts and failed email visible without retrying external effects', () => {
+  it('keeps uncertain payment attempts visible without retrying external effects', () => {
     const input = fixture();
     input.membership_payments.push({
       method: 'MERCADO_PAGO',
@@ -172,8 +172,31 @@ describe('Read-only release readiness', () => {
     });
     expect(buildBillingReleaseReport(input, ids, indexes, now)).toMatchObject({
       generalReadyForReview: false,
-      counts: { attemptsToReview: 1, mailToReview: 1 },
+      counts: { attemptsToReview: 1, mailToReview: 0 },
     });
     expect(input.membership_payments[0].status).toBe('PENDING');
+  });
+  it('does not block release for legacy failed emails or mutate their history', () => {
+    const input = fixture();
+    input.membership_payments.push({
+      method: 'BANK_TRANSFER',
+      status: 'REVERSED',
+      amount: 180,
+      allocations: [
+        {
+          dueId: input.membership_dues[0]._id,
+          beneficiaryId: ids[0],
+          amount: 180,
+          period: '2026-10',
+        },
+      ],
+      notifications: [{ status: 'FAILED', attempts: 6 }],
+    });
+    const before = JSON.stringify(input);
+    expect(buildBillingReleaseReport(input, ids, indexes, now)).toMatchObject({
+      generalReadyForReview: true,
+      counts: { mailToReview: 0 },
+    });
+    expect(JSON.stringify(input)).toBe(before);
   });
 });

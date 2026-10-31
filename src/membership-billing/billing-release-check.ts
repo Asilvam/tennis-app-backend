@@ -165,9 +165,6 @@ export function buildBillingReleaseReport(
     }
   }).length;
   const attemptsToReview = payments.filter((row) => uncertainMembershipPayment(row, now)).length;
-  const mailToReview = payments
-    .flatMap((row) => row.notifications || [])
-    .filter((row) => row.status === 'FAILED').length;
   const pilotAmounts = validConfig
     ? pilot.map((member) => {
         try {
@@ -184,8 +181,7 @@ export function buildBillingReleaseReport(
     approvalRequired: true,
     mutationAllowed: false,
     pilotReadyForReview: !issues.length,
-    generalReadyForReview:
-      !issues.length && !withoutStart && !withoutHistory && !attemptsToReview && !mailToReview,
+    generalReadyForReview: !issues.length && !withoutStart && !withoutHistory && !attemptsToReview,
     switches: {
       autoBlockEnabled: config?.autoBlockEnabled === true,
       automationEnabled: config?.automation?.enabled === true,
@@ -198,7 +194,7 @@ export function buildBillingReleaseReport(
       activeWithoutValidityHistory: withoutHistory,
       closureCandidates,
       attemptsToReview,
-      mailToReview,
+      mailToReview: 0, // Retained response field; legacy emails no longer require processing.
       duesByStatus: counts,
     },
     pilot: pilotIds.map((id, index) => ({

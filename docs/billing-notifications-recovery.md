@@ -1,5 +1,10 @@
 # Avisos de mensualidades: diagnostico y recuperacion
 
+> Documento historico. El 2026-10-31 el usuario solicito retirar este proceso y
+> sus correos. El worker, sus reintentos y las plantillas fueron eliminados del
+> codigo local. Ver [retiro y verificacion actual](billing-email-removal.md).
+> Las mediciones siguientes corresponden a la implementacion anterior.
+
 Fecha: 2026-10-30. Implementacion local sobre `develop`; no desplegada por esta tarea.
 
 ## Hallazgo

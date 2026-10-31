@@ -86,7 +86,12 @@ autoBlockEnabled sigue desactivado por defecto. El login y las reservas conserva
 actual: el acceso restringido del socio y su conexion al calculo financiero corresponden a etapa 4.
 Por tanto, registrar un pago no modifica silenciosamente los booleanos administrativos anteriores.
 
-## Correo y auditoria
+## Correo y auditoria (implementacion historica)
+
+Actualizacion 2026-10-31: los avisos y el worker descritos en esta seccion fueron
+retirados por solicitud del usuario. La auditoria financiera sigue vigente. Ver
+[retiro y pruebas](billing-email-removal.md). La habilitacion administrativa no
+activa ningun envio de correo mensual.
 
 - La cola de avisos usa notifications[] dentro de membership_payments; no hay coleccion nueva.
 - Trabajador cada 30 segundos, solo con modulo habilitado y para pagos bancarios.

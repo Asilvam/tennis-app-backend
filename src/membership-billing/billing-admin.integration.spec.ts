@@ -19,7 +19,6 @@ import { MembershipBillingService } from './membership-billing.service';
 import { BillingAdminService } from './billing-admin.service';
 import { BillingAdminController } from './billing-admin.controller';
 import { BillingAdminEnabledGuard } from './billing-admin.guard';
-import { BillingNotificationsService } from './billing-notifications.service';
 import { proposedBillingConfiguration } from './billing.types';
 import { RegisterBankPaymentDto } from './dto/register-bank-payment.dto';
 
@@ -35,7 +34,6 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
     let audit: mongoose.Model<AuditLog>;
     let core: MembershipBillingService;
     let admin: BillingAdminService;
-    let worker: BillingNotificationsService;
     let app: INestApplication;
     let base: string;
     let jwt: JwtService;
@@ -45,7 +43,6 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
     let cargaId: string;
     let adminId: string;
     const adminEmail = 'admin@example.invalid';
-    const email = { sendEmail: jest.fn() };
     const config = {
       get: (key: string) =>
         key === 'SECRET_KEY'
@@ -101,7 +98,6 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       }
       core = new MembershipBillingService(dues, payments, configs, members, () => now, audit);
       admin = new BillingAdminService(core, dues, payments, configs, members, audit, () => now);
-      worker = new BillingNotificationsService(payments, email as any, config as any, () => now);
       const module = await Test.createTestingModule({
         imports: [
           PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -124,7 +120,6 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
     beforeEach(async () => {
       enabled = true;
       now = new Date('2026-10-17T15:00:00Z');
-      email.sendEmail.mockReset().mockResolvedValue(undefined);
       for (const model of [dues, payments, configs, members, audit] as mongoose.Model<any>[])
         await model.deleteMany({});
       const titular = await members.create({
@@ -274,7 +269,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       expect(String(payment.registeredBy)).toBe(adminId);
       expect(String(payment.payer.memberId)).toBe(titularId);
       expect(payment.amount).toBe(230);
-      expect(payment.notifications[0].status).toBe('PENDING');
+      expect(payment.notifications).toHaveLength(0);
       expect((await audit.findOne({ entityId: response.body.id })).performedByEmail).toBe(
         adminEmail,
       );
@@ -388,33 +383,6 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       expect(payment.notifications).toHaveLength(0);
       expect(await members.countDocuments()).toBe(3);
     });
-    it('keeps a confirmed payment if email delivery fails, then retries without another charge', async () => {
-      const result = await admin.registerBankPayment(adminEmail, await draft(), key());
-      email.sendEmail.mockRejectedValueOnce(new Error('simulated SMTP failure'));
-      await worker.drain();
-      let payment = await payments.findById(result.id);
-      expect(payment.status).toBe('CONFIRMED');
-      expect(payment.notifications[0]).toMatchObject({ status: 'FAILED', attempts: 1 });
-      now = new Date(now.getTime() + 120000);
-      await worker.drain();
-      payment = await payments.findById(result.id);
-      expect(payment.notifications[0]).toMatchObject({ status: 'SENT', attempts: 2 });
-      await worker.drain();
-      expect(email.sendEmail).toHaveBeenCalledTimes(2);
-      expect(await payments.countDocuments()).toBe(1);
-      expect(email.sendEmail.mock.calls[0][1]).toBe(email.sendEmail.mock.calls[1][1]);
-    });
-    it('leases notifications across two workers without sending twice', async () => {
-      await admin.registerBankPayment(adminEmail, await draft(), key());
-      const second = new BillingNotificationsService(
-        payments,
-        email as any,
-        config as any,
-        () => now,
-      );
-      await Promise.all([worker.drain(), second.drain()]);
-      expect(email.sendEmail).toHaveBeenCalledTimes(1);
-    });
     it('reverses a bank entry without deleting evidence or refunding money', async () => {
       const result = await admin.registerBankPayment(adminEmail, await draft(), key());
       const response = await call(
@@ -428,9 +396,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       expect(await dues.countDocuments({ status: 'OPEN' })).toBe(2);
       expect(await payments.countDocuments()).toBe(1);
       expect(await audit.countDocuments()).toBe(2);
-      expect((await payments.findById(result.id)).notifications[0].status).toBe('CANCELLED');
-      await worker.drain();
-      expect(email.sendEmail.mock.calls[0][0].subject).toContain('anulado');
+      expect((await payments.findById(result.id)).notifications).toHaveLength(0);
       expect(
         (
           await admin.reverseBankPayment(
@@ -441,6 +407,26 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
           )
         ).duplicate,
       ).toBe(true);
+    });
+    it('preserves legacy email evidence on reversal without queuing another email', async () => {
+      const result = await admin.registerBankPayment(adminEmail, await draft(), key());
+      const notifications = [
+        {
+          recipient: 'test1@example.invalid',
+          eventKey: `${result.id}:confirmed`,
+          status: 'FAILED',
+          attempts: 6,
+        },
+      ];
+      await payments.updateOne({ _id: result.id }, { $set: { notifications } });
+      await admin.reverseBankPayment(adminEmail, result.id, 'Correccion de fixture', key('legacy'));
+      const payment = await payments.findById(result.id).lean();
+      expect(payment.status).toBe('REVERSED');
+      expect(payment.notifications).toMatchObject(notifications);
+      expect(payment.notifications).toHaveLength(1);
+      expect(await dues.countDocuments({ status: 'OPEN' })).toBe(2);
+      const detail = await call(`payments?beneficiaryId=${titularId}`);
+      expect(detail.body.items[0].notificationStatus).toBeNull();
     });
     it('rolls back reversal if one allocation no longer points at the original payment', async () => {
       const result = await admin.registerBankPayment(adminEmail, await draft(), key());
@@ -488,22 +474,6 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         (await audit.findOne({ entityId: second.id })).afterData.matchingReferencePaymentId,
       ).toBe(original.id);
       expect(await payments.countDocuments()).toBe(2);
-    });
-    it('ends an exhausted notification lease after a simulated worker crash', async () => {
-      const result = await admin.registerBankPayment(adminEmail, await draft(), key());
-      await payments.updateOne(
-        { _id: result.id },
-        {
-          $set: {
-            'notifications.0.status': 'PROCESSING',
-            'notifications.0.attempts': 6,
-            'notifications.0.lockedAt': new Date(now.getTime() - 360000),
-          },
-        },
-      );
-      await worker.drain();
-      expect((await payments.findById(result.id)).notifications[0].status).toBe('FAILED');
-      expect(email.sendEmail).not.toHaveBeenCalled();
     });
     it('rolls back a reversal if its mandatory audit fails', async () => {
       const result = await admin.registerBankPayment(adminEmail, await draft(), key());
@@ -1028,7 +998,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       expect((await call(`members/${titularId}/dues`, body)).status).toBe(403);
       expect(await dues.countDocuments()).toBe(0);
     });
-    it('records cash with its own folio, responsible admin, email and filtered history', async () => {
+    it('records cash with its own folio, responsible admin and filtered history without email', async () => {
       const result = await call('payments', await cashDraft());
       expect(result.status).toBe(201);
       const payment = await payments.findById(result.body.id);
@@ -1042,10 +1012,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         payment.cash.receiptNumber,
       );
       expect((await call('payments?method=BANK_DEPOSIT')).body.total).toBe(0);
-      await worker.drain();
-      expect(email.sendEmail.mock.calls[0][0].html).toContain('Efectivo');
-      expect(email.sendEmail.mock.calls[0][0].html).toContain('Folio de efectivo');
-      expect((await payments.findById(result.body.id)).notifications[0].status).toBe('SENT');
+      expect(payment.notifications).toHaveLength(0);
     });
     it('deduplicates cash retries and reverses only its own allocations without deleting evidence', async () => {
       const body = await cashDraft();

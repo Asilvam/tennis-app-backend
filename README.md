@@ -237,7 +237,7 @@ Reglas acordadas el **26 de octubre de 2026**, con implementación local de las 
 | --- | --- |
 | Cuotas individuales, tarifas, historial, auditoría e idempotencia | Implementado |
 | Portal del socio y registro administrativo de transferencia/depósito | Implementado |
-| Mercado Pago, conciliación, confirmación y correo mensual | Implementado; piloto real previo de Test 1 y Test 2 confirmado |
+| Mercado Pago, conciliación y confirmación mensual | Implementado; piloto real previo de Test 1 y Test 2 confirmado; correo mensual retirado |
 | Socio: atrasados y mes actual; administración: actual más tres futuros | Implementado |
 | Búsqueda rápida y corrección de solapes móviles de administración | Probado en local; pendiente de publicación al documentar esta sección |
 | Permisos de lectura sin esperar disponibilidad de Mercado Pago | Optimización probada en local; pendiente de publicación |
@@ -277,8 +277,8 @@ El piloto y sus pruebas no equivalen a habilitación general del club. El bloque
 
 1. **Habilitación inicial, implementada en local:** desde el detalle elegir **Habilitar mensualidades**, indicar mes inicial y motivo, y pulsar **Revisar cuotas**. La vista previa muestra importes calculados por el backend; **Confirmar habilitación** exige SweetAlert2 y guarda inicio, vigencia, cuotas abiertas y auditoría en una transacción, sin registrar dinero. Solo permite socios activos y una primera habilitación sin registros financieros previos; no reemplaza inicios o historiales anteriores ni habilita cargas sin un titular válido. Si cambian precios o datos después de la vista previa, exige revisarla de nuevo. Un timeout se reintenta con la misma clave de idempotencia. Desde el listado global también hay una acción de habilitación para activos sin inicio aprobado.
 2. **Transferencia o depósito, disponible:** abrir **Registrar pago**, seleccionar cuotas completas desde la más antigua, identificar pagador y beneficiarios, elegir el medio correcto e indicar fecha efectiva, referencia y observación. Verificar el ingreso real en banco y confirmar el total calculado. Por ahora no se adjuntan comprobantes.
-3. **Persistencia:** guardar pago confirmado, imputaciones y auditoría en una transacción. El historial muestra medio, meses, monto, pagador y administrador responsable. El correo se envía después y puede reintentarse sin cobrar ni registrar otra vez.
-4. **Efectivo, implementado en local:** elegir **Efectivo** en el mismo formulario, identificar pagador, fecha y cuotas, y confirmar **Recibí este monto completo en efectivo**. El backend genera el folio y registra como receptor al administrador autenticado. No solicita referencia bancaria y rechaza evidencia bancaria o del proveedor enviada como si fuera efectivo. El historial y el correo identifican el medio y folio propios.
+3. **Persistencia:** guardar pago confirmado, imputaciones y auditoría en una transacción. El historial muestra medio, meses, monto, pagador y administrador responsable. No se generan ni envían correos de mensualidades.
+4. **Efectivo, implementado en local:** elegir **Efectivo** en el mismo formulario, identificar pagador, fecha y cuotas, y confirmar **Recibí este monto completo en efectivo**. El backend genera el folio y registra como receptor al administrador autenticado. No solicita referencia bancaria y rechaza evidencia bancaria o del proveedor enviada como si fuera efectivo. El historial identifica el medio y folio propios.
 5. **Corrección:** un registro manual confirmado (banco o efectivo) se anula con motivo y auditoría y se registra correctamente; no se sobrescribe el monto. Conserva folio/evidencia y reabre únicamente sus cuotas. La anulación no devuelve dinero y nunca se aplica a Mercado Pago.
 
 No registrar manualmente como depósito una operación de Mercado Pago ya recibida. Un reintento tras timeout conserva referencia, selección y clave de idempotencia; consultar primero el intento existente. Los pagos de Mercado Pago no se anulan ni modifican mediante el flujo bancario.
@@ -289,7 +289,7 @@ No registrar manualmente como depósito una operación de Mercado Pago ya recibi
 2. Seleccionar sus cuotas y, si es titular, las de sus cargas autorizadas. El servidor revalida identidad, períodos, orden y total.
 3. Confirmar y continuar a Mercado Pago. El backend persiste el intento antes de solicitar la preferencia.
 4. Volver a la pantalla de resultado (`/monthlypayments/return`). El retorno y sus parámetros no prueban que hubo pago: confirmar solo con evidencia verificada del proveedor.
-5. Al confirmarse, las cuotas quedan pagadas y aparecen en el historial del socio y de administración. Un pago pendiente, rechazado o abandonado no cancela deuda. Un fallo de correo no revierte un pago confirmado.
+5. Al confirmarse, las cuotas quedan pagadas y aparecen en el historial del socio y de administración. Un pago pendiente, rechazado o abandonado no cancela deuda. La confirmación no depende de correos.
 
 Regularizar cuotas permite retirar la restricción derivada de esas deudas, si no existen otras. No borra una inactividad, una baja ni un bloqueo legado sujeto a revisión. Un pago recibido después de la baja se conserva y revisa sin reactivar automáticamente la membresía. Tras reinscripción aprobada, las anteriores impagas son histórico no exigible: no se cobran ni restringen reservas.
 
@@ -322,11 +322,15 @@ Las nuevas etapas guardan `billingPeriods` y `billingClosure` privados. Generaci
 
 ### Mantención operativa
 
-El envio asincrono de comprobantes usa la cola `membership_payments.notifications`.
-Los fallos incluyen fase y metadatos tecnicos seguros; el worker reintenta con pausa
-progresiva, sin cambiar cuotas ni pagos. Ver [diagnostico, recuperacion y pruebas](docs/billing-notifications-recovery.md).
+Por solicitud del usuario se retiro el worker de correos de mensualidades y su
+sondeo cada 30 segundos. No se generan avisos al registrar o anular pagos; el
+historial y la auditoria financiera siguen siendo la evidencia de la operacion.
+Los campos antiguos `membership_payments.notifications` se conservan solo como
+historial, sin reintentos ni migraciones. Ver [retiro, alcance y pruebas](docs/billing-email-removal.md).
+El [diagnostico anterior](docs/billing-notifications-recovery.md) es evidencia historica,
+no una descripcion del comportamiento actual.
 
-- **Diaria:** revisar intentos pendientes o inciertos, pagos en revisión, correos fallidos y ejecuciones incompletas. Conciliar la misma referencia antes de abrir un nuevo cobro.
+- **Diaria:** revisar intentos pendientes o inciertos, pagos en revisión y ejecuciones incompletas. Conciliar la misma referencia antes de abrir un nuevo cobro.
 - **Mensual:** comprobar ejecución de generación, cantidades por tipo de socio y períodos, sin duplicados; desde el día 6 revisar bajas y casos retenidos. Comparar banco y Mercado Pago con el historial y conciliar efectivo por sus folios.
 - **Cambios administrativos:** registrar inicio, baja, reinscripción, tipo y asociación titular/carga con fecha/período efectivo y auditoría. No editar cuotas o pagos directamente en MongoDB como procedimiento habitual.
 - **Tarifas:** mantener versiones en `membership_billing_config`; no en React ni en variables nuevas de entorno. No reescribir pagos históricos al cambiar precios.
@@ -345,7 +349,7 @@ Este plan completa el trabajo pendiente de habilitación general; no reabre las 
 
 Detalles: [etapa 1, habilitación y efectivo](docs/membership-billing-enrollment-cash-stage-1.md), [etapa 2, automatización y reinscripción](docs/membership-billing-lifecycle-stage-2.md) y [etapa 3, piloto y liberación](docs/membership-billing-release-stage-3.md). Estas tres etapas consolidan el plan operativo; no cambian la numeración histórica de las entregas originales.
 
-**Pruebas obligatorias:** pagos completos y por medio, titular/carga, idempotencia y concurrencia, privacidad, cuentas inactivas, restringidos que siguen generando, límites del día 5/6 y zona chilena, tres cuotas vencidas, enero sin cobro en el ejemplo, cuota futura ya emitida, pausas/reinscripción, evidencia de pago recibida tarde, recuperación de tareas, fallo de correo y regresión de reservas/luz/visitas. Verificar también iPhone/iPad/escritorio; una simulación no certifica Safari en un equipo físico.
+**Pruebas obligatorias:** pagos completos y por medio, titular/carga, idempotencia y concurrencia, privacidad, cuentas inactivas, restringidos que siguen generando, límites del día 5/6 y zona chilena, tres cuotas vencidas, enero sin cobro en el ejemplo, cuota futura ya emitida, pausas/reinscripción, evidencia de pago recibida tarde, recuperación de tareas, ausencia de avisos de mensualidades y regresión de reservas/luz/visitas y sus correos. Verificar también iPhone/iPad/escritorio; una simulación no certifica Safari en un equipo físico.
 
 Las pruebas de integración requieren un replica set local aislado mediante `BILLING_TEST_MONGO_URI` y una base `ctq_billing_test_*`; no usar la URI de producción. Sin esa configuración las integraciones se omiten, no se consideran aprobadas. Proveedor y correo deben simularse salvo el piloto real autorizado explícitamente.
 

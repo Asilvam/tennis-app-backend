@@ -24,7 +24,6 @@ import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { MembershipMpController } from './billing-mp.controller';
 import { BillingPortalController, MembershipPortalEnabledGuard } from './billing-portal.controller';
 import { MembershipAccessGuard } from './membership-access.guard';
-import { BillingNotificationsService } from './billing-notifications.service';
 
 @Controller()
 class BookingBoundaryFixture {
@@ -272,7 +271,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       await expect(mp.checkout(email, dueIds, key)).rejects.toMatchObject({ status: 403 });
       expect(post).not.toHaveBeenCalled();
     });
-    it('confirms provider approval, all dues, audit and pending mail in one transaction', async () => {
+    it('confirms provider approval, all dues and audit without queuing email', async () => {
       await checkout();
       expect(await mp.receive('123')).toMatchObject({ status: 'CONFIRMED' });
       expect(await dues.countDocuments({ status: 'PAID' })).toBe(2);
@@ -283,8 +282,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         collectorId: '999',
         liveMode: true,
       });
-      expect(payment.notifications).toHaveLength(1);
-      expect(payment.notifications[0].status).toBe('PENDING');
+      expect(payment.notifications).toHaveLength(0);
       expect(payment.registeredBy).toBeUndefined();
       expect(await audit.countDocuments({ action: 'PAYMENT_CONFIRMATION' })).toBe(1);
     });
@@ -311,12 +309,31 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       await expect(mp.receive('123')).rejects.toMatchObject({ status: 503 });
       expect(await dues.countDocuments({ status: 'PAID' })).toBe(0);
     });
-    it('is idempotent for repeated approval events and retains exactly one mail', async () => {
+    it('is idempotent for repeated approval events without creating email jobs', async () => {
       await checkout();
       await mp.receive('123');
       expect((await mp.receive('123')).duplicate).toBe(true);
-      expect((await payments.findOne()).notifications).toHaveLength(1);
+      expect((await payments.findOne()).notifications).toHaveLength(0);
       expect(await audit.countDocuments({ action: 'PAYMENT_CONFIRMATION' })).toBe(1);
+    });
+    it('preserves legacy email evidence when confirming and deduplicating provider events', async () => {
+      await checkout();
+      const notifications = [
+        {
+          recipient: 'test@example.invalid',
+          eventKey: 'legacy:confirmed',
+          status: 'SENT',
+          attempts: 1,
+        },
+      ];
+      await payments.updateOne({}, { $set: { notifications } });
+      expect((await mp.receive('123')).status).toBe('CONFIRMED');
+      expect((await mp.receive('123')).duplicate).toBe(true);
+      const payment = await payments.findOne().lean();
+      expect(payment.notifications).toMatchObject(notifications);
+      expect(payment.notifications).toHaveLength(1);
+      expect(await payments.countDocuments()).toBe(1);
+      expect(await dues.countDocuments({ status: 'PAID' })).toBe(2);
     });
     it('does not degrade a confirmed payment with a late pending/rejected event', async () => {
       await checkout();
@@ -640,25 +657,6 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         updatePayment: false,
       });
       expect((await call('/membership-billing/me/access')).status).toBe(403);
-    });
-    it('retries Mercado Pago email separately and never rolls back a confirmed payment for mail failure', async () => {
-      await checkout();
-      await mp.receive('123');
-      const emailService = {
-        sendEmail: jest
-          .fn()
-          .mockRejectedValueOnce(new Error('mail down'))
-          .mockResolvedValue(undefined),
-      };
-      const worker = new BillingNotificationsService(payments, emailService as any, cfg, () => now);
-      await worker.drain();
-      expect((await payments.findOne()).status).toBe('CONFIRMED');
-      expect((await payments.findOne()).notifications[0].status).toBe('FAILED');
-      now = new Date(now.getTime() + 60001);
-      await worker.drain();
-      expect(emailService.sendEmail).toHaveBeenCalledTimes(2);
-      expect(emailService.sendEmail.mock.calls[1][0].html).toContain('Mercado Pago');
-      expect((await payments.findOne()).notifications[0].status).toBe('SENT');
     });
   },
 );

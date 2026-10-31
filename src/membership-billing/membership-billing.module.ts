@@ -9,11 +9,9 @@ import {
 } from './entities/membership-billing-config.entity';
 import { BILLING_CLOCK, MembershipBillingService } from './membership-billing.service';
 import { AuditLog, AuditLogSchema } from '../audit-log/entities/audit-log.entity';
-import { EmailModule } from '../email/email.module';
 import { BillingAdminController } from './billing-admin.controller';
 import { BillingAdminService } from './billing-admin.service';
 import { BillingAdminEnabledGuard } from './billing-admin.guard';
-import { BillingNotificationsService } from './billing-notifications.service';
 import { MembershipMpService } from './billing-mp.service';
 import { MembershipMpController } from './billing-mp.controller';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
@@ -26,10 +24,9 @@ import { BillingLifecycleController } from './billing-lifecycle.controller';
 import { BillingEnrollmentService } from './billing-enrollment.service';
 import { BillingEnrollmentController } from './billing-enrollment.controller';
 
-// Routes and notifications remain disabled without explicit configuration; there is no seeding.
+// Administrative routes retain their existing permission and configuration guards.
 @Module({
   imports: [
-    EmailModule,
     MongooseModule.forFeature([
       { name: MembershipDue.name, schema: MembershipDueSchema },
       { name: MembershipPayment.name, schema: MembershipPaymentSchema },
@@ -55,7 +52,6 @@ import { BillingEnrollmentController } from './billing-enrollment.controller';
     MembershipBillingService,
     BillingAdminService,
     BillingAdminEnabledGuard,
-    BillingNotificationsService,
     MembershipMpService,
     InternalApiKeyGuard,
     BillingPortalService,

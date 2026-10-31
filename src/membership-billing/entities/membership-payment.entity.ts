@@ -122,6 +122,7 @@ export class MembershipPayment {
   idempotency?: { actorId?: Types.ObjectId; key?: string; hash?: string };
   @Prop({ type: String, required: true, enum: ['STANDARD', 'TEST'] }) pricingMode: PricingMode;
   @Prop({ type: [String], default: [] }) reviewReasons: string[];
+  // Legacy email evidence only; no worker processes or adds notifications.
   @Prop({
     type: [
       {
