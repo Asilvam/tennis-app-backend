@@ -1,0 +1,374 @@
+{
+  "executedAt": "2026-10-31T01:46:35.840Z",
+  "scope": "Isolated Jest regression; mocked email; Mongo integration suites skipped",
+  "success": true,
+  "passed": 722,
+  "failed": 0,
+  "skipped": 184,
+  "suitesPassed": 50,
+  "suitesSkipped": 7,
+  "sourceHashes": {
+    "src/membership-billing/billing-notifications.service.ts": "f3a8ed6c8a3e5fea76145a7a1b45cf53fbdc0f2533528d38257f63ffdee17894",
+    "src/membership-billing/billing-notifications.service.spec.ts": "aea5c00b95240dedd277f9964711a455e25b7605a3fb45b33ff1b851e1cc2af5",
+    "src/email/email.service.ts": "5ab77d798b203ad6642af78832028b0a5007c1941cdf8e5cddc2510479c831e1",
+    "src/email/email.service.spec.ts": "dd87841fdf8b797d504fec9cd214971c9847aa9dc9ec7fff7787a08be89f2a99"
+  },
+  "suites": [
+    {
+      "file": "register/register.security.spec.ts",
+      "status": "passed",
+      "passed": 58,
+      "skipped": 0
+    },
+    {
+      "file": "match-ranking/match-ranking.controller.spec.ts",
+      "status": "passed",
+      "passed": 21,
+      "skipped": 0
+    },
+    {
+      "file": "mp/mp.controller.spec.ts",
+      "status": "passed",
+      "passed": 7,
+      "skipped": 0
+    },
+    {
+      "file": "register/password-recovery.controller.spec.ts",
+      "status": "passed",
+      "passed": 22,
+      "skipped": 0
+    },
+    {
+      "file": "player-category-points/player-category-points.controller.spec.ts",
+      "status": "passed",
+      "passed": 18,
+      "skipped": 0
+    },
+    {
+      "file": "register/register.admin.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "skipped": 0
+    },
+    {
+      "file": "court-reserve/court-reserve.audit.spec.ts",
+      "status": "passed",
+      "passed": 2,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-lifecycle.integration.spec.ts",
+      "status": "skipped",
+      "passed": 0,
+      "skipped": 40
+    },
+    {
+      "file": "membership-billing/billing-admin.integration.spec.ts",
+      "status": "skipped",
+      "passed": 0,
+      "skipped": 52
+    },
+    {
+      "file": "membership-billing/billing-mp.integration.spec.ts",
+      "status": "skipped",
+      "passed": 0,
+      "skipped": 40
+    },
+    {
+      "file": "membership-billing/billing.schemas.spec.ts",
+      "status": "passed",
+      "passed": 21,
+      "skipped": 0
+    },
+    {
+      "file": "court-reserve/court-reserve.holds.spec.ts",
+      "status": "passed",
+      "passed": 10,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/membership-billing.integration.spec.ts",
+      "status": "skipped",
+      "passed": 0,
+      "skipped": 20
+    },
+    {
+      "file": "membership-billing/billing-due-adjustment.integration.spec.ts",
+      "status": "skipped",
+      "passed": 0,
+      "skipped": 16
+    },
+    {
+      "file": "auth/auth.controller.spec.ts",
+      "status": "passed",
+      "passed": 6,
+      "skipped": 0
+    },
+    {
+      "file": "match-ranking/match-ranking.integration.spec.ts",
+      "status": "skipped",
+      "passed": 0,
+      "skipped": 6
+    },
+    {
+      "file": "player-category-points/player-category-points.integration.spec.ts",
+      "status": "skipped",
+      "passed": 0,
+      "skipped": 10
+    },
+    {
+      "file": "membership-billing/billing.policy.spec.ts",
+      "status": "passed",
+      "passed": 61,
+      "skipped": 0
+    },
+    {
+      "file": "mp/mp.service.spec.ts",
+      "status": "passed",
+      "passed": 33,
+      "skipped": 0
+    },
+    {
+      "file": "register/register.membership.spec.ts",
+      "status": "passed",
+      "passed": 25,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-admin.spec.ts",
+      "status": "passed",
+      "passed": 10,
+      "skipped": 0
+    },
+    {
+      "file": "booking/booking.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-release-check.spec.ts",
+      "status": "passed",
+      "passed": 11,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-pilot.spec.ts",
+      "status": "passed",
+      "passed": 13,
+      "skipped": 0
+    },
+    {
+      "file": "court-reserve/reservation-slot.service.spec.ts",
+      "status": "passed",
+      "passed": 21,
+      "skipped": 0
+    },
+    {
+      "file": "court-reserve/payment-callback-effect.service.spec.ts",
+      "status": "passed",
+      "passed": 4,
+      "skipped": 0
+    },
+    {
+      "file": "register/entities/register.entity.spec.ts",
+      "status": "passed",
+      "passed": 9,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-notifications.service.spec.ts",
+      "status": "passed",
+      "passed": 22,
+      "skipped": 0
+    },
+    {
+      "file": "match-ranking/match-ranking.service.spec.ts",
+      "status": "passed",
+      "passed": 16,
+      "skipped": 0
+    },
+    {
+      "file": "audit-log/audit-log.payment.spec.ts",
+      "status": "passed",
+      "passed": 2,
+      "skipped": 0
+    },
+    {
+      "file": "register/password-recovery.service.spec.ts",
+      "status": "passed",
+      "passed": 39,
+      "skipped": 0
+    },
+    {
+      "file": "court-reserve/court-reserve.availability.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "skipped": 0
+    },
+    {
+      "file": "email/email.controller.spec.ts",
+      "status": "passed",
+      "passed": 2,
+      "skipped": 0
+    },
+    {
+      "file": "register/register.controller.spec.ts",
+      "status": "passed",
+      "passed": 5,
+      "skipped": 0
+    },
+    {
+      "file": "match-ranking/admin-match-history.spec.ts",
+      "status": "passed",
+      "passed": 14,
+      "skipped": 0
+    },
+    {
+      "file": "news-ctq/news-ctq.service.spec.ts",
+      "status": "passed",
+      "passed": 5,
+      "skipped": 0
+    },
+    {
+      "file": "auth/auth.service.spec.ts",
+      "status": "passed",
+      "passed": 21,
+      "skipped": 0
+    },
+    {
+      "file": "booking/booking.service.spec.ts",
+      "status": "passed",
+      "passed": 4,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-lifecycle.policy.spec.ts",
+      "status": "passed",
+      "passed": 11,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-enrollment.policy.spec.ts",
+      "status": "passed",
+      "passed": 11,
+      "skipped": 0
+    },
+    {
+      "file": "court-reserve/ranking-match-policy.service.spec.ts",
+      "status": "passed",
+      "passed": 16,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/membership-access.guard.spec.ts",
+      "status": "passed",
+      "passed": 13,
+      "skipped": 0
+    },
+    {
+      "file": "court-reserve/court-reserve.payment.spec.ts",
+      "status": "passed",
+      "passed": 10,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-portal.spec.ts",
+      "status": "passed",
+      "passed": 8,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-generation.policy.spec.ts",
+      "status": "passed",
+      "passed": 21,
+      "skipped": 0
+    },
+    {
+      "file": "audit-log/audit-log.controller.spec.ts",
+      "status": "passed",
+      "passed": 10,
+      "skipped": 0
+    },
+    {
+      "file": "register/register.service.spec.ts",
+      "status": "passed",
+      "passed": 40,
+      "skipped": 0
+    },
+    {
+      "file": "audit-log/audit-log.service.spec.ts",
+      "status": "passed",
+      "passed": 22,
+      "skipped": 0
+    },
+    {
+      "file": "mp/reservation-status.spec.ts",
+      "status": "passed",
+      "passed": 16,
+      "skipped": 0
+    },
+    {
+      "file": "email/email.service.spec.ts",
+      "status": "passed",
+      "passed": 13,
+      "skipped": 0
+    },
+    {
+      "file": "auth/guards/internal-api-key.guard.spec.ts",
+      "status": "passed",
+      "passed": 6,
+      "skipped": 0
+    },
+    {
+      "file": "auth/strategies/jwt.strategy.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-payment-state.policy.spec.ts",
+      "status": "passed",
+      "passed": 10,
+      "skipped": 0
+    },
+    {
+      "file": "email/templates/email-layout.template.spec.ts",
+      "status": "passed",
+      "passed": 2,
+      "skipped": 0
+    },
+    {
+      "file": "email/templates/transactional-email.templates.spec.ts",
+      "status": "passed",
+      "passed": 8,
+      "skipped": 0
+    },
+    {
+      "file": "email/templates/reservation-email.templates.spec.ts",
+      "status": "passed",
+      "passed": 6,
+      "skipped": 0
+    },
+    {
+      "file": "membership-billing/billing-payment-email.spec.ts",
+      "status": "passed",
+      "passed": 2,
+      "skipped": 0
+    }
+  ],
+  "cleanupValidation": {
+    "executedAt": "2026-10-31T01:54:48.427Z",
+    "scope": "Focused tests after formatting cleanup; original full regression above retained",
+    "success": true,
+    "passed": 37,
+    "failed": 0,
+    "skipped": 0,
+    "sourceHashes": {
+      "src/membership-billing/billing-notifications.service.ts": "f3a8ed6c8a3e5fea76145a7a1b45cf53fbdc0f2533528d38257f63ffdee17894",
+      "src/membership-billing/billing-notifications.service.spec.ts": "aea5c00b95240dedd277f9964711a455e25b7605a3fb45b33ff1b851e1cc2af5",
+      "src/email/email.service.ts": "5ab77d798b203ad6642af78832028b0a5007c1941cdf8e5cddc2510479c831e1",
+      "src/email/email.service.spec.ts": "5f937698b96170f94139801f94ecfe77305343b01269895c9c67c6d1e5ea956d"
+    }
+  }
+}

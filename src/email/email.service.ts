@@ -35,7 +35,9 @@ export class EmailService {
       this.logger.log(`Email sent successfully to ${to}`);
     } catch (error) {
       this.logger.error(`Failed to send email to ${to}: ${error.message}`, error.stack);
-      throw new Error(`Failed to send email: ${error.message}`);
+      const failure = new Error(`Failed to send email: ${error.message}`);
+      Object.defineProperty(failure, 'cause', { value: error });
+      throw failure;
     }
   }
 

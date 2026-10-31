@@ -322,6 +322,10 @@ Las nuevas etapas guardan `billingPeriods` y `billingClosure` privados. Generaci
 
 ### Mantención operativa
 
+El envio asincrono de comprobantes usa la cola `membership_payments.notifications`.
+Los fallos incluyen fase y metadatos tecnicos seguros; el worker reintenta con pausa
+progresiva, sin cambiar cuotas ni pagos. Ver [diagnostico, recuperacion y pruebas](docs/billing-notifications-recovery.md).
+
 - **Diaria:** revisar intentos pendientes o inciertos, pagos en revisión, correos fallidos y ejecuciones incompletas. Conciliar la misma referencia antes de abrir un nuevo cobro.
 - **Mensual:** comprobar ejecución de generación, cantidades por tipo de socio y períodos, sin duplicados; desde el día 6 revisar bajas y casos retenidos. Comparar banco y Mercado Pago con el historial y conciliar efectivo por sus folios.
 - **Cambios administrativos:** registrar inicio, baja, reinscripción, tipo y asociación titular/carga con fecha/período efectivo y auditoría. No editar cuotas o pagos directamente en MongoDB como procedimiento habitual.

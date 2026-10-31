@@ -59,6 +59,21 @@ describe('EmailService', () => {
     );
   });
 
+  it('preserves the transport cause without making provider data enumerable', async () => {
+    const cause = Object.assign(new Error('transport unavailable'), {
+      name: 'AxiosError',
+      code: 'ERR_BAD_RESPONSE',
+      response: { status: 503, data: 'private' },
+    });
+    (axios.post as jest.Mock).mockRejectedValue(cause);
+    const failure = await service
+      .sendEmail({ to: 'fixture@example.invalid', subject: 'Fixture', html: 'Fixture' })
+      .catch(error => error);
+    expect(failure.message).toBe('Failed to send email: transport unavailable');
+    expect(failure.cause).toBe(cause);
+    expect(JSON.stringify(failure)).not.toContain('private');
+  });
+
   it('builds and sends a password reset email', async () => {
     jest.spyOn(service, 'sendEmail').mockResolvedValue(undefined);
     await service.sendResetPasswordEmail('to@example.com', 'https://front.example/reset#token=fixture&test=1');
