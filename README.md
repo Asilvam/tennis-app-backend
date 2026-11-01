@@ -1,6 +1,19 @@
 # Tennis App Backend
 
+## Retiro de APM (2026-11-01)
+
+New Relic fue retirado de dependencia, precargas, configuracion y scripts.
+No se requiere ninguna variable `NEW_RELIC_*`; Heroku no fue modificado ni
+redesplegado. El cambio aplica al reiniciar el backend con los scripts nuevos.
+Detalle y pruebas: [retiro-apm.md](docs/retiro-apm.md).
+
 Backend principal del Club de Tenis Quintero. Está construido con NestJS y MongoDB y administra autenticación, socios, canchas, reservas, ranking, pagos, auditoría, correo transaccional, imágenes y noticias.
+
+## Runtime original
+
+Restaurado por solicitud del usuario: Node 22.19.0 y npm 10.9.3 en `.nvmrc`
+y `engines`. La copia Node24 queda separada. El retiro de New Relic permanece.
+Alcance y evidencia: [restauracion del runtime original](docs/restauracion-node22-sin-apm.md).
 
 ## Creacion revisada de cuotas: etapa 1
 
@@ -140,11 +153,6 @@ CLOUDINARY_API_SECRET=replace-with-cloudinary-secret
 NEWS_CTQ_CRON_ENABLED=true
 NEWS_CTQ_CRON_SCHEDULE=0 0 6 * * *
 
-# New Relic: opcional
-NEW_RELIC_APP_NAME=tennis-app-backend
-NEW_RELIC_LICENSE_KEY=replace-with-license-key
-NEW_RELIC_ENABLED=true
-NEW_RELIC_LOG_LEVEL=info
 ```
 
 Notas:
@@ -153,7 +161,6 @@ Notas:
 - `NEWS_CTQ_CRON_ENABLED` usa `true` por defecto.
 - `NEWS_CTQ_CRON_SCHEDULE` usa las 06:00 diariamente por defecto.
 - Las tarifas tienen valores predeterminados y solo deben declararse para sobrescribirlos.
-- New Relic queda deshabilitado si no existe `NEW_RELIC_LICENSE_KEY` o si `NEW_RELIC_ENABLED=false`.
 - El backend no utiliza refresh tokens.
 
 ## Variables compartidas
@@ -392,12 +399,6 @@ npm run test:e2e
 ```
 
 El health check del backend está disponible en `GET /healthz` y Swagger en `GET /docs`.
-
-Para comprobar New Relic sin depender de MongoDB:
-
-```bash
-npm run newrelic:smoke
-```
 
 ## Integraciones eliminadas
 

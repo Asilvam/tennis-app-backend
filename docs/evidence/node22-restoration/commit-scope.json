@@ -1,0 +1,14 @@
+{
+  "createdAt": "2026-11-01T23:40:42.210Z",
+  "baseCommit": "a380aaf0b1f846c1831dbdcc9f2bce307c486c3d",
+  "changedRetainedVersions": [],
+  "addedPackages": [],
+  "removedPackageCount": 110,
+  "agentEntries": [],
+  "engines": {
+    "node": "22.19.0",
+    "npm": "10.9.3"
+  },
+  "stagedLockSha256": "14172ba49dad6608bbda7813e37cc5fd321a994decf67d9e523869eb8a9ed565",
+  "workingLockPreserved": true
+}

@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-01",
+  "project": "tennis-app-backend",
+  "runtime": {
+    "node": "24.22.2",
+    "npm": "11.19.1"
+  },
+  "build": "passed",
+  "tests": {
+    "passed": 916,
+    "suites": 58,
+    "failed": 0,
+    "skipped": 0,
+    "integrationSuites": 7,
+    "integrationCases": 198
+  },
+  "lockfile": {
+    "sha256": "a8bfe2556f51155f5718d70eb4701ab6bad8d6abc9bc4507d93bfd3f8780c27a",
+    "removedEntries": 102,
+    "addedEntries": 0,
+    "changedRetainedVersions": 0,
+    "agentEntries": 0
+  },
+  "agentInstalled": false,
+  "labValidation": {
+    "lint": "passed",
+    "httpChecks": 16,
+    "status": "passed"
+  },
+  "scope": "Local code and isolated MongoDB only; no Heroku, Atlas or real payment/email operations."
+}
