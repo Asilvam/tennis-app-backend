@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-11-01T01:05:26.755Z",
+  "timezone": "America/Santiago",
+  "scope": "Stage 1 reservation-only restrictions and independent billing controls",
+  "environment": {
+    "mongo": "isolated localhost replica set",
+    "port": 27372,
+    "replicaSet": "ctqReservationStage1",
+    "productionQueried": false,
+    "productionMutated": false,
+    "externalPaymentsAndEmails": "mocked",
+    "deployed": false,
+    "mongoStopped": true
+  },
+  "backend": {
+    "passed": 890,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 56,
+    "integrations": [
+      {
+        "file": "src/membership-billing/billing-lifecycle.integration.spec.ts",
+        "passed": 43
+      },
+      {
+        "file": "src/membership-billing/billing-mp.integration.spec.ts",
+        "passed": 40
+      },
+      {
+        "file": "src/membership-billing/billing-admin.integration.spec.ts",
+        "passed": 51
+      },
+      {
+        "file": "src/membership-billing/membership-billing.integration.spec.ts",
+        "passed": 20
+      },
+      {
+        "file": "src/membership-billing/billing-due-adjustment.integration.spec.ts",
+        "passed": 16
+      },
+      {
+        "file": "src/match-ranking/match-ranking.integration.spec.ts",
+        "passed": 6
+      },
+      {
+        "file": "src/player-category-points/player-category-points.integration.spec.ts",
+        "passed": 10
+      }
+    ],
+    "build": "passed",
+    "lint": "passed (explicit printWidth 100; local unrelated formatter preference preserved)",
+    "hashes": {
+      "src/auth/auth.service.spec.ts": "21aeacb9154036e13232e605e9a46f88c539fefbc718ee3d426757f380f6f6f6",
+      "src/auth/auth.service.ts": "41ba19e26891b4a9d5bc565869ab6a063679a5a1d3159b6c89ecd1d7e5f87bf6",
+      "src/membership-billing/billing-admin.controller.ts": "1a1ea268d9e46fe99f182d379dd1bfe25b2b2466e8de6738da693b91c6a8f5d1",
+      "src/membership-billing/billing-admin.integration.spec.ts": "b5f19b039fc1a194558c7343485b810f0b987cac4c3594eaea4ff8f6f70a16ab",
+      "src/membership-billing/billing-admin.service.ts": "38eb31d4e2a83378e089ed4a3b287235be90238ee50c250b88d49b00576c0e4b",
+      "src/membership-billing/billing-lifecycle.integration.spec.ts": "d8c61acc9aac8da6763f9247878a70d59db5e4ba085113cf0e449fb3a7024ed9",
+      "src/membership-billing/billing-lifecycle.service.ts": "da72b0e1a102c07015ae7eea9b9abf76b00aa4679ff6349414c3ec59e07a4318",
+      "src/membership-billing/billing-mp.integration.spec.ts": "849e0341a1e07ed33adcf137d2497c961c59ea800e0c633d4a4a6a63607a87ce",
+      "src/membership-billing/billing-portal.service.ts": "4eca5eed9230f63ba8988b4af8d58c0e862ca3adabf38c3c81a02e348853ddc7",
+      "src/membership-billing/billing-portal.spec.ts": "f673a8ba80472a49f143ef95d6da43883a0d7865124bfe3062ffdf572452ab68",
+      "src/membership-billing/billing-release-check.ts": "e6088d8c8d5ad8341080a5b507b1f12972bfeafe01b4929d22a509d1b62745ac",
+      "src/membership-billing/billing.policy.spec.ts": "20959d1274e3a8b8314ef7a40fd08b97a8ebc4ad30861b60349b94922a60dc1f",
+      "src/membership-billing/billing.policy.ts": "7fa6f40329b8e136fea0bf79c26f2b55fe9457880976afef2f518605b60d8cc9",
+      "src/membership-billing/billing.types.ts": "de5e8edf0b5ad1797474aea88a7e839b03e05c62625fd68bff096ad413105d15",
+      "src/membership-billing/entities/membership-billing-config.entity.ts": "69e6b5dae381e1fe9f6cd2cadd0fc900bbe2f3606ac85f5c719250959fed0044",
+      "src/membership-billing/membership-access.guard.spec.ts": "8cd113c7f48c6415c459045363a6449dbf767ed82df629c3e1ac6c9141f88d70",
+      "src/membership-billing/membership-access.guard.ts": "2c15cc5f33faa9d46d81ce1ae3932f87d0141fb34fa75f47ed7fa442cc29abb2",
+      "src/membership-billing/membership-billing.integration.spec.ts": "54a9242c290601acaac18cb6a71453de8bebc68f9360dcdcd592bcaa30e22425",
+      "src/membership-billing/membership-billing.service.ts": "7b1fe98840e9a2d38f666f483ceba3f948140b51837c3399cd29b9b785c8e3d6"
+    }
+  },
+  "frontend": {
+    "unit": {
+      "executedAt": "2026-11-01T01:00:40.592Z",
+      "status": "passed",
+      "tests": 313,
+      "passed": 313,
+      "failed": 0,
+      "skipped": 0
+    },
+    "build": "passed",
+    "typeScript": "passed",
+    "lint": "passed",
+    "browserViews": 18,
+    "browserChecks": 264,
+    "physicalIosVerified": false,
+    "hashes": {
+      "src/components/AdminRegister.tsx": "0fd636c49620676ff73cf3449587f2d24c836638c971a99d49709185b1ae8de5",
+      "src/components/AuthContext.tsx": "61ca0ed4a8e1a7fb25269437c6db7e62e33cc7cf9f2522a7618e585cef0307d3",
+      "src/components/Dashboard.tsx": "1ddfb74a7e50a8cee65a7785a88a9c1cafdea2a5e7ed21b175138429890116de",
+      "src/components/Login.tsx": "5e7fd69119ce536765e914237fdb95459681b65ae4351ca1ab0ff02e5576715d",
+      "src/components/MembershipPayments.tsx": "5a53f8ad6cb57fb04a13ee84f5e01db4f373247d494c96e9928960061ee92d8b",
+      "src/components/MembershipSessionBoundary.tsx": "a3723370fdab02e376140ac9140569c8157881da07894451e77b5e34c67ae3f3",
+      "src/components/Modal.tsx": "e754f5214257ffe259db5260a0b074327c3ed3b9d4d2de287b85b539ce3fd92b",
+      "src/components/MultipleBookingForm.tsx": "76f3a66a3bd7bc90ce977937cece88bc9c85feb4e50795ec655ee0b5e4f7cd88",
+      "src/components/Navigation.tsx": "e41b611d0ae6bb4c6b9755c49d186f6d1f34eefb720e50e666a7ed2144e39e86",
+      "src/components/auth-context.ts": "3b6a7d3e2ad9bde5c93130cf44168b7836d44166c76e9ebd4df0a1c560014da4",
+      "src/styles/AdminUsersLayout.css": "b2e31c5e37573ed1e87f9ab82fad89c4cc644c6661078e231c3de0003b862eb3",
+      "src/utils/memberPayments.ts": "8599e7528458c62fb5781472549dc0277cfab8f12edae509cd354fb40c412143",
+      "tests/memberPayments.test.ts": "9c952fd5a11d25811ddf27f1d3ca9d34b5c9f53277f7bf5bc23db60dfc77d6f8",
+      "tests/e2e/reservationAccessStage1.mjs": "f97128e645d8ae94f99d19dd425c4c1ccc817a276acf65eb25e52e44f1508a0b"
+    }
+  }
+}

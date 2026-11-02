@@ -59,7 +59,11 @@ export function buildBillingReleaseReport(
       [...config.testPricing.memberIds].sort().join(',') !== [...pilotIds].sort().join(','))
   )
     flag('PILOT_TEST_PRICING_MISMATCH');
-  if (config?.autoBlockEnabled || config?.automation?.enabled)
+  if (
+    config?.autoBlockEnabled ||
+    config?.automation?.enabled ||
+    config?.automation?.terminationEnabled
+  )
     flag('PILOT_AUTOMATION_NOT_DISABLED');
   if (validConfig) {
     const standard = [...config.tariffVersions]
@@ -185,6 +189,7 @@ export function buildBillingReleaseReport(
     switches: {
       autoBlockEnabled: config?.autoBlockEnabled === true,
       automationEnabled: config?.automation?.enabled === true,
+      terminationEnabled: config?.automation?.terminationEnabled === true,
     },
     counts: {
       members: snapshot.register.length,

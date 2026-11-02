@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcryptjs from 'bcryptjs';
 import { AuthService } from './auth.service';
 
@@ -33,9 +38,9 @@ describe('AuthService', () => {
   it('rejects an unknown email with an authorization error', async () => {
     registerService.validatePlayerEmail.mockResolvedValue(undefined);
 
-    await expect(service.login({ username: 'missing@example.com', password: 'secret' })).rejects.toThrow(
-      new UnauthorizedException('email is wrong'),
-    );
+    await expect(
+      service.login({ username: 'missing@example.com', password: 'secret' }),
+    ).rejects.toThrow(new UnauthorizedException('email is wrong'));
   });
 
   it('rejects an invalid password', async () => {
@@ -47,30 +52,35 @@ describe('AuthService', () => {
     );
   });
 
-  it.each([
-    [{ ...activeUser, statePlayer: false }, 'user blocked'],
-    [{ ...activeUser, updatePayment: false }, 'user blocked for no payment'],
-  ])('rejects blocked users', async (user, message) => {
-    registerService.validatePlayerEmail.mockResolvedValue(user);
-    (bcryptjs.compare as jest.Mock).mockResolvedValue(true);
+  it.each([[{ ...activeUser, statePlayer: false }, 'user blocked']])(
+    'rejects blocked users',
+    async (user, message) => {
+      registerService.validatePlayerEmail.mockResolvedValue(user);
+      (bcryptjs.compare as jest.Mock).mockResolvedValue(true);
 
-    await expect(service.login({ username: user.email, password: 'secret' })).rejects.toThrow(
-      new UnauthorizedException(message),
-    );
-  });
+      await expect(service.login({ username: user.email, password: 'secret' })).rejects.toThrow(
+        new UnauthorizedException(message),
+      );
+    },
+  );
 
   it('returns an access token and public user data', async () => {
     registerService.validatePlayerEmail.mockResolvedValue(activeUser);
     (bcryptjs.compare as jest.Mock).mockResolvedValue(true);
     jwtService.signAsync.mockResolvedValue('access-token');
 
-    await expect(service.login({ username: activeUser.email, password: 'secret' })).resolves.toEqual({
+    await expect(
+      service.login({ username: activeUser.email, password: 'secret' }),
+    ).resolves.toEqual({
       accessToken: 'access-token',
       username: activeUser.email,
       namePlayer: activeUser.namePlayer,
       role: activeUser.role,
     });
-    expect(jwtService.signAsync).toHaveBeenCalledWith({ email: activeUser.email, role: activeUser.role });
+    expect(jwtService.signAsync).toHaveBeenCalledWith({
+      email: activeUser.email,
+      role: activeUser.role,
+    });
   });
 
   it('returns the requested profile', async () => {
@@ -78,19 +88,25 @@ describe('AuthService', () => {
     await expect(service.profile({ email: activeUser.email })).resolves.toBe(activeUser);
   });
 
-  describe('approved payments-only login', () => {
-    const portal = { enabled: jest.fn(() => true), access: jest.fn() };
+  describe('login identity independent of reservation restrictions', () => {
+    const portal = { enabled: jest.fn(() => true), permissions: jest.fn() };
     beforeEach(() => {
       service = new AuthService(registerService as any, jwtService as any, portal as any);
       portal.enabled.mockReturnValue(true);
-      portal.access.mockResolvedValue({ financiallyRestricted: true });
-      registerService.validatePlayerEmail.mockResolvedValue({ ...activeUser, updatePayment: false });
+      portal.permissions.mockResolvedValue({ financiallyRestricted: true, canReserve: false });
+      registerService.validatePlayerEmail.mockResolvedValue({
+        ...activeUser,
+        updatePayment: false,
+      });
       (bcryptjs.compare as jest.Mock).mockResolvedValue(true);
       jwtService.signAsync.mockResolvedValue('payments-only-token');
     });
     it('issues identity with restricted capability instead of locking a debtor out', async () => {
-      await expect(service.login({ username: activeUser.email, password: 'secret' })).resolves.toMatchObject({
-        accessToken: 'payments-only-token', financiallyRestricted: true,
+      await expect(
+        service.login({ username: activeUser.email, password: 'secret' }),
+      ).resolves.toMatchObject({
+        accessToken: 'payments-only-token',
+        financiallyRestricted: true,
       });
       await expect(service.checkIfUserIsBlocked(activeUser.email)).resolves.toBe(false);
     });
@@ -98,24 +114,32 @@ describe('AuthService', () => {
       registerService.validatePlayerEmail.mockResolvedValue({ ...activeUser, statePlayer: false });
       const attempt = service.login({ username: activeUser.email, password: 'secret' });
       await expect(attempt).rejects.toThrow(UnauthorizedException);
-      expect(portal.access).not.toHaveBeenCalled();
+      expect(portal.permissions).not.toHaveBeenCalled();
       await expect(service.checkIfUserIsBlocked(activeUser.email)).resolves.toBe(true);
     });
-    it('preserves the old payment restriction when the portal is disabled', async () => {
+    it('allows identity with the payment switch off even when the portal is disabled', async () => {
       portal.enabled.mockReturnValue(false);
       const attempt = service.login({ username: activeUser.email, password: 'secret' });
-      await expect(attempt).rejects.toThrow('user blocked for no payment');
+      await expect(attempt).resolves.toMatchObject({
+        canReserve: false,
+        financiallyRestricted: true,
+      });
     });
-    it('fails closed if current permissions cannot be established', async () => {
-      portal.access.mockRejectedValue(new Error('configuration unavailable'));
+    it('preserves login but fails closed for booking when financial permissions are unavailable', async () => {
+      portal.permissions.mockRejectedValue(new Error('configuration unavailable'));
       const attempt = service.login({ username: activeUser.email, password: 'secret' });
-      await expect(attempt).rejects.toThrow('configuration unavailable');
+      await expect(attempt).resolves.toMatchObject({
+        canReserve: false,
+        reservationBlockReason: 'BILLING_UNAVAILABLE',
+      });
     });
   });
 
   it('validates a valid token', async () => {
     jwtService.verifyAsync.mockResolvedValue({ email: activeUser.email });
-    await expect(service.validateToken({ token: 'valid' })).resolves.toEqual({ email: activeUser.email });
+    await expect(service.validateToken({ token: 'valid' })).resolves.toEqual({
+      email: activeUser.email,
+    });
     expect(jwtService.verifyAsync).toHaveBeenCalledWith('valid');
   });
 
@@ -162,7 +186,7 @@ describe('AuthService', () => {
   it.each([
     [undefined, true],
     [{ ...activeUser, statePlayer: false }, true],
-    [{ ...activeUser, updatePayment: false }, true],
+    [{ ...activeUser, updatePayment: false }, false],
     [activeUser, false],
   ])('evaluates whether a user is blocked', async (user, expected) => {
     registerService.validatePlayerEmail.mockResolvedValue(user);

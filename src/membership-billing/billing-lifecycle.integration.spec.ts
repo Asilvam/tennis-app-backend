@@ -198,7 +198,12 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       const config = proposedBillingConfiguration();
       config.testPricing = { enabled: true, memberIds: [own, carga], titular: 180, carga: 50 };
       config.activation = { migrationReviewed: true };
-      config.automation = { enabled: true, approvedAt: now, approvedBy: 'admin@example.invalid' };
+      config.automation = {
+        enabled: true,
+        terminationEnabled: true,
+        approvedAt: now,
+        approvedBy: 'admin@example.invalid',
+      };
       await configs.create(config);
     });
     afterAll(async () => {
@@ -226,6 +231,195 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         `manual-lifecycle-${period}-${id}`,
       );
     };
+    describe('Administrator automation settings', () => {
+      const settingsPath = 'automation/settings';
+      const payload = (revision: string, setting = 'generation', enabled = false) => ({
+        revision,
+        setting,
+        enabled,
+      });
+
+      it('reads only public flags and revision without generating dues, provider calls or audit', async () => {
+        const response = await call(settingsPath);
+        expect(response.status).toBe(200);
+        expect(response.body).toEqual({
+          generationEnabled: true,
+          autoBlockEnabled: false,
+          terminationEnabled: true,
+          migrationReviewed: true,
+          revision: expect.stringMatching(/^[a-f\d]{64}$/),
+        });
+        expect(await dues.countDocuments()).toBe(0);
+        expect(await audit.countDocuments()).toBe(0);
+        expect(mp.reconcileForBilling).not.toHaveBeenCalled();
+      });
+
+      it('updates generation both ways, leaves termination intact and audits the administrator', async () => {
+        const original = (await call(settingsPath)).body;
+        const disabled = await call(settingsPath, payload(original.revision));
+        expect(disabled.status).toBe(201);
+        expect(disabled.body).toMatchObject({ generationEnabled: false, terminationEnabled: true });
+        const enabled = await call(
+          settingsPath,
+          payload(disabled.body.revision, 'generation', true),
+        );
+        expect(enabled.status).toBe(201);
+        expect(enabled.body.generationEnabled).toBe(true);
+        const config = await configs.findOne().lean();
+        expect(config.automation.approvedBy).toBe('admin@example.invalid');
+        expect(config.automation.approvedAt).toEqual(now);
+        expect(config.autoBlockEnabled).toBe(false);
+        const logs = await audit.find({ entityType: 'MEMBERSHIP_BILLING_CONFIG' }).lean();
+        expect(logs).toHaveLength(2);
+        expect(
+          logs.every(
+            (row) =>
+              row.performedBy === 'ADMIN' && row.performedByEmail === 'admin@example.invalid',
+          ),
+        ).toBe(true);
+        expect(await dues.countDocuments()).toBe(0);
+        expect(await payments.countDocuments()).toBe(0);
+      });
+
+      it('toggles automatic reservation blocking without touching dues, members or payments', async () => {
+        await core.prepareDues(adminId, own, '2026-10');
+        await manual('2026-10', '2026-10-17');
+        const financial = JSON.stringify({
+          dues: await dues.find().lean(),
+          payments: await payments.find().lean(),
+          members: await members.find().lean(),
+        });
+        let settings = (await call(settingsPath)).body;
+        for (const enabled of [true, false]) {
+          const result = await call(settingsPath, payload(settings.revision, 'autoBlock', enabled));
+          expect(result.status).toBe(201);
+          expect(result.body.autoBlockEnabled).toBe(enabled);
+          expect(result.body.generationEnabled).toBe(true);
+          expect(result.body.terminationEnabled).toBe(true);
+          settings = result.body;
+        }
+        expect(
+          JSON.stringify({
+            dues: await dues.find().lean(),
+            payments: await payments.find().lean(),
+            members: await members.find().lean(),
+          }),
+        ).toBe(financial);
+      });
+
+      it('does not duplicate audit on an unchanged setting or an uncertain retry', async () => {
+        const settings = (await call(settingsPath)).body;
+        expect(
+          (await call(settingsPath, payload(settings.revision, 'generation', true))).status,
+        ).toBe(201);
+        expect(await audit.countDocuments()).toBe(0);
+        const input = payload(settings.revision);
+        expect((await call(settingsPath, input)).status).toBe(201);
+        expect((await call(settingsPath, input)).status).toBe(409);
+        expect(await audit.countDocuments()).toBe(1);
+      });
+
+      it('rejects stale configuration and preserves the other administrators change', async () => {
+        const settings = (await call(settingsPath)).body;
+        expect((await call(settingsPath, payload(settings.revision))).status).toBe(201);
+        expect(
+          (await call(settingsPath, payload(settings.revision, 'autoBlock', true))).status,
+        ).toBe(409);
+        expect((await call(settingsPath)).body.autoBlockEnabled).toBe(false);
+      });
+
+      it('serializes simultaneous administrator writes and records only the winning change', async () => {
+        const settings = (await call(settingsPath)).body;
+        const requests = [
+          call(settingsPath, payload(settings.revision)),
+          call(settingsPath, payload(settings.revision, 'autoBlock', true)),
+        ];
+        const responses = [];
+        for (const request of requests) responses.push(await request);
+        expect(responses.map((row) => row.status).sort()).toEqual([201, 409]);
+        expect(await audit.countDocuments()).toBe(1);
+      });
+
+      it('requires migration review for either activation and never approves it from the request', async () => {
+        await configs.updateOne(
+          {},
+          {
+            $set: {
+              'automation.enabled': false,
+              'automation.terminationEnabled': false,
+              'activation.migrationReviewed': false,
+            },
+          },
+        );
+        const settings = (await call(settingsPath)).body;
+        for (const setting of ['generation', 'autoBlock'])
+          expect((await call(settingsPath, payload(settings.revision, setting, true))).status).toBe(
+            409,
+          );
+        expect((await configs.findOne().lean()).activation.migrationReviewed).toBe(false);
+        expect(await audit.countDocuments()).toBe(0);
+      });
+
+      it('preserves absent legacy automation when only auto-block changes', async () => {
+        await configs.updateOne({}, { $unset: { automation: '' } });
+        const settings = (await call(settingsPath)).body;
+        const result = await call(settingsPath, payload(settings.revision, 'autoBlock', true));
+        expect(result.status).toBe(201);
+        expect((await configs.findOne().lean()).automation).toBeUndefined();
+      });
+
+      it('rolls back the configuration if its audit cannot be saved', async () => {
+        const settings = (await call(settingsPath)).body;
+        jest.spyOn(audit, 'create').mockRejectedValueOnce(new Error('isolated audit failure'));
+        expect((await call(settingsPath, payload(settings.revision))).status).toBe(500);
+        expect((await call(settingsPath)).body.revision).toBe(settings.revision);
+      });
+
+      it('requires a JWT, admin role and fresh active administrator for reads and writes', async () => {
+        const settings = (await call(settingsPath)).body;
+        for (const body of [undefined, payload(settings.revision)]) {
+          const response = await fetch(`${base}/membership-billing/admin/${settingsPath}`, {
+            method: body ? 'POST' : 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            ...(body ? { body: JSON.stringify(body) } : {}),
+          });
+          expect(response.status).toBe(401);
+          expect((await call(settingsPath, body, 'user')).status).toBe(403);
+        }
+        await members.updateOne({ _id: adminId }, { $set: { role: 'user' } });
+        expect((await call(settingsPath)).status).toBe(403);
+        expect((await call(settingsPath, payload(settings.revision))).status).toBe(403);
+        await members.updateOne({ _id: adminId }, { $set: { role: 'admin', statePlayer: false } });
+        expect((await call(settingsPath)).status).toBe(403);
+        expect((await call(settingsPath, payload(settings.revision))).status).toBe(403);
+      });
+
+      it('rejects invalid booleans, revisions, unknown fields and termination changes', async () => {
+        const settings = (await call(settingsPath)).body;
+        for (const input of [
+          { ...payload(settings.revision), enabled: 'false' },
+          { ...payload(settings.revision), enabled: null },
+          payload('invalid'),
+          payload(settings.revision, 'termination'),
+          { ...payload(settings.revision), migrationReviewed: true },
+          { ...payload(settings.revision), tariffVersions: [] },
+        ])
+          expect((await call(settingsPath, input)).status).toBe(400);
+        expect(await audit.countDocuments()).toBe(0);
+      });
+
+      it('respects the existing admin module guard and never seeds missing config', async () => {
+        const settings = (await call(settingsPath)).body;
+        httpEnabled = false;
+        expect((await call(settingsPath)).status).toBe(503);
+        expect((await call(settingsPath, payload(settings.revision))).status).toBe(503);
+        httpEnabled = true;
+        await configs.deleteMany({});
+        expect((await call(settingsPath)).status).toBe(503);
+        expect((await call(settingsPath, payload(settings.revision))).status).toBe(503);
+        expect(await configs.countDocuments()).toBe(0);
+      });
+    });
     it('does nothing without explicit reviewed DB activation or with the existing admin switch off', async () => {
       await configs.updateOne({}, { $unset: { automation: '' } });
       expect(await lifecycle.processMember(own)).toEqual({ outcome: 'DISABLED' });
@@ -239,6 +433,32 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       httpEnabled = false;
       await lifecycle.tick();
       expect(await dues.countDocuments()).toBe(0);
+    });
+    it('does not terminate when only generation is enabled, even with three overdue months', async () => {
+      jan();
+      await configs.updateOne({}, { $unset: { 'automation.terminationEnabled': '' } });
+      expect((await lifecycle.processMember(own)).outcome).toBe('GENERATED');
+      expect((await members.findById(own)).statePlayer).toBe(true);
+      expect(
+        await audit.countDocuments({ 'metadata.reason': 'MEMBERSHIP_AUTOMATIC_TERMINATION' }),
+      ).toBe(0);
+    });
+    it('does not terminate for unissued months when generation is disabled', async () => {
+      jan();
+      await configs.updateOne({}, { $set: { 'automation.enabled': false } });
+      expect(await lifecycle.processMember(own)).toMatchObject({
+        outcome: 'REVIEW_REQUIRED',
+        reasons: expect.arrayContaining(['MISSING_DUES_REQUIRE_REVIEW']),
+      });
+      expect((await members.findById(own)).statePlayer).toBe(true);
+      expect(await dues.countDocuments()).toBe(0);
+    });
+    it('can evaluate termination independently without generating a new month', async () => {
+      jan();
+      await core.prepareDues(adminId, own, '2026-12');
+      await configs.updateOne({}, { $set: { 'automation.enabled': false } });
+      expect((await lifecycle.processMember(own)).outcome).toBe('TERMINATED');
+      expect(await dues.countDocuments({ beneficiaryId: own, period: '2027-01' })).toBe(0);
     });
     it('previews read-only, verifies the current admin and protects the HTTP route', async () => {
       jan();

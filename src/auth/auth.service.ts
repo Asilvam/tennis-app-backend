@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -38,23 +39,44 @@ export class AuthService {
       throw new UnauthorizedException('user blocked');
     }
 
-    if (!user.updatePayment && !this.billingPortal?.enabled()) {
-      throw new UnauthorizedException('user blocked for no payment');
-    }
-
     const payload = {
       email: user.email,
       role: user.role,
     };
     const accessToken = await this.jwtService.signAsync(payload);
-    const membershipAccess = this.billingPortal?.enabled()
-      ? await this.billingPortal.access(user.email) : undefined;
+    let membershipAccess: {
+      financiallyRestricted: boolean;
+      canReserve?: boolean;
+      reason?: string | null;
+    };
+    if (this.billingPortal) {
+      try {
+        membershipAccess = await this.billingPortal.permissions(user.email);
+      } catch (error) {
+        if (error instanceof ForbiddenException || error instanceof UnauthorizedException)
+          throw error;
+        this.logger.warn(
+          'No se pudieron verificar permisos de reserva al iniciar sesion; reservas restringidas.',
+        );
+        membershipAccess = {
+          financiallyRestricted: true,
+          canReserve: false,
+          reason: 'BILLING_UNAVAILABLE',
+        };
+      }
+    }
     return {
       accessToken,
       username,
       namePlayer,
       role,
-      ...(membershipAccess ? { financiallyRestricted: membershipAccess.financiallyRestricted } : {}),
+      ...(membershipAccess
+        ? {
+            financiallyRestricted: membershipAccess.financiallyRestricted,
+            canReserve: membershipAccess.canReserve,
+            reservationBlockReason: membershipAccess.reason,
+          }
+        : {}),
     };
   }
 
@@ -77,7 +99,9 @@ export class AuthService {
     }
     const user = await this.registerService.findByVerificationToken(token);
     if (!user) {
-      throw new NotFoundException('Invalid or expired verification token. Please request a new one.');
+      throw new NotFoundException(
+        'Invalid or expired verification token. Please request a new one.',
+      );
     }
     if (user.emailVerified) {
       throw new ConflictException('This email address has already been verified.');
@@ -99,8 +123,8 @@ export class AuthService {
         return true;
       }
 
-      // Con portal habilitado, la deuda restringe capacidades sin revocar el login.
-      const isBlocked = !user.statePlayer || (!this.billingPortal?.enabled() && !user.updatePayment);
+      // Payment restrictions affect booking, never login identity.
+      const isBlocked = !user.statePlayer;
 
       this.logger.log(`User ${email} blocked status: ${isBlocked}`);
       return isBlocked;

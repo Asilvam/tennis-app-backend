@@ -1,0 +1,86 @@
+[
+  {
+    "file": "auth/auth.service.spec.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "auth/auth.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-admin.controller.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-admin.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-automation.spec.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-lifecycle.controller.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-lifecycle.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-portal.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing.policy.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing.types.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/dto/billing-automation.dto.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/entities/membership-billing-config.entity.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/membership-access.guard.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/membership-billing.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  }
+]

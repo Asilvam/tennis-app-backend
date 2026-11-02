@@ -27,6 +27,8 @@ import {
   monthAt,
   periodsBetween,
   priceFor,
+  financialAccess,
+  reservationPermissions,
 } from './billing.policy';
 import { BILLING_CONFIG_KEY, BILLING_TIMEZONE } from './billing.types';
 import { BillingAdminQueryDto, PrepareAdminDuesDto } from './dto/billing-admin-query.dto';
@@ -173,6 +175,24 @@ export class BillingAdminService {
 
   async memberDetails(email: string, id: string) {
     return this.memberContext(email, id);
+  }
+
+  async memberAccess(email: string, id: string) {
+    await this.admin(email);
+    assertMemberId(id);
+    const config = await this.config();
+    const member = await this.members.findById(id).select('+billingPeriods').lean().exec();
+    if (!member) throw new NotFoundException('Socio no encontrado.');
+    const rows = await this.dues.find({ beneficiaryId: member._id }).lean().exec();
+    const financial = financialAccess(member, rows, config, this.clock());
+    return {
+      memberId: id,
+      ...reservationPermissions(
+        member,
+        financial,
+        Boolean(!member.billingStartPeriod && config.autoBlockEnabled),
+      ),
+    };
   }
 
   private async generationPlan(id: string, through: string, now: Date, session?: ClientSession) {

@@ -17,10 +17,15 @@ export class MembershipBillingConfig {
   @Prop({ required: true, enum: [3] }) maxAdvanceMonths: number;
   @Prop({ required: true, default: false }) autoBlockEnabled: boolean;
   @Prop({
-    type: { enabled: Boolean, approvedAt: Date, approvedBy: String },
+    type: { enabled: Boolean, terminationEnabled: Boolean, approvedAt: Date, approvedBy: String },
     _id: false,
   })
-  automation?: { enabled: boolean; approvedAt?: Date; approvedBy?: string };
+  automation?: {
+    enabled: boolean;
+    terminationEnabled?: boolean;
+    approvedAt?: Date;
+    approvedBy?: string;
+  };
   @Prop({
     type: [
       {

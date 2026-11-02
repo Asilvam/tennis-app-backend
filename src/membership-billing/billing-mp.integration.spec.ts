@@ -97,6 +97,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       const portalProxy = {
         enabled: () => portal.enabled(),
         permissions: (email: string) => portal.permissions(email),
+        activeAccount: (email: string) => portal.activeAccount(email),
         access: (email: string) => portal.access(email),
         home: (email: string, through?: string) => portal.home(email, through),
         history: (email: string, id?: string, page?: number) => portal.history(email, id, page),
@@ -543,7 +544,7 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       for (const route of ['/court-reserve', '/booking/multiple']) {
         const response = await call(route, {});
         expect(response.status).toBe(403);
-        expect(response.body.code).toBe('PAYMENTS_ONLY');
+        expect(response.body.code).toBe('RESERVATION_BLOCKED');
         expect((await call(route, {}, '')).status).toBe(401);
         expect((await call(route, {}, 'admin@example.invalid')).status).toBe(201);
       }

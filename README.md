@@ -214,7 +214,7 @@ El acceso depende de dos propiedades del socio:
 - `statePlayer=false`: cuenta inactiva; no es lo mismo que una restricción financiera.
 - `updatePayment=false`: restricción financiera legada que requiere revisión administrativa; no es un registro de deuda ni prueba de un pago.
 
-El login rechaza cuentas inactivas. Con el portal de mensualidades habilitado, un socio activo con restricción financiera puede ingresar solo a pagos, sin reservar. Si el portal está deshabilitado, se conserva el rechazo legado por `updatePayment=false`. Un pago no modifica silenciosamente una baja administrativa ni ese indicador legado.
+El login rechaza cuentas inactivas. Un socio activo con restricción de pago puede entrar y usar el sitio según su rol, pero no crear reservas. `updatePayment=false` no revoca el login aunque el portal esté deshabilitado. La API revalida nuevas reservas y devuelve `RESERVATION_BLOCKED`; no restringe todo a pagos. Un pago no modifica silenciosamente una baja administrativa ni un bloqueo manual. Ver [contrato y pruebas de etapa 1](docs/membership-reservation-access-stage-1.md).
 
 ### Permisos de registro y edición
 
@@ -235,6 +235,24 @@ npm test -- --runInBand --runTestsByPath src/register/register.security.spec.ts 
 Esta protección no constituye una auditoría completa de seguridad. El restablecimiento inseguro se reemplazó por un enlace de un solo uso: el usuario puede solicitarlo sin sesión y un admin desde administración. Solo se envía a cuentas activas (`statePlayer=true`). El usuario espera 24 horas entre solicitudes aceptadas, incluso si falla el correo; el administrador autenticado no tiene límite de espera, pero tampoco puede enviar a cuentas inactivas. La contraseña actual no cambia hasta confirmar; no se devuelve ni se envía una contraseña por correo. El enlace público dura quince minutos y el de administración dura 24 horas; ambos requieren `PASSWORD_RESET_FRONTEND_URL` del backend. Por decisión explícita, las sesiones JWT anteriores siguen válidas hasta vencer. Ver [flujo, límites y pruebas de recuperación](docs/password-recovery.md).
 
 ## Mensualidades CTQ
+
+Cierre revisado de cambios locales de permisos, controles globales y editor:
+[alcance, validacion y limites](docs/cierre-cambios-mensualidades.md).
+No equivale a activar automatismos ni a completar la etapa futura de generacion.
+
+Etapa 1 de automatizacion y permisos actualizada al 31 de octubre:
+[acceso al sitio y bloqueo exclusivo de nuevas reservas](docs/membership-reservation-access-stage-1.md).
+Reemplaza el antiguo modo de acceso limitado solo a pagos; documenta los tres
+controles independientes, compatibilidad y alcance local sin activacion general.
+
+Controles administrativos disponibles en local en **Mensualidades CTQ > Automatizacion global**:
+generacion recurrente y bloqueo de reservas por mora, independientes y auditados.
+Contrato HTTP, alcance y evidencia: [controles de automatizacion](docs/membership-automation-controls.md).
+No se habilito ningun automatismo en la base real ni se agregaron variables de entorno.
+
+Guia funcional y tecnica actualizada: [operacion de pago de mensualidades](docs/operacion-pago-mensualidades.md).
+Incluye habilitacion, generacion de cuotas, pago manual/MP, persistencia, API y mantenimiento.
+Propuesta pendiente de implementacion: [generacion el dia 1 y bloqueo el dia 6](docs/analisis-automatizacion-mensualidades.md), manteniendo cobro por mes vencido.
 
 Reglas acordadas el **26 de octubre de 2026**, con implementación local de las nuevas etapas 1 y 2 e histórico no exigible actualizados al **27 de octubre de 2026**. Esta sección es la referencia del flujo vigente; los documentos anteriores conservan decisiones históricas. Una implementación probada en local no activa tareas ni demuestra su publicación en producción.
 
@@ -269,7 +287,7 @@ El piloto y sus pruebas no equivalen a habilitación general del club. El bloque
 | Situación | Nuevas cuotas | Acceso y tratamiento |
 | --- | --- | --- |
 | Activo, con inicio de facturación aprobado | Sí, durante sus períodos de vigencia | Acceso normal si no tiene restricciones |
-| Activo, restringido por falta de pago | Sí; el bloqueo financiero no suspende su membresía | Solo mensualidades; sin reservas cuando corresponda aplicar la restricción |
+| Activo, restringido por falta de pago | Sí; el bloqueo financiero no suspende su membresía | Puede usar el sitio según su rol, pero no crear nuevas reservas |
 | Cuenta inactiva o dada de baja | No durante la inactividad ni después del corte efectivo | Sin login ni registro de pagos habilitado en la interfaz actual; conservar deuda e historial |
 | Sin inicio de facturación aprobado | No | Mostrar revisión pendiente, sin estimar una deuda como si estuviera emitida |
 | Administrador activo | Según su membresía e inicio aprobados | Exento del bloqueo financiero; no de la inactividad administrativa |
@@ -282,7 +300,7 @@ El piloto y sus pruebas no equivalen a habilitación general del club. El bloque
 
 **Manual y masivo, implementación local:** el detalle del titular permite **Habilitar titular y cargas** con selección individual. En la vista global, **Habilitar socios** separa pendientes, ya habilitados y casos por revisar. Lo aprobado manualmente se omite sin reemplazar inicio, cuotas ni pagos, incluso si cambió entre vista previa y confirmación. Los bloques son reintentables e idempotentes. **Revisar vigencia** completa solo el historial antiguo derivado de un baseline válido, sin reinscribir ni cobrar. El checkout `UNKNOWN` no se considera incierto si tiene confirmación verificada; se conserva el metadato histórico. Ver [flujo manual/masivo y pruebas](docs/membership-billing-manual-batch.md). No se han aplicado estas operaciones a socios de producción.
 
-1. **Habilitación inicial, implementada en local:** desde el detalle elegir **Habilitar mensualidades**, indicar mes inicial y motivo, y pulsar **Revisar cuotas**. La vista previa muestra importes calculados por el backend; **Confirmar habilitación** exige SweetAlert2 y guarda inicio, vigencia, cuotas abiertas y auditoría en una transacción, sin registrar dinero. Solo permite socios activos y una primera habilitación sin registros financieros previos; no reemplaza inicios o historiales anteriores ni habilita cargas sin un titular válido. Si cambian precios o datos después de la vista previa, exige revisarla de nuevo. Un timeout se reintenta con la misma clave de idempotencia. Desde el listado global también hay una acción de habilitación para activos sin inicio aprobado.
+1. **Habilitación inicial, implementada en local:** desde el detalle elegir **Habilitar mensualidades**, revisar mes inicial y rango final, y pulsar **Revisar cuotas**. El motivo libre es opcional en esta primera habilitación; el backend conserva un motivo de auditoría predeterminado. La vista previa muestra importes calculados por el backend; **Confirmar habilitación** exige SweetAlert2 y guarda inicio, vigencia, cuotas abiertas y auditoría en una transacción, sin registrar dinero. Solo permite socios activos y una primera habilitación sin registros financieros previos; no reemplaza inicios o historiales anteriores ni habilita cargas sin un titular válido. Si cambian precios o datos después de la vista previa, exige revisarla de nuevo. Un timeout se reintenta con la misma clave de idempotencia. Desde el listado global también hay una acción de habilitación para activos sin inicio aprobado.
 2. **Transferencia o depósito, disponible:** abrir **Registrar pago**, seleccionar cuotas completas desde la más antigua, identificar pagador y beneficiarios, elegir el medio correcto e indicar fecha efectiva, referencia y observación. Verificar el ingreso real en banco y confirmar el total calculado. Por ahora no se adjuntan comprobantes.
 3. **Persistencia:** guardar pago confirmado, imputaciones y auditoría en una transacción. El historial muestra medio, meses, monto, pagador y administrador responsable. No se generan ni envían correos de mensualidades.
 4. **Efectivo, implementado en local:** elegir **Efectivo** en el mismo formulario, identificar pagador, fecha y cuotas, y confirmar **Recibí este monto completo en efectivo**. El backend genera el folio y registra como receptor al administrador autenticado. No solicita referencia bancaria y rechaza evidencia bancaria o del proveedor enviada como si fuera efectivo. El historial identifica el medio y folio propios.

@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -22,6 +24,7 @@ import { BILLING_CONFIG_KEY, BILLING_TIMEZONE, BillingDue, BillingMember } from 
 import { assertConfiguration, isBillablePeriod, monthAt, periodsBetween } from './billing.policy';
 import { overdueClosure } from './billing-lifecycle.policy';
 import { uncertainMembershipPaymentFilter } from './billing-payment-state.policy';
+import { UpdateBillingAutomationDto } from './dto/billing-automation.dto';
 
 @Injectable()
 export class BillingLifecycleService implements OnApplicationBootstrap {
@@ -58,6 +61,95 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
     return config;
   }
 
+  private settingsSnapshot(config: MembershipBillingConfig) {
+    return {
+      generationEnabled: config.automation?.enabled === true,
+      autoBlockEnabled: config.autoBlockEnabled,
+      terminationEnabled: config.automation?.terminationEnabled === true,
+      migrationReviewed: config.activation?.migrationReviewed === true,
+      revision: createHash('sha256').update(JSON.stringify(config)).digest('hex'),
+    };
+  }
+
+  private async requireAdmin(email: string, session?: ClientSession) {
+    const admin = await this.members
+      .findOne({ email, role: 'admin', statePlayer: true })
+      .session(session || null)
+      .lean();
+    if (!admin) throw new ForbiddenException('Se requiere un administrador activo.');
+    return admin;
+  }
+
+  async automationSettings(email: string) {
+    await this.requireAdmin(email);
+    const config = await this.configuration();
+    if (!config)
+      throw new ServiceUnavailableException('Mensualidades pendientes de configuracion.');
+    return this.settingsSnapshot(config);
+  }
+
+  async updateAutomationSettings(email: string, input: UpdateBillingAutomationDto) {
+    if (
+      !input ||
+      !['generation', 'autoBlock'].includes(input.setting) ||
+      typeof input.enabled !== 'boolean' ||
+      !/^[a-f\d]{64}$/.test(input.revision || '')
+    )
+      throw new BadRequestException('El control y su revision son obligatorios.');
+    return this.configs.db.transaction(async (session) => {
+      const admin = await this.requireAdmin(email, session);
+      const config = await this.configuration(session);
+      if (!config)
+        throw new ServiceUnavailableException('Mensualidades pendientes de configuracion.');
+      const before = this.settingsSnapshot(config);
+      if (before.revision !== input.revision)
+        throw new ConflictException('La configuracion cambio. Actualiza antes de confirmar.');
+      if (input.enabled && !before.migrationReviewed)
+        throw new ConflictException('Revisa la migracion antes de activar automatismos.');
+      const current =
+        input.setting === 'generation' ? before.generationEnabled : before.autoBlockEnabled;
+      if (current === input.enabled) return before;
+
+      const now = this.clock();
+      const changes: Record<string, unknown> =
+        input.setting === 'generation'
+          ? { 'automation.enabled': input.enabled }
+          : { autoBlockEnabled: input.enabled };
+      if (input.setting === 'generation' && input.enabled) {
+        changes['automation.approvedAt'] = now;
+        changes['automation.approvedBy'] = admin.email;
+      }
+      // Transactions serialize competing administrators; no dues or payment state is changed here.
+      await this.configs.updateOne(
+        { key: BILLING_CONFIG_KEY },
+        { $set: changes, $inc: { __v: 1 } },
+        { session },
+      );
+      const updated = await this.configuration(session);
+      const after = this.settingsSnapshot(updated);
+      const control = input.setting === 'generation' ? 'GENERATION' : 'AUTO_BLOCK';
+      await this.audit.create(
+        [
+          {
+            eventId: `membership:automation:${before.revision}:${input.setting}`,
+            entityType: 'MEMBERSHIP_BILLING_CONFIG',
+            entityId: BILLING_CONFIG_KEY,
+            action: 'STATE_CHANGE',
+            performedBy: 'ADMIN',
+            performedByUser: admin.namePlayer,
+            performedByEmail: admin.email,
+            description: `MEMBERSHIP_AUTOMATION_${control}_${input.enabled ? 'ENABLED' : 'DISABLED'}`,
+            beforeData: before,
+            afterData: after,
+            timestamp: now,
+          },
+        ],
+        { session },
+      );
+      return after;
+    });
+  }
+
   private async indexesReady() {
     for (const [model, fields] of [
       [this.dues, 'beneficiaryId,period'],
@@ -80,6 +172,8 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
     const closure = overdueClosure(member, rows, monthAt(now), now);
     if (!closure) return { closure: null, reasons: [], references: [] };
     const reasons: string[] = [];
+    if (closure.overduePeriods.some((period) => !rows.some((row) => row.period === period)))
+      reasons.push('MISSING_DUES_REQUIRE_REVIEW');
     if (!member.billingPeriods?.length) reasons.push('BILLING_HISTORY_REQUIRES_REVIEW');
     const pending = await this.payments
       .find({
@@ -139,7 +233,13 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
         items.push({ memberId: String(member._id), reviewReasons: ['INVALID_BILLING_DATA'] });
       }
     }
-    return { enabled: config.automation?.enabled === true, period: through, items };
+    return {
+      enabled: config.automation?.enabled === true,
+      terminationEnabled: config.automation?.terminationEnabled === true,
+      autoBlockEnabled: config.autoBlockEnabled,
+      period: through,
+      items,
+    };
   }
 
   private async record(
@@ -176,7 +276,8 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
     await this.indexesReady();
     return this.members.db.transaction(async (session) => {
       const config = await this.configuration(session);
-      if (!config?.automation?.enabled) return { outcome: 'DISABLED' };
+      if (!config?.automation?.enabled && !config?.automation?.terminationEnabled)
+        return { outcome: 'DISABLED' };
       const member = await this.members
         .findById(id)
         .select('+billingPeriods +billingClosure')
@@ -184,7 +285,8 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
         .lean();
       if (!member?.statePlayer || !member.billingStartPeriod) return { outcome: 'SKIPPED' };
       const before = await this.dues.find({ beneficiaryId: member._id }).session(session).lean();
-      await this.core.ensureMemberDues(member, monthAt(now), config, session);
+      if (config.automation.enabled)
+        await this.core.ensureMemberDues(member, monthAt(now), config, session);
       const rows = await this.dues.find({ beneficiaryId: member._id }).session(session).lean();
       const created = rows.filter(
         (row) => !before.some((old) => String(old._id) === String(row._id)),
@@ -211,6 +313,8 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
           now,
         );
       }
+      if (!config.automation.terminationEnabled)
+        return { outcome: 'GENERATED', created: created.length };
       const { closure, reasons, references } = await this.reviewReasons(member, rows, now, session);
       if (!closure) return { outcome: 'GENERATED', created: created.length };
       if (reasons.length) {
@@ -284,7 +388,7 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
     this.running = true;
     try {
       const config = await this.configuration();
-      if (!config?.automation?.enabled) return;
+      if (!config?.automation?.enabled && !config?.automation?.terminationEnabled) return;
       await this.indexesReady();
       const now = this.clock();
       for await (const member of this.members
@@ -293,14 +397,16 @@ export class BillingLifecycleService implements OnApplicationBootstrap {
         .lean()
         .cursor()) {
         try {
-          const pending = await this.payments
-            .find({
-              'allocations.beneficiaryId': member._id,
-              ...this.uncertain(now),
-            })
-            .select('publicReference')
-            .limit(5)
-            .lean();
+          const pending = config.automation.terminationEnabled
+            ? await this.payments
+                .find({
+                  'allocations.beneficiaryId': member._id,
+                  ...this.uncertain(now),
+                })
+                .select('publicReference')
+                .limit(5)
+                .lean()
+            : [];
           for (const payment of pending) {
             try {
               await this.mp.reconcileForBilling(payment.publicReference);

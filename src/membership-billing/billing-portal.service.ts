@@ -17,6 +17,7 @@ import {
   assertMemberId,
   assertPaymentPeriod,
   monthAt,
+  reservationPermissions,
 } from './billing.policy';
 import { BILLING_CONFIG_KEY } from './billing.types';
 import { MembershipMpService } from './billing-mp.service';
@@ -53,8 +54,21 @@ export class BillingPortalService {
     };
   }
 
+  async activeAccount(email: string) {
+    const actor = await this.actor(email);
+    return { role: actor.role, accountActive: true };
+  }
+
   async permissions(email: string) {
     const actor = await this.actor(email);
+    if (!this.enabled())
+      return {
+        ...reservationPermissions(actor),
+        autoBlockEnabled: false,
+        name: actor.namePlayer,
+        role: actor.role,
+        memberId: String(actor._id),
+      };
     const config = await this.configs.findOne({ key: BILLING_CONFIG_KEY }).lean();
     if (!config)
       throw new ServiceUnavailableException('Mensualidades pendientes de configuracion.');
@@ -64,19 +78,9 @@ export class BillingPortalService {
     const financial = actor.billingStartPeriod
       ? await this.core.assessFinancialAccess(String(actor._id))
       : null;
-    const legacy = actor.updatePayment === false && !exempt;
     return {
-      accountActive: true,
-      financiallyRestricted: Boolean(legacy || review || financial?.financiallyRestricted),
-      reason: legacy
-        ? 'LEGACY_ACCESS_REVIEW'
-        : review
-          ? 'BILLING_START_REVIEW'
-          : financial?.financiallyRestricted
-            ? 'OVERDUE_DUES'
-            : null,
+      ...reservationPermissions(actor, financial || undefined, review),
       autoBlockEnabled: config.autoBlockEnabled,
-      overduePeriods: financial?.overduePeriods || [],
       name: actor.namePlayer,
       role: actor.role,
       memberId: String(actor._id),

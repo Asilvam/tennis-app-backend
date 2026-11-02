@@ -187,9 +187,11 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       now = new Date('2026-11-06T03:00:00Z');
       expect(await service.assessFinancialAccess(titularId)).toMatchObject({
         financiallyRestricted: true,
-        overduePeriods: ['2026-10'],
+        overduePeriods: [],
+        missingPeriods: ['2026-10'],
+        billingReviewRequired: true,
       });
-      expect(await dues.countDocuments({ beneficiaryId: titularId })).toBe(2);
+      expect(await dues.countDocuments({ beneficiaryId: titularId })).toBe(0);
     });
     it('preserves rate snapshots when configured rates change', async () => {
       const before = await service.prepareDues(titularId, titularId);

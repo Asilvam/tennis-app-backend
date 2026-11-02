@@ -1,0 +1,89 @@
+{
+  "executedAt": "2026-11-02T00:16:14.643Z",
+  "scope": "Pending membership access, global controls and member editor on original Node22 projects only",
+  "baseCommits": {
+    "backend": "b1323a1717a5b48fbd2074df141491e2c22764ce",
+    "frontend": "cbfc3523e54512c21ae71927ecf8711e6f03f39c"
+  },
+  "runtime": {
+    "node": "22.19.0",
+    "npm": "10.9.3"
+  },
+  "backend": {
+    "passed": 916,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 58,
+    "integrationCases": 198,
+    "integrationSuites": 7
+  },
+  "frontend": {
+    "passed": 324,
+    "failed": 0,
+    "skipped": 0
+  },
+  "builds": {
+    "backend": "passed",
+    "frontend": "passed",
+    "frontendTypes": "passed"
+  },
+  "lint": {
+    "frontend": "passed",
+    "backendSemantic": "passed",
+    "backendFormatting": {
+      "localPolicyErrors": 16,
+      "versionedPolicyErrors": 124,
+      "status": "not changed; recorded separately; no full lint pass claimed"
+    }
+  },
+  "mongo": {
+    "version": "8.0.34",
+    "archiveUrl": "https://fastdl.mongodb.org/osx/mongodb-macos-arm64-8.0.34.tgz",
+    "sha256": "3255cbf2e70cc5de04220046e006067d20068656d1bfa674828768a51d20d5a6",
+    "host": "127.0.0.1",
+    "port": 27377,
+    "replicaSet": "ctqPoint2",
+    "remainingTestDatabases": [],
+    "stopped": true
+  },
+  "e2e": [
+    {
+      "name": "membershipAutomation",
+      "checks": 78,
+      "views": 6,
+      "status": "passed"
+    },
+    {
+      "name": "reservationAccessStage1",
+      "checks": 54,
+      "views": 6,
+      "status": "passed"
+    },
+    {
+      "name": "adminTitularPicker",
+      "checks": 210,
+      "views": 12,
+      "status": "passed"
+    }
+  ],
+  "boundaries": {
+    "realDatabaseOperations": 0,
+    "realPayments": 0,
+    "realEmails": 0,
+    "productionAutomationChanges": false,
+    "realEnvChanges": false,
+    "node24Changes": false,
+    "physicalDeviceCertification": false
+  },
+  "workingTreeHashes": {
+    "backend/src/auth/auth.service.ts": "41ba19e26891b4a9d5bc565869ab6a063679a5a1d3159b6c89ecd1d7e5f87bf6",
+    "backend/src/membership-billing/billing-lifecycle.service.ts": "8eee9b73e1e9d7c8d01f330e158e7bb04854c73c488be19ad7dbe866fbf4a9f9",
+    "backend/src/membership-billing/billing.policy.ts": "7fa6f40329b8e136fea0bf79c26f2b55fe9457880976afef2f518605b60d8cc9",
+    "backend/src/membership-billing/membership-access.guard.ts": "2c15cc5f33faa9d46d81ce1ae3932f87d0141fb34fa75f47ed7fa442cc29abb2",
+    "frontend/src/components/AdminRegister.tsx": "0fd636c49620676ff73cf3449587f2d24c836638c971a99d49709185b1ae8de5",
+    "frontend/src/components/MembershipAutomationSettings.tsx": "c7899f9ddf423cfeb15639a6229306f09d72ab300c04bdc736633c065bb983c2",
+    "frontend/src/components/AuthContext.tsx": "61ca0ed4a8e1a7fb25269437c6db7e62e33cc7cf9f2522a7618e585cef0307d3",
+    "frontend/src/components/Login.tsx": "31d0998c653ab3ca29a1bda474c96809605c37eb140dce659b15cd1c7e0cafdd"
+  },
+  "e2eChecks": 342
+}

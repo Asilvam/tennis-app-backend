@@ -68,6 +68,11 @@ export class BillingAdminController {
     return this.billing.memberDetails(request.user.email, id);
   }
 
+  @Get('members/:id/access')
+  memberAccess(@Req() request: AdminRequest, @Param('id') id: string) {
+    return this.billing.memberAccess(request.user.email, id);
+  }
+
   @Post('quote')
   quote(@Req() request: AdminRequest, @Body() body: SelectMembershipDuesDto) {
     return this.billing.quote(request.user.email, body.dueIds);

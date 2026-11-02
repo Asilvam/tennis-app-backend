@@ -1,0 +1,168 @@
+[
+  {
+    "file": "auth/auth.service.spec.ts",
+    "errorCount": 12,
+    "warningCount": 0,
+    "issues": [
+      {
+        "line": 1,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎··BadRequestException,⏎··ConflictException,⏎··NotFoundException,⏎··UnauthorizedException,⏎` with `·BadRequestException,·ConflictException,·NotFoundException,·UnauthorizedException·`"
+      },
+      {
+        "line": 41,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎······service.login({·username:·'missing@example.com',·password:·'secret'·}),⏎····` with `service.login({·username:·'missing@example.com',·password:·'secret'·})`"
+      },
+      {
+        "line": 50,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎······new·UnauthorizedException('password·is·wrong'),⏎····` with `new·UnauthorizedException('password·is·wrong')`"
+      },
+      {
+        "line": 55,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎····'rejects·blocked·users',⏎···` with `'rejects·blocked·users',`"
+      },
+      {
+        "line": 58,
+        "rule": "prettier/prettier",
+        "message": "Delete `··`"
+      },
+      {
+        "line": 59,
+        "rule": "prettier/prettier",
+        "message": "Delete `··`"
+      },
+      {
+        "line": 61,
+        "rule": "prettier/prettier",
+        "message": "Replace `··await·expect(service.login({·username:·user.email,·password:·'secret'·})).rejects.toThrow(⏎········new·UnauthorizedException(message),⏎······` with `await·expect(service.login({·username:·user.email,·password:·'secret'·})).rejects.toThrow(new·UnauthorizedException(message)`"
+      },
+      {
+        "line": 64,
+        "rule": "prettier/prettier",
+        "message": "Replace `····},⏎··` with `··}`"
+      },
+      {
+        "line": 72,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎······service.login({·username:·activeUser.email,·password:·'secret'·}),⏎····` with `service.login({·username:·activeUser.email,·password:·'secret'·})`"
+      },
+      {
+        "line": 105,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎········service.login({·username:·activeUser.email,·password:·'secret'·}),⏎······` with `service.login({·username:·activeUser.email,·password:·'secret'·})`"
+      },
+      {
+        "line": 148,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎······new·UnauthorizedException('Token·is·wrong'),⏎····` with `new·UnauthorizedException('Token·is·wrong')`"
+      },
+      {
+        "line": 154,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎······new·BadRequestException('Verification·token·is·missing.'),⏎····` with `new·BadRequestException('Verification·token·is·missing.')`"
+      }
+    ]
+  },
+  {
+    "file": "auth/auth.service.ts",
+    "errorCount": 4,
+    "warningCount": 0,
+    "issues": [
+      {
+        "line": 1,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎··BadRequestException,⏎··ConflictException,⏎··ForbiddenException,⏎··Injectable,⏎··Logger,⏎··NotFoundException,⏎··Optional,⏎··UnauthorizedException,⏎` with `·BadRequestException,·ConflictException,·ForbiddenException,·Injectable,·Logger,·NotFoundException,·Optional,·UnauthorizedException·`"
+      },
+      {
+        "line": 56,
+        "rule": "prettier/prettier",
+        "message": "Delete `⏎·········`"
+      },
+      {
+        "line": 58,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎··········'No·se·pudieron·verificar·permisos·de·reserva·al·iniciar·sesion;·reservas·restringidas.',⏎········` with `'No·se·pudieron·verificar·permisos·de·reserva·al·iniciar·sesion;·reservas·restringidas.'`"
+      },
+      {
+        "line": 102,
+        "rule": "prettier/prettier",
+        "message": "Replace `⏎········'Invalid·or·expired·verification·token.·Please·request·a·new·one.',⏎······` with `'Invalid·or·expired·verification·token.·Please·request·a·new·one.'`"
+      }
+    ]
+  },
+  {
+    "file": "membership-billing/billing-admin.controller.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-admin.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-automation.spec.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-lifecycle.controller.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-lifecycle.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing-portal.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing.policy.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/billing.types.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/dto/billing-automation.dto.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/entities/membership-billing-config.entity.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/membership-access.guard.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  },
+  {
+    "file": "membership-billing/membership-billing.service.ts",
+    "errorCount": 0,
+    "warningCount": 0,
+    "issues": []
+  }
+]

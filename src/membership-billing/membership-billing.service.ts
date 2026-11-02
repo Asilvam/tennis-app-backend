@@ -286,8 +286,6 @@ export class MembershipBillingService {
     const now = this.clock();
     const config = await this.configuration();
     const member = await this.member(memberId);
-    if (member.statePlayer && member.role !== 'admin' && config.autoBlockEnabled)
-      await this.prepareDues(memberId, memberId);
     const rows = await this.dues.find({ beneficiaryId: member._id }).lean().exec();
     return financialAccess(member, rows as BillingDue[], config, now);
   }

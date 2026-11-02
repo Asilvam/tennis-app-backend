@@ -69,7 +69,7 @@ describe('Portal permissions independent of payment-provider availability', () =
     expect(core.assessFinancialAccess).toHaveBeenCalledWith(actor._id);
     expect(provider.available).not.toHaveBeenCalled();
   });
-  it('retains legacy restrictions and the active administrator exemption', async () => {
+  it('keeps manual restrictions separate from the active administrator automatic exemption', async () => {
     actor.updatePayment = false;
     expect(await portal.permissions(actor.email)).toMatchObject({
       financiallyRestricted: true,
@@ -77,9 +77,12 @@ describe('Portal permissions independent of payment-provider availability', () =
     });
     actor.role = 'admin';
     expect(await portal.permissions(actor.email)).toMatchObject({
-      financiallyRestricted: false,
+      financiallyRestricted: true,
+      canReserve: false,
       role: 'admin',
     });
+    actor.updatePayment = true;
+    expect((await portal.permissions(actor.email)).canReserve).toBe(true);
     expect(provider.available).not.toHaveBeenCalled();
   });
   it('fails closed if billing configuration is unavailable', async () => {

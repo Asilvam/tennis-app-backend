@@ -15,6 +15,7 @@ export interface BillingMember {
   email: string;
   role: string;
   statePlayer: boolean;
+  updatePayment?: boolean;
   partnerType: string;
   titularId?: unknown;
   billingStartPeriod?: string;
@@ -43,7 +44,12 @@ export interface BillingConfiguration {
   maxAdvanceMonths: number;
   autoBlockEnabled: boolean;
   activation?: { migrationReviewed?: boolean };
-  automation?: { enabled: boolean; approvedAt?: Date; approvedBy?: string };
+  automation?: {
+    enabled: boolean;
+    terminationEnabled?: boolean;
+    approvedAt?: Date;
+    approvedBy?: string;
+  };
   tariffVersions: TariffVersion[];
   testPricing: { enabled: boolean; memberIds: string[]; titular: number; carga: number };
 }

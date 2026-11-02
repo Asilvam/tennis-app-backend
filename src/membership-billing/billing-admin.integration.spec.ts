@@ -285,6 +285,56 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       ]);
       expect((await members.findById(titularId)).updatePayment).toBe(true);
     });
+    it('privately reports overdue reservation restriction without changing switches or generating dues', async () => {
+      const body = await draft();
+      now = new Date('2026-11-06T15:00:00Z');
+      await configs.updateOne(
+        {},
+        { $set: { autoBlockEnabled: true, 'activation.migrationReviewed': true } },
+      );
+      const count = await dues.countDocuments();
+      const response = await call(`members/${titularId}/access`);
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        accountActive: true,
+        canReserve: false,
+        hasOverdueDues: true,
+        overduePeriods: ['2026-10'],
+        overdueAmount: 180,
+      });
+      expect(await dues.countDocuments()).toBe(count);
+      expect((await members.findById(titularId)).updatePayment).toBe(true);
+      expect(
+        (
+          await call(
+            `members/${titularId}/access`,
+            undefined,
+            token('test1@example.invalid', 'user'),
+          )
+        ).status,
+      ).toBe(403);
+      expect((await call('payments', body)).status).toBe(201);
+      expect((await call(`members/${titularId}/access`)).body.canReserve).toBe(true);
+      await members.updateOne(
+        { _id: titularId },
+        {
+          $set: {
+            billingPeriods: [
+              { fromPeriod: '2026-10', throughPeriod: '2026-10' },
+              { fromPeriod: '2026-12' },
+            ],
+          },
+        },
+      );
+      await dues.deleteMany({ beneficiaryId: titularId, period: '2026-11' });
+      now = new Date('2026-12-06T15:00:00Z');
+      expect((await call(`members/${titularId}/access`)).body).toMatchObject({
+        canReserve: true,
+        missingPeriods: [],
+      });
+      await members.updateOne({ _id: titularId }, { $set: { updatePayment: false } });
+      expect((await call(`members/${titularId}/access`)).body.canReserve).toBe(false);
+    });
     it('requires actual active admin role, not only a signed role claim', async () => {
       expect((await call('members', undefined, 'invalid')).status).toBe(401);
       expect(

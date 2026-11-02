@@ -16,7 +16,6 @@ export class MembershipAccessGuard implements CanActivate {
     private readonly config: ConfigService,
   ) {}
   async canActivate(context: ExecutionContext) {
-    if (!this.portal.enabled()) return true;
     const request = context.switchToHttp().getRequest();
     const path = String(request.path || request.url?.split('?')[0] || '').replace(/\/$/, '');
     const method = request.method;
@@ -28,10 +27,11 @@ export class MembershipAccessGuard implements CanActivate {
     )
       return true;
     const bookingWrite =
-      method !== 'GET' &&
-      /^(\/court-reserve(?:\/|$)|\/booking(?:\/|$)|\/mp\/init-point$|\/match-ranking(?:\/|$))/.test(
-        path,
-      );
+      (method === 'POST' &&
+        /^(?:\/court-reserve(?:\/holds|\/admincreate|\/adminreserve)?|\/booking\/multiple|\/mp\/init-point)$/.test(
+          path,
+        )) ||
+      (method === 'PATCH' && /^\/court-reserve\/holds\/[^/]+$/.test(path));
     const bearer = /^Bearer (.+)$/.exec(request.headers.authorization || '')?.[1];
     if (!bearer) {
       if (bookingWrite) throw new UnauthorizedException('Inicia sesion para continuar.');
@@ -46,19 +46,19 @@ export class MembershipAccessGuard implements CanActivate {
       throw new UnauthorizedException('La sesion no es valida.');
     }
     if (!payload.email) throw new UnauthorizedException('La sesion no es valida.');
-    const access = await this.portal.permissions(payload.email);
-    const allowed =
-      (method === 'GET' && /^\/mp\/reservations\/[a-z\d_-]{1,80}\/status$/i.test(path)) ||
-      /^\/membership-billing\/me(?:\/|$)/.test(path) ||
-      path === '/membership-billing/checkout' ||
-      /^\/membership-billing\/payments\/membership-[a-f\d-]{36}(?:\/reconcile)?$/i.test(path);
-    if (access.financiallyRestricted && !allowed)
+    const access = bookingWrite ? await this.portal.permissions(payload.email) : null;
+    if (!bookingWrite) await this.portal.activeAccount(payload.email);
+    if (access && (access.canReserve === false || access.financiallyRestricted))
       throw new ForbiddenException({
-        code: 'PAYMENTS_ONLY',
-        message: 'Tu acceso esta restringido a mensualidades.',
+        code: 'RESERVATION_BLOCKED',
+        message: 'No puedes crear reservas hasta regularizar tu habilitacion de pago.',
         reason: access.reason,
       });
-    if (/^\/court-reserve\/(admincreate|adminreserve)$/.test(path) && access.role !== 'admin')
+    if (
+      bookingWrite &&
+      /^\/court-reserve\/(admincreate|adminreserve)$/.test(path) &&
+      access?.role !== 'admin'
+    )
       throw new ForbiddenException('Se requiere un administrador.');
     return true;
   }

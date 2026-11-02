@@ -17,6 +17,7 @@ import {
   monthAt,
   periodsBetween,
   priceFor,
+  reservationPermissions,
 } from './billing.policy';
 
 const titularId = '100000000000000000000001';
@@ -45,6 +46,59 @@ const due = (period = '2026-10', changes: Partial<BillingDue> = {}): BillingDue 
 const october = new Date('2026-10-17T15:00:00Z');
 
 describe('Membership billing rules (no network or database)', () => {
+  it('keeps manual restriction independent of login and automatic debt controls', () => {
+    expect(reservationPermissions(member({ role: 'admin', updatePayment: false })).canReserve).toBe(
+      false,
+    );
+    expect(reservationPermissions(member({ updatePayment: false }))).toMatchObject({
+      accountActive: true,
+      canReserve: false,
+      manualReservationBlocked: true,
+    });
+    expect(reservationPermissions(member({ statePlayer: false }))).toMatchObject({
+      accountActive: false,
+      canReserve: false,
+    });
+  });
+  it('cannot override real overdue restriction by manually marking payment current', () => {
+    const financial = {
+      financiallyRestricted: true,
+      hasOverdueDues: true,
+      overduePeriods: ['2026-10'],
+      overdueAmount: 18000,
+    };
+    expect(reservationPermissions(member({ updatePayment: true }), financial)).toMatchObject({
+      canReserve: false,
+      reason: 'OVERDUE_DUES',
+      overdueAmount: 18000,
+    });
+    expect(
+      reservationPermissions(member({ updatePayment: true }), {
+        ...financial,
+        financiallyRestricted: false,
+        hasOverdueDues: false,
+        overduePeriods: [],
+        overdueAmount: 0,
+      }).canReserve,
+    ).toBe(true);
+    expect(
+      reservationPermissions(member({ updatePayment: false }), {
+        ...financial,
+        financiallyRestricted: false,
+      }).canReserve,
+    ).toBe(false);
+  });
+  it('requires independent approved opt-in for termination, not generation alone', () => {
+    const config = proposedBillingConfiguration();
+    config.automation = { enabled: false, terminationEnabled: true };
+    expect(() => assertConfiguration(config)).toThrow();
+    config.activation = { migrationReviewed: true };
+    config.automation.approvedAt = october;
+    config.automation.approvedBy = 'fixture';
+    expect(() => assertConfiguration(config)).not.toThrow();
+    (config.automation as any).terminationEnabled = 'true';
+    expect(() => assertConfiguration(config)).toThrow();
+  });
   it('proposes calendar arrears billing with automatic blocking and test pricing disabled', () => {
     expect(proposedBillingConfiguration()).toMatchObject({
       billingStartsAtPeriod: '2026-10',

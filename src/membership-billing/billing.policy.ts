@@ -89,7 +89,9 @@ export function assertConfiguration(config: BillingConfiguration): void {
   if (
     config.automation &&
     (typeof config.automation.enabled !== 'boolean' ||
-      (config.automation.enabled &&
+      (config.automation.terminationEnabled !== undefined &&
+        typeof config.automation.terminationEnabled !== 'boolean') ||
+      ((config.automation.enabled || config.automation.terminationEnabled) &&
         (!config.activation?.migrationReviewed ||
           !config.automation.approvedBy?.trim() ||
           !Number.isFinite(new Date(config.automation.approvedAt || NaN).getTime()))))
@@ -263,12 +265,71 @@ export function financialAccess(
       item.dueAt.getTime() <= now.getTime(),
   );
   const exempt = member.role === 'admin';
+  const missingPeriods =
+    member.statePlayer && !exempt && member.billingStartPeriod
+      ? periodsBetween(assertBillingStart(member, config), monthAt(now)).filter(
+          (period) =>
+            isBillablePeriod(member, period) &&
+            dueAt(period).getTime() <= now.getTime() &&
+            !dues.some(
+              (item) => String(item.beneficiaryId) === String(member._id) && item.period === period,
+            ),
+        )
+      : [];
   return {
     accountActive: member.statePlayer,
     hasOverdueDues: overdue.length > 0,
     overduePeriods: overdue.map((item) => item.period).sort(),
+    overdueAmount: overdue.reduce((sum, item) => sum + item.amount, 0),
+    missingPeriods,
+    billingReviewRequired: missingPeriods.length > 0,
     exempt,
     financiallyRestricted:
-      member.statePlayer && config.autoBlockEnabled && !exempt && overdue.length > 0,
+      member.statePlayer &&
+      config.autoBlockEnabled &&
+      !exempt &&
+      (overdue.length > 0 || missingPeriods.length > 0),
+  };
+}
+
+export function reservationPermissions(
+  member: BillingMember,
+  financial?: {
+    financiallyRestricted: boolean;
+    hasOverdueDues?: boolean;
+    overduePeriods: string[];
+    overdueAmount?: number;
+    billingReviewRequired?: boolean;
+    missingPeriods?: string[];
+  },
+  startReview = false,
+) {
+  const exempt = member.role === 'admin';
+  const manual = member.updatePayment === false;
+  const restricted =
+    manual || (!exempt && Boolean(startReview || financial?.financiallyRestricted));
+  const reason = !member.statePlayer
+    ? 'INACTIVE_ACCOUNT'
+    : financial?.financiallyRestricted && !exempt
+      ? financial.hasOverdueDues === false && financial.billingReviewRequired
+        ? 'BILLING_DUES_REVIEW'
+        : 'OVERDUE_DUES'
+      : manual
+        ? 'LEGACY_ACCESS_REVIEW'
+        : startReview && !exempt
+          ? 'BILLING_START_REVIEW'
+          : null;
+  return {
+    accountActive: member.statePlayer,
+    canReserve: member.statePlayer && !restricted,
+    financiallyRestricted: restricted,
+    reason,
+    exempt,
+    manualReservationBlocked: manual,
+    hasOverdueDues: financial?.hasOverdueDues === true,
+    overduePeriods: financial?.overduePeriods || [],
+    overdueAmount: financial?.overdueAmount || 0,
+    billingReviewRequired: financial?.billingReviewRequired === true,
+    missingPeriods: financial?.missingPeriods || [],
   };
 }
