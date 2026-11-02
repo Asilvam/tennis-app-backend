@@ -1,0 +1,114 @@
+{
+  "executedAt": "2026-11-02T01:04:13.619Z",
+  "scope": "Approved point 3 / stage 2 plus approved bulk-selection bug and confirmation copy",
+  "baseCommits": {
+    "backend": "5ddc0dd1251d3bddafcb9d42256d1e1f25679c07",
+    "frontend": "65263755991bbc4b2fcbfde144ab2effd75f1a76"
+  },
+  "runtime": {
+    "node": "v22.19.0",
+    "npm": "10.9.3"
+  },
+  "backend": {
+    "passed": 931,
+    "failed": 0,
+    "skipped": 0,
+    "suites": 58,
+    "integrationSuites": 7,
+    "integrationCases": 211
+  },
+  "frontend": {
+    "passed": 327,
+    "failed": 0,
+    "skipped": 0
+  },
+  "builds": {
+    "backend": "passed",
+    "frontend": "passed"
+  },
+  "frontendTypes": "passed",
+  "lint": {
+    "frontend": "passed",
+    "backendRuntime": "passed (two changed functional files)",
+    "backendSemantic": "passed (five changed files, only prettier/prettier disabled)",
+    "backendWholeRepository": "not claimed; pre-existing formatting observations remain outside this scope"
+  },
+  "browser": {
+    "status": "passed",
+    "checks": 126,
+    "views": [
+      {
+        "engine": "chromium",
+        "width": 390
+      },
+      {
+        "engine": "chromium",
+        "width": 820
+      },
+      {
+        "engine": "chromium",
+        "width": 1440
+      },
+      {
+        "engine": "webkit",
+        "width": 390
+      },
+      {
+        "engine": "webkit",
+        "width": 820
+      },
+      {
+        "engine": "webkit",
+        "width": 1440
+      }
+    ],
+    "apis": "intercepted fixtures",
+    "bulkEligibleCandidates": 102,
+    "realEnrollments": 0
+  },
+  "isolation": {
+    "mongo": "8.0.34",
+    "host": "127.0.0.1",
+    "port": 27378,
+    "replicaSet": "ctqStage2",
+    "remainingTestDatabases": [],
+    "stopped": true,
+    "AppModuleStarted": false,
+    "realDatabaseOperations": 0,
+    "realPayments": 0,
+    "realEmails": 0,
+    "realEnvChanges": false,
+    "productionAutomationChanges": false,
+    "Node24Changes": false,
+    "physicalDeviceCertification": false
+  },
+  "sourceHashes": {
+    "backend/src/membership-billing/billing-portal.service.ts": "47bf5b64b62841c869a4a07c19d6da746d496f1e0468d6d8626876215243fb41",
+    "backend/src/membership-billing/membership-billing.service.ts": "4dbef08913b5346004f503f207c5d4443923d49585c51bdb63a1869e0644f5a5",
+    "backend/src/membership-billing/billing-lifecycle.integration.spec.ts": "459ca87873f6cc58b7dbed9feb0d6f8a96aaaa57215c5412aec93a270f8ce67f",
+    "backend/src/membership-billing/billing-mp.integration.spec.ts": "71994bb12cb869e09c4a98a2c411a73b8cf7ec5bcabba69f9c32a07fb875e485",
+    "backend/src/membership-billing/billing-portal.spec.ts": "815a011cf3b9859ce4b0100cf9482c8078e86eacf2bd86bb78ab1d0d3df8793f",
+    "frontend/src/components/MembershipAutomationSettings.tsx": "dd8b91438a249a3ee11894a36ce7f9d38d127d7c166d4aa4fd4d985124303f56",
+    "frontend/src/components/MembershipBatchEnrollment.tsx": "c03973f7bcdaf51ac233dc6989a80a6f777969879cb255088943b304fb0b3106",
+    "frontend/tests/membershipAutomation.test.mjs": "a3d73111cfe351d7e0b6cf45ec2b82606f2a76633390ef1b983de24bd87a4a4e",
+    "frontend/tests/membershipActivation.test.mjs": "d194e8651ac88c7b3ef67166b89e8393fe6980bdf8b18525446c8958c79436c8",
+    "frontend/tests/e2e/membershipAutomation.mjs": "8041c31199762887f843c4f7bc4a5d3ed17f0dc10ae05d2abec143d8dd620ff3"
+  },
+  "commands": {
+    "backend": "BILLING_TEST_MONGO_URI=localhost CATEGORY_TEST_MONGO_URI=localhost RESULTS_TEST_MONGO_URI=localhost node node_modules/jest/bin/jest.js --runInBand --json",
+    "frontend": "node --experimental-strip-types --test tests/*.test.*",
+    "browser": "node tests/e2e/membershipAutomation.mjs BUILD OUTPUT PLAYWRIGHT",
+    "frontendBuild": "VITE_API_URL=https://api.ctq-fixture.invalid node node_modules/vite/bin/vite.js build --outDir TEMP"
+  },
+  "remaining": "Stage 3 integrated frontend/backend workflow, physical iPhone/iPad acceptance, deployment and activation require separate authorization",
+  "approvedInactiveValidation": {
+    "behavior": "Preserves pre-existing inactive-beneficiary rejection while active debtors can still quote/pay",
+    "beforeFixReproduced": true,
+    "roles": [
+      "admin",
+      "titular"
+    ],
+    "afterFixCases": 2,
+    "rolledBackWithoutLedgerChanges": true
+  }
+}

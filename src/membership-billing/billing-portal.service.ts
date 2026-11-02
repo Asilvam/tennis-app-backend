@@ -104,18 +104,7 @@ export class BillingPortalService {
         ? await this.members.find({ titularId: actor._id }).sort({ namePlayer: 1 }).lean()
         : [];
     const people = [actor, ...family];
-    for (const person of people) {
-      if (
-        person.statePlayer &&
-        person.billingStartPeriod &&
-        ['Titular', 'Carga', 'Familiar'].includes(person.partnerType)
-      )
-        await this.core.prepareDues(
-          String(actor._id),
-          String(person._id),
-          throughPeriod || currentPeriod,
-        );
-    }
+    // Reading the portal never issues dues, including when automatic generation is disabled.
     const dues = await this.dues
       .find({
         beneficiaryId: { $in: people.map((person) => person._id) },

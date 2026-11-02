@@ -238,7 +238,7 @@ Esta protección no constituye una auditoría completa de seguridad. El restable
 
 Cierre revisado de cambios locales de permisos, controles globales y editor:
 [alcance, validacion y limites](docs/cierre-cambios-mensualidades.md).
-No equivale a activar automatismos ni a completar la etapa futura de generacion.
+Ese cierre no activo automatismos. La etapa 2 posterior se documenta por separado.
 
 Etapa 1 de automatizacion y permisos actualizada al 31 de octubre:
 [acceso al sitio y bloqueo exclusivo de nuevas reservas](docs/membership-reservation-access-stage-1.md).
@@ -252,7 +252,8 @@ No se habilito ningun automatismo en la base real ni se agregaron variables de e
 
 Guia funcional y tecnica actualizada: [operacion de pago de mensualidades](docs/operacion-pago-mensualidades.md).
 Incluye habilitacion, generacion de cuotas, pago manual/MP, persistencia, API y mantenimiento.
-Propuesta pendiente de implementacion: [generacion el dia 1 y bloqueo el dia 6](docs/analisis-automatizacion-mensualidades.md), manteniendo cobro por mes vencido.
+Etapa 2 implementada y validada en local: [generacion manual/automatica y bloqueo del dia 6](docs/membership-generation-stage-2.md).
+Mantiene cobro por mes vencido; no activa opciones del club. La etapa 3 y su autorizacion siguen pendientes.
 
 Reglas acordadas el **26 de octubre de 2026**, con implementación local de las nuevas etapas 1 y 2 e histórico no exigible actualizados al **27 de octubre de 2026**. Esta sección es la referencia del flujo vigente; los documentos anteriores conservan decisiones históricas. Una implementación probada en local no activa tareas ni demuestra su publicación en producción.
 
@@ -320,7 +321,7 @@ Regularizar cuotas permite retirar la restricción derivada de esas deudas, si n
 
 ### Creación mensual y baja: implementación local
 
-Una vez aprobada la automatización no es necesario crear manualmente cada mes. Se conserva la preparación bajo demanda. La nueva tarea recuperable se ejecuta cada hora en `America/Santiago`, incluidos cambios de mes y el inicio del día 6. **Permanece desactivada** sin aprobación explícita en `membership_billing_config.automation`, independiente del bloqueo financiero. No se agregó una variable de entorno ni se activó sobre datos reales.
+Una vez aprobada la automatización no es necesario crear manualmente cada mes. Consultar el portal o cotizar un pago no genera cuotas. La emisión manual administrativa sigue disponible con la automatización apagada. La tarea recuperable se ejecuta al arrancar y cada hora en `America/Santiago`, incluidos cambios de mes. **Permanece desactivada** sin aprobación explícita en `membership_billing_config.automation`, independiente del bloqueo financiero. Desde el día 6 la API valida la deuda en cada nueva reserva, sin depender de esperar al proceso horario. No se agregó una variable de entorno ni se activó sobre datos reales.
 
 1. Genera cuotas de activos habilitados y vigentes con tarifa de backend e índice único socio/período. Incluye restringidos por deuda; excluye inactivos y períodos sin vigencia.
 2. Recupera ejecuciones faltantes sin duplicar. El listado no ejecuta la tarea. Una transacción por socio evita que un error interrumpa a todos.

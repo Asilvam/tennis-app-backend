@@ -465,11 +465,117 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       const result = await call('/membership-billing/me/dues', {});
       expect(result.status).toBe(201);
       expect(result.body.currentPeriod).toBe('2026-12');
-      expect([...new Set(result.body.dues.map((row) => row.period))]).toEqual([
+      expect([...new Set(result.body.dues.map((row) => row.period))]).toEqual(['2026-10']);
+      expect(await dues.countDocuments()).toBe(2);
+      const admin = await members.findOne({ email: 'admin@example.invalid' });
+      await core.prepareDues(String(admin._id), own);
+      await core.prepareDues(String(admin._id), carga);
+      const refreshed = await call('/membership-billing/me/dues', {});
+      expect([...new Set(refreshed.body.dues.map((row) => row.period))]).toEqual([
         '2026-10',
         '2026-11',
         '2026-12',
       ]);
+    });
+    describe('Stage 2: day 6 access with the same open session', () => {
+      const enableBlock = () =>
+        configs.updateOne(
+          {},
+          {
+            $set: { autoBlockEnabled: true, 'activation.migrationReviewed': true },
+          },
+        );
+      const bankPayment = async (ids: string[], amount: number, suffix: string) =>
+        bank.registerBankPayment(
+          'admin@example.invalid',
+          {
+            method: 'CASH',
+            dueIds: ids,
+            amount,
+            payerName: 'Fixture',
+            verified: true,
+            receivedDate: '2026-11-06',
+          },
+          `stage2-bank-payment-${suffix}`,
+        );
+      it('enforces the Chile cutoff and releases after manual payment with the same session', async () => {
+        await enableBlock();
+        const admin = await members.findOne({ email: 'admin@example.invalid' });
+        now = new Date('2026-11-05T15:00:00Z');
+        await core.prepareDues(String(admin._id), own, '2026-11');
+        const Authorization = `Bearer ${jwt.sign({ email, role: 'user' })}`;
+        const sameSession = (path: string, body?: unknown) => call(path, body, email, { Authorization });
+        const original = await members.findById(own).lean();
+        now = new Date('2026-11-06T02:59:59.999Z');
+        for (const route of ['/court-reserve', '/booking/multiple'])
+          expect((await sameSession(route, {})).status).toBe(201);
+        now = new Date('2026-11-06T03:00:00.000Z');
+        for (const route of ['/court-reserve', '/booking/multiple']) {
+          const denied = await sameSession(route, {});
+          expect(denied.status).toBe(403);
+          expect(denied.body).toMatchObject({ code: 'RESERVATION_BLOCKED', reason: 'OVERDUE_DUES' });
+          expect((await call(route, {}, 'admin@example.invalid')).status).toBe(201);
+        }
+        expect((await sameSession('/membership-billing/me/payments')).status).toBe(200);
+        expect((await sameSession('/membership-billing/me/dues', {})).status).toBe(201);
+        expect(await members.findById(own).lean()).toEqual(original);
+        await bankPayment([dueIds[0]], 180, 'cutoff');
+        for (const route of ['/court-reserve', '/booking/multiple'])
+          expect((await sameSession(route, {})).status).toBe(201);
+        expect((await dues.findOne({ beneficiaryId: own, period: '2026-11' })).status).toBe('OPEN');
+        expect(await portal.permissions(email)).toMatchObject({ canReserve: true, overduePeriods: [] });
+      });
+
+      it('requires verified MP approval, not UNKNOWN, to release the same session', async () => {
+        await enableBlock();
+        now = new Date('2026-11-06T03:00:00Z');
+        const Authorization = `Bearer ${jwt.sign({ email, role: 'user' })}`;
+        const result = await checkout();
+        await payments.updateOne(
+          { publicReference: result.reference },
+          { $set: { 'checkout.creationStatus': 'UNKNOWN' } },
+        );
+        expect((await call('/court-reserve', {}, email, { Authorization })).status).toBe(403);
+        expect((await call('/membership-billing/me/payments', undefined, email, { Authorization })).status).toBe(200);
+        snapshot.approvedAt = '2026-11-06T03:01:00Z';
+        now = new Date('2026-11-06T03:01:01Z');
+        await mp.receive('123');
+        expect((await call('/court-reserve', {}, email, { Authorization })).status).toBe(201);
+        expect((await call('/booking/multiple', {}, email, { Authorization })).status).toBe(201);
+        expect(await payments.countDocuments({ status: 'CONFIRMED' })).toBe(1);
+        expect(await dues.countDocuments({ status: 'PAID' })).toBe(2);
+      });
+
+      it('separates carga debt from titular debt and preserves manual restrictions', async () => {
+        await enableBlock();
+        now = new Date('2026-11-06T03:00:00Z');
+        await bankPayment([dueIds[1]], 50, 'carga');
+        expect((await call('/court-reserve', {}, 'test2@example.invalid')).status).toBe(201);
+        expect((await call('/court-reserve', {})).status).toBe(403);
+        await members.updateOne({ _id: own }, { $set: { updatePayment: false } });
+        await bankPayment([dueIds[0]], 180, 'manual-restriction');
+        expect(await portal.permissions(email)).toMatchObject({
+          canReserve: false,
+          reason: 'LEGACY_ACCESS_REVIEW',
+          overduePeriods: [],
+        });
+        expect((await call('/court-reserve', {})).status).toBe(403);
+      });
+
+      it('allows October alone or October plus November on November 1, never November alone', async () => {
+        now = new Date('2026-11-01T03:00:00Z');
+        const admin = await members.findOne({ email: 'admin@example.invalid' });
+        const rows = await core.prepareDues(String(admin._id), own, '2026-11');
+        const ids = rows.map((row) => String(row._id));
+        expect((await core.quote(own, [ids[0]])).amount).toBe(180);
+        expect((await core.quote(own, ids)).amount).toBe(360);
+        await expect(core.quote(own, [ids[1]])).rejects.toMatchObject({ status: 409 });
+        expect((await call('/membership-billing/checkout', { dueIds: [ids[1]] })).status).toBe(409);
+        const attempt = await call('/membership-billing/checkout', { dueIds: ids });
+        expect(attempt.status).toBe(201);
+        expect(attempt.body.amount).toBe(360);
+        expect(await dues.countDocuments({ beneficiaryId: own, status: 'PAID' })).toBe(0);
+      });
     });
     it('does not wait for payment-provider availability on ordinary authenticated operations', async () => {
       const get = jest.mocked(axios.get);

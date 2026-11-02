@@ -1,0 +1,55 @@
+{
+  "executedAt": "2026-11-02T01:04:13.619Z",
+  "scope": "Explicitly approved preservation of inactive beneficiary rejection in quoteInSession",
+  "beforeFix": {
+    "expectedFailures": 2,
+    "sourceHash": "48846036c0434245782837caa1a8a9893973d76119e8e21c600dd3bd80bbaa64",
+    "cases": [
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery rejects inactive beneficiaries for admin without changing the ledger",
+        "status": "failed",
+        "reason": "Quote unexpectedly resolved with complete dues including an inactive carga"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery rejects inactive beneficiaries for titular without changing the ledger",
+        "status": "failed",
+        "reason": "Quote unexpectedly resolved with complete dues including an inactive carga"
+      }
+    ]
+  },
+  "afterFix": {
+    "sourceHash": "4dbef08913b5346004f503f207c5d4443923d49585c51bdb63a1869e0644f5a5",
+    "cases": [
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery rejects inactive beneficiaries for admin and preserves the ledger",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery rejects inactive beneficiaries for titular and preserves the ledger",
+        "status": "passed"
+      }
+    ],
+    "assertions": [
+      "Inactive carga rejected with 409 for titular and admin",
+      "Member versions and due documents rolled back unchanged",
+      "No payment or audit created on rejection",
+      "Active carga with overdue dues can still quote 230 CLP for the two authorized fixture IDs"
+    ]
+  },
+  "boundaries": {
+    "mongo": "8.0.34",
+    "host": "127.0.0.1",
+    "port": 27378,
+    "replicaSet": "ctqStage2",
+    "remainingTestDatabases": [],
+    "stopped": true,
+    "AppModuleStarted": false,
+    "realDatabaseOperations": 0,
+    "realPayments": 0,
+    "realEmails": 0,
+    "realEnvChanges": false,
+    "productionAutomationChanges": false,
+    "Node24Changes": false,
+    "physicalDeviceCertification": false
+  }
+}

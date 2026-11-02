@@ -1,0 +1,888 @@
+[
+  {
+    "file": "src/membership-billing/billing-lifecycle.integration.spec.ts",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings reads only public flags and revision without generating dues, provider calls or audit",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings updates generation both ways, leaves termination intact and audits the administrator",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings toggles automatic reservation blocking without touching dues, members or payments",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings does not duplicate audit on an unchanged setting or an uncertain retry",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings rejects stale configuration and preserves the other administrators change",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings serializes simultaneous administrator writes and records only the winning change",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings requires migration review for either activation and never approves it from the request",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings preserves absent legacy automation when only auto-block changes",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings rolls back the configuration if its audit cannot be saved",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings requires a JWT, admin role and fresh active administrator for reads and writes",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings rejects invalid booleans, revisions, unknown fields and termination changes",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Administrator automation settings respects the existing admin module guard and never seeds missing config",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery portal and administrative reads never issue dues (automatic=false)",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery portal and administrative reads never issue dues (automatic=true)",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery supports manual emission with automation off, then recovers only missing months",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery quotes issued dues without emission and rejects an earlier missing month",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery rejects inactive beneficiaries for admin and preserves the ledger",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery rejects inactive beneficiaries for titular and preserves the ledger",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery two workers recover a missed run and preserve issued and settled dues",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery serializes manual/automatic emission and payment without duplicate or reopened dues",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT Stage 2: explicit emission and idempotent recovery ordinary recovery keeps void and archived months unchanged and emits no payment",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does nothing without explicit reviewed DB activation or with the existing admin switch off",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does not terminate when only generation is enabled, even with three overdue months",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does not terminate for unissued months when generation is disabled",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT can evaluate termination independently without generating a new month",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT previews read-only, verifies the current admin and protects the HTTP route",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT generates in Chile, includes restricted members and skips inactive or unenrolled accounts",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT generates the carga at 50 and all other IDs at standard prices",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT concurrent retries issue one due and one generation audit",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT closes on day 6, keeps Oct-Dec debt and voids January and later issued unpaid dues",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT recovers a missed run at the original cutoff, not at the restart month",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT holds uncertain MP attempts, reconciles first and deduplicates review audits",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT leaves legacy interval-less records in review instead of inventing an approval",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does not terminate admin members, or modify their legacy access flags",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT uses effective bank dates, not the date the administrator recorded the receipt",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a late verified payment preserves money but does not retroactively avoid termination",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT does not void a prepaid future month or automatically refund it",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rolls back generation, voiding and account state if the financial audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT isolates one member failure so the next member can still be processed",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT re-enrolls in the current month without requiring old debt or losing history",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT concurrent termination retries close only once",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT previews families read-only and excludes admin from the global batch",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT applies a family range with automatic audit reason and idempotent batch approval",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rejects out-of-range batch generation before creating request audit or partial enrollments",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT manual activation wins a race with the mass preview and is never replaced",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT batch retries and concurrent requests do not duplicate approvals or dues",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a reviewed existing member is omitted from all later mass previews",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT inactive accounts, incomplete baselines and orphan cargas are review-only",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rejects forged, duplicate, empty and unreviewed mass requests before applying data",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT changed prices require review again and uncertain failures resume the same batch",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT completes an old pilot validity without enrolling, repricing, archiving or creating payments",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT history approval rejects changed ledgers and invalid baselines, and rolls back if audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT real uncertainty still blocks legacy review and refund evidence is not ignored",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT restores an excluded future due after reenrollment via worker",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT restores an excluded future due after reenrollment via on-demand",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a readonly release snapshot excludes credentials and never changes billing records",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a future-due audit failure rolls back reopening and repricing after reenrollment",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT financial backup is private, exclusive, checksum checked and restorable as BSON",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT release audit on an empty local database never creates collections or indexes",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT a closure audit failure rolls back an existing account and issued future dues",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT re-enrollment rollback preserves inactive state, old debt and excluded months",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT keeps old real payments and reverses them without resurrecting non-collectible debt",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT prevents generic activation bypasses and keeps inactive payments disabled",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly lifecycle with isolated transactions and HTTP/JWT rejects invalid reenrollment dates, data, accounts and stale approvals",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "src/membership-billing/billing-mp.integration.spec.ts",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set creates PENDING intent with server total and no settled dues or fake bank income",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set reuses the same idempotent request and forbids changing it",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set prevents overlapping checkout from a second key and concurrent requests",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set retains UNKNOWN after timeout and never automatically creates a second preference",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set rejects inactive actors, unrelated beneficiaries and missing idempotency keys",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set confirms provider approval, all dues and audit without queuing email",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set preserves irregular provider receipts for review without settling any due ({\"amount\":229})",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set preserves irregular provider receipts for review without settling any due ({\"currency\":\"USD\"})",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set preserves irregular provider receipts for review without settling any due ({\"collectorId\":\"998\"})",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set preserves irregular provider receipts for review without settling any due ({\"liveMode\":false})",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set preserves irregular provider receipts for review without settling any due ({\"pricingMode\":\"STANDARD\"})",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set preserves irregular provider receipts for review without settling any due ({\"approvedAt\":\"invalid\"})",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set does not accept browser-supplied facts or malformed provider evidence",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set is idempotent for repeated approval events without creating email jobs",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set preserves legacy email evidence when confirming and deduplicating provider events",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set does not degrade a confirmed payment with a late pending/rejected event",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set marks refunds/chargebacks for review without reopening paid dues automatically",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set records a second captured transaction as a separate review receipt without double allocation",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set keeps a provider capture for review if a due was excluded by termination",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set does not partially allocate captured funds if a bank payment already settled one due",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set rolls back all settlement changes if mandatory financial audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set masks family amounts and checkout URLs from a carga while allowing its own state",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set reconciles only as payer with cooldown and never confirms from a redirect",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set opens the family portal with only own/linked arrears and current dues",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set rejects forged future portal requests and checkout IDs without trusting JWT admin claims",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set returns arrears and current dues using server time after a month rollover",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set Stage 2: day 6 access with the same open session enforces the Chile cutoff and releases after manual payment with the same session",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set Stage 2: day 6 access with the same open session requires verified MP approval, not UNKNOWN, to release the same session",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set Stage 2: day 6 access with the same open session separates carga debt from titular debt and preserves manual restrictions",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set Stage 2: day 6 access with the same open session allows October alone or October plus November on November 1, never November alone",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set does not wait for payment-provider availability on ordinary authenticated operations",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set still denies debtors booking access while the payment provider is unavailable",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set retains manual inactive state and restricts legacy financial access without changing flags",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set requires real JWT, rejects browser amounts and has no browser confirmation endpoint",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set requires the internal key and accepts only an operation ID, never callback monetary claims",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set denies debtors both booking modes but retains dues/history/checkout and exempts active admins",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set enforces member history ownership and feature flags over HTTP",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set expires only after a complete empty provider reconciliation and safety buffer",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set keeps the portal usable but refuses new checkout when provider readiness cannot be verified",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set settles an uncertain creation using provider-verified preference evidence",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set keeps confirmation operational even if the readiness endpoint becomes unavailable",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set refuses to settle standard dues with sandbox money",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set restores booking after overdue dues settle; automatic blocking remains opt-in",
+        "status": "passed"
+      },
+      {
+        "name": "Monthly checkout/settlement and portal with isolated replica set keeps a paid account inactive and never rewrites its administrative flags",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "src/membership-billing/billing-admin.integration.spec.ts",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB reads a member detail without generating dues, modifying the member or creating audit events",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB allows reading inactive/unenrolled members without enrolling or activating them",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB validates member detail IDs and active admin authorization",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB filters history by beneficiary rather than by the person who paid",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB matches period and beneficiary within the same allocation in a family payment",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records transfer, allocations and responsible admin atomically through authenticated HTTP",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB privately reports overdue reservation restriction without changing switches or generating dues",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB requires actual active admin role, not only a signed role claim",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB leaves endpoints disabled by default without creating configuration or obligations",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects spoofed actor, partial/excess amounts, unverified deposits, future and invalid dates",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB deduplicates the same confirmed request and rejects a changed body on the same key",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB handles concurrent same-key submissions without a duplicate payment",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB allows only one of two distinct registrations to settle the same dues",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back payment, all dues and member locks when mandatory audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records a bank deposit with an external payer without inventing a user or sending an email",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB reverses a bank entry without deleting evidence or refunding money",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB preserves legacy email evidence on reversal without queuing another email",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back reversal if one allocation no longer points at the original payment",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB fails closed if the unique payment index is missing",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB requires an audited review for a second income matching bank reference/date/amount",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back a reversal if its mandatory audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB does not expose financial audit events through the legacy user-accessible audit routes",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB retains authenticated admin payment of current plus three future months",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB previews enrollment without writing dues, payments, activity or audit",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB enrolls only the approved member with history and OPEN dues, never a fake payment",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB deduplicates simultaneous enrollment and rejects a reused key with changed content",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB refuses stale enrollment prices and rolls back everything if audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB validates enrollment period, activity, parent association, role and strict request fields",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB prices linked carga enrollment at 50 and ordinary membership at the real rate",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB never resets existing financial records to approve a new billing start",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB enrolls four months with automatic audit reason and no payment",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB supports a blank initial reason and prices carga ranges without granting future member access",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects a changed initial range or excessive future range without storing an enrollment",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB previews generation without changing members, dues, audit or payments",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB generates only the explicitly selected beneficiary and deduplicates concurrent confirmations",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects a concurrent distinct key with stale preview without duplicating periods",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB serializes with the existing monthly generation engine without duplicate or partial ranges",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB does not reopen excluded dues or lose archived history when generating later valid months",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB preserves paid dues and payments, counting them separately from three missing months",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records a no-change confirmation without changing member versions or existing rows",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects stale generation after new dues, tariff change or account deactivation",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back new dues and member versions when generation audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB replays the stored generation after month rollover but rejects an unapplied stale preview",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB keeps exceptional reasons mandatory and rejects future-range fields on reenrollment",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB enforces generation DTOs, preview bounds, active admin and idempotency key",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB records cash with its own folio, responsible admin and filtered history without email",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB deduplicates cash retries and reverses only its own allocations without deleting evidence",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rejects incomplete cash, bank evidence and client-supplied receipt/admin fields",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB generates only approved intervals and never fills inactive gaps",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB rolls back cash and all allocations if the mandatory audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Admin bank payments with real HTTP/JWT and isolated MongoDB searches literal names safely and validates query pagination",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "src/membership-billing/billing-due-adjustment.integration.spec.ts",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "Atomic membership type and open-dues repricing changes open current/future TEST dues from $180 to $50 with stable IDs and audit",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing also reprices STANDARD dues $18000 to $5000 without changing pricing mode",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing reprices the reverse change from carga into titular",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing never rewrites previous months or any paid due, including a future paid month",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing rejects an active or uncertain checkout (PENDING/READY) and rolls back the entire edit",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing rejects an active or uncertain checkout (PENDING/CREATING) and rolls back the entire edit",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing rejects an active or uncertain checkout (CANCELLED/UNKNOWN) and rolls back the entire edit",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing rejects an active or uncertain checkout (REVIEW_REQUIRED/READY) and rolls back the entire edit",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing rejects an active or uncertain checkout (REJECTED/READY) and rolls back the entire edit",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing rejects an active or uncertain checkout (CANCELLED/READY) and rolls back the entire edit",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing allows a safely closed attempt while preserving its historical quoted amount",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing rolls back membership and all dues if mandatory audit fails",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing repairs the already changed type on a repeated admin save and is idempotent afterward",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing does not silently switch a frozen TEST due into a full STANDARD tariff",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing does not generate dues or require financial configuration for a non-enrolled legacy account",
+        "status": "passed"
+      },
+      {
+        "name": "Atomic membership type and open-dues repricing serializes checkout and type changes without a stale payment amount",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "src/membership-billing/membership-billing.integration.spec.ts",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set creates only October, no baseline payments, and quotes 180+50 for the two authorized IDs",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set deduplicates concurrent generation with real transactions and a unique index",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set allows admins current+3 only, and rejects paying a later month without earlier ones",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set rejects member advance generation and quotes even when an admin prepared the dues",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set lets members pay all arrears and current month without allowing future dues",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set does not grant access just because current obligations have not been generated",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set preserves rate snapshots when configured rates change",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set does not manufacture an initial billing period for an unenrolled member",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set uses real rates for other isolated fixtures and rejects mixing with test dues",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set rejects foreign beneficiaries, inactive actors and carga paying for titular",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set rolls back every generated due when a later write fails",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set deduplicates provider transactions but allows multiple pending checkouts without provider IDs",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set shows only a carga allocation while the payer sees the full grouped transaction",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set rejects missing config, invalid selection and unbounded history pagination",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set does not reveal former payer transactions to a new titular if they cover unrelated beneficiaries",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set does not remove manual inactivity or financial history when blocking is disabled",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set exempts an administrator without generating or changing account status",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set refuses an obsolete test authorization and never infers permission from the name",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set deduplicates idempotency keys per actor, but not across unrelated actors",
+        "status": "passed"
+      },
+      {
+        "name": "Membership billing with an isolated local MongoDB replica set preserves a settled October and permits an unexpired November without changing manual flags",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "src/match-ranking/match-ranking.integration.spec.ts",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "Ranking transactions with an isolated MongoDB replica set commits only one result and one points award under competing participant submissions",
+        "status": "passed"
+      },
+      {
+        "name": "Ranking transactions with an isolated MongoDB replica set rolls back points, member versions and result flags if the final insert fails",
+        "status": "passed"
+      },
+      {
+        "name": "Ranking transactions with an isolated MongoDB replica set cannot register the next match ahead of the oldest under concurrent submissions",
+        "status": "passed"
+      },
+      {
+        "name": "Ranking transactions with an isolated MongoDB replica set permits bookings despite pending results but serializes competing active reservations",
+        "status": "passed"
+      },
+      {
+        "name": "Ranking transactions with an isolated MongoDB replica set keeps expired games as history without points and frees the following result",
+        "status": "passed"
+      },
+      {
+        "name": "Ranking transactions with an isolated MongoDB replica set shows the shared result as disabled for both participants, without re-awarding points",
+        "status": "passed"
+      }
+    ]
+  },
+  {
+    "file": "src/player-category-points/player-category-points.integration.spec.ts",
+    "status": "passed",
+    "cases": [
+      {
+        "name": "Member category transactions with isolated MongoDB switches principal and keeps historical points without transferring them",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB reactivates the category with its preserved points",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB applies only explicit point adjustments, including zero",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB allows no principal and multiple additional categories",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB rejects two principals without changing any records",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB detects points changed by the ranking and rolls back the member lock",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB allows only one concurrent save from the same revision",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB rolls back all category changes if a later write fails",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB rejects inactive and nonexistent members",
+        "status": "passed"
+      },
+      {
+        "name": "Member category transactions with isolated MongoDB the legacy add route cannot create a second principal",
+        "status": "passed"
+      }
+    ]
+  }
+]

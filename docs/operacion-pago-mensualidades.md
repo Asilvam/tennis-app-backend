@@ -4,6 +4,7 @@ Fecha de revision: 2026-10-31. Zona de negocio: `America/Santiago`.
 
 Actualizacion local posterior: [etapa 1 de controles y permiso de reserva](membership-reservation-access-stage-1.md).
 Reemplaza el modo de acceso limitado solo a pagos y separa generacion de baja.
+Actualizacion de etapa 2: [emision explicita, recuperacion y corte del dia 6](membership-generation-stage-2.md).
 El snapshot de commits de la seccion 11 corresponde a la revision anterior;
 la evidencia de etapa 1 registra los nuevos archivos modificados.
 
@@ -93,8 +94,8 @@ generacion de cuotas hasta un mes final permitido. La vista previa diferencia
 **nuevas, existentes y periodos excluidos**. Solo se crean las faltantes.
 Elegir varios meses no implica cobrar varios si parte del rango ya existe.
 
-Tambien existe preparacion bajo demanda en el portal y en compatibilidad de API;
-la siguiente tabla evita confundir lectura con generacion:
+El portal y la cotizacion no emiten cuotas. La siguiente tabla distingue
+consultas de acciones administrativas explicitas de generacion:
 
 | Accion o endpoint | Efecto sobre cuotas |
 | --- | --- |
@@ -103,8 +104,8 @@ la siguiente tabla evita confundir lectura con generacion:
 | Vista previa `POST /admin/members/:id/dues/preview` | Calcula plan y hash, sin crear cuotas |
 | Confirmacion `POST /admin/members/:id/dues` con `approvalHash` | Genera el plan aprobado con idempotencia |
 | Compatibilidad `POST /admin/members/:id/dues` sin `approvalHash` | Puede preparar cuotas del socio y su familia habilitada |
-| Portal `POST /me/dues` | Puede preparar cuotas faltantes de socios activos habilitados hasta el mes solicitado; el portal normal solicita el actual |
-| Cotizacion de pago | Puede preparar meses faltantes para validar que no se salten cuotas anteriores |
+| Portal `POST /me/dues` | Solo consulta cuotas emitidas, sin generar meses aunque falten |
+| Cotizacion de pago | No genera cuotas; rechaza saltar un mes anterior exigible no emitido y permite pagar la mas antigua sola o varias completas |
 | Evaluacion de acceso | Solo lectura; deuda no emitida que ya debio vencer exige revision, sin crear cuotas |
 
 Los paths de esta tabla llevan el prefijo `/membership-billing`.

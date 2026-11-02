@@ -6,8 +6,9 @@ Avance posterior: etapa 1 aprobada e implementada localmente; ver
 [contratos, cambios y evidencia de etapa 1](membership-reservation-access-stage-1.md).
 Ampliacion aprobada el 1 de noviembre: [controles globales en Administracion de mensualidades](membership-automation-controls.md).
 Esta ampliacion supera el hallazgo historico de ausencia de API de configuracion;
-el modo estrictamente manual (sin preparacion bajo demanda) sigue pendiente de etapa 2.
-Las etapas 2/3 y la activacion de produccion siguen pendientes.
+la etapa 2 posterior separa consultas de emision y prueba recuperacion/bloqueo:
+[implementacion local y evidencia](membership-generation-stage-2.md).
+La etapa 3 y la activacion de produccion siguen pendientes.
 Base revisada: backend local `a380aaf`. No se consulto ni modifico produccion.
 
 ## 1. Regla confirmada
@@ -396,5 +397,5 @@ antigua completa o varias consecutivas, sin obligar a pagar el mes actual.
 Lo demas es una propuesta de flujos y alcance para aprobar antes de implementar.
 El analisis original no modifico codigo ni ejecuto pruebas. La etapa 1 posterior
 si modifica codigo local y tiene pruebas/evidencias en su documento tecnico.
-No se modificaron datos ni opciones de produccion. Los casos de las etapas 2/3
-siguen siendo condiciones propuestas, no resultados ya aprobados.
+No se modificaron datos ni opciones de produccion. Los resultados locales de etapa 2
+se registran en su documento tecnico; no implican aprobar la etapa 3 ni activar opciones del club.

@@ -1,0 +1,14 @@
+[
+  {
+    "file": "src/membership-billing/billing-portal.service.ts",
+    "errors": 0,
+    "warnings": 0,
+    "messages": []
+  },
+  {
+    "file": "src/membership-billing/membership-billing.service.ts",
+    "errors": 0,
+    "warnings": 0,
+    "messages": []
+  }
+]

@@ -28,6 +28,7 @@ import { BillingLifecycleService } from './billing-lifecycle.service';
 import { BillingLifecycleController } from './billing-lifecycle.controller';
 import { BillingAdminController } from './billing-admin.controller';
 import { BillingAdminService } from './billing-admin.service';
+import { BillingPortalService } from './billing-portal.service';
 import { BillingAdminEnabledGuard } from './billing-admin.guard';
 import { BillingEnrollmentService } from './billing-enrollment.service';
 import { BillingEnrollmentController } from './billing-enrollment.controller';
@@ -420,6 +421,187 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         expect(await configs.countDocuments()).toBe(0);
       });
     });
+    describe('Stage 2: explicit emission and idempotent recovery', () => {
+      it.each([false, true])('portal and administrative reads never issue dues (automatic=%s)', async (enabled) => {
+        await configs.updateOne(
+          {},
+          { $set: { 'automation.enabled': enabled, 'automation.terminationEnabled': false } },
+        );
+        const portal = new BillingPortalService(core, { get: () => 'true' } as any, members, dues, configs, () => now);
+        const before = await members.find({}).lean();
+        for (let retry = 0; retry < 2; retry++) {
+          expect((await portal.home('test1@example.invalid')).dues).toEqual([]);
+          await core.assessFinancialAccess(own);
+          await admin.memberDetails('admin@example.invalid', own);
+          await admin.searchMembers('admin@example.invalid', { page: 1 });
+          await lifecycle.preview('admin@example.invalid');
+        }
+        expect(await members.find({}).lean()).toEqual(before);
+        expect(await dues.countDocuments()).toBe(0);
+        expect(await payments.countDocuments()).toBe(0);
+        expect(await audit.countDocuments()).toBe(0);
+        expect(mp.reconcileForBilling).not.toHaveBeenCalled();
+      });
+
+      it('supports manual emission with automation off, then recovers only missing months', async () => {
+        await configs.updateOne({}, { $set: { 'automation.enabled': false, 'automation.terminationEnabled': false } });
+        now = new Date('2026-11-01T03:00:00Z');
+        const preview = await call(`members/${own}/dues/preview`, { throughPeriod: '2026-11' });
+        expect(preview.body).toMatchObject({ newCount: 2, total: 360 });
+        const payload = { throughPeriod: '2026-11', approvalHash: preview.body.approvalHash };
+        const result = await call(`members/${own}/dues`, payload);
+        expect(result.status).toBe(201);
+        expect(result.body.createdDues).toBe(2);
+        expect((await call(`members/${own}/dues`, payload)).body.duplicate).toBe(true);
+        const existing = await dues.find({ beneficiaryId: own }).sort({ period: 1 }).lean();
+        now = new Date('2026-12-01T03:00:00Z');
+        await lifecycle.tick();
+        expect(await dues.find({ beneficiaryId: own }).sort({ period: 1 }).lean()).toEqual(existing);
+        const settings = (await call('automation/settings')).body;
+        expect(
+          (
+            await call('automation/settings', {
+              setting: 'generation',
+              enabled: true,
+              revision: settings.revision,
+            })
+          ).status,
+        ).toBe(201);
+        await lifecycle.onApplicationBootstrap();
+        await lifecycle.tick();
+        expect(await dues.countDocuments({ beneficiaryId: own })).toBe(3);
+        for (const row of existing) expect(await dues.findById(row._id).lean()).toEqual(row);
+        expect(await payments.countDocuments()).toBe(0);
+        expect(mp.reconcileForBilling).not.toHaveBeenCalled();
+        expect((await members.findById(own)).statePlayer).toBe(true);
+      });
+
+      it('quotes issued dues without emission and rejects an earlier missing month', async () => {
+        await configs.updateOne({}, { $set: { 'automation.enabled': false, 'automation.terminationEnabled': false } });
+        const rows = await core.prepareDues(adminId, own);
+        const original = rows[0];
+        now = new Date('2026-11-01T03:00:00Z');
+        expect((await core.quote(own, [String(original._id)])).amount).toBe(180);
+        expect(await dues.countDocuments({ beneficiaryId: own })).toBe(1);
+        expect(await dues.findById(original._id).lean()).toEqual(original);
+        const later = await dues.create({ ...original, _id: new mongoose.Types.ObjectId(), period: '2026-11' });
+        await dues.deleteOne({ _id: original._id });
+        await expect(core.quote(own, [String(later._id)])).rejects.toMatchObject({ status: 409 });
+        expect(await dues.countDocuments()).toBe(1);
+        expect(await payments.countDocuments()).toBe(0);
+        expect(await audit.countDocuments()).toBe(0);
+      });
+
+      it.each(['admin', 'titular'])('rejects inactive beneficiaries for %s and preserves the ledger', async (role) => {
+        const ownDues = await core.prepareDues(adminId, own);
+        const cargaDues = await core.prepareDues(adminId, carga);
+        const ids = [String(ownDues[0]._id), String(cargaDues[0]._id)];
+        await members.updateOne({ _id: carga }, { $set: { statePlayer: false } });
+        const beforeMembers = await members.find({}).sort({ _id: 1 }).lean();
+        const beforeDues = await dues.find({}).sort({ _id: 1 }).lean();
+        await expect(core.quote(role === 'admin' ? adminId : own, ids)).rejects.toMatchObject({
+          status: 409,
+          message: 'La facturacion de socios inactivos requiere revision administrativa.',
+        });
+        expect(await members.find({}).sort({ _id: 1 }).lean()).toEqual(beforeMembers);
+        expect(await dues.find({}).sort({ _id: 1 }).lean()).toEqual(beforeDues);
+        expect(await payments.countDocuments()).toBe(0);
+        expect(await audit.countDocuments()).toBe(0);
+        await members.updateOne({ _id: carga }, { $set: { statePlayer: true } });
+        await configs.updateOne({}, { $set: { autoBlockEnabled: true } });
+        now = new Date('2026-11-06T03:00:00Z');
+        expect((await core.assessFinancialAccess(carga)).financiallyRestricted).toBe(true);
+        expect((await core.quote(role === 'admin' ? adminId : own, ids)).amount).toBe(230);
+      });
+
+      it('two workers recover a missed run and preserve issued and settled dues', async () => {
+        await configs.updateOne({}, { $set: { 'automation.terminationEnabled': false } });
+        await core.prepareDues(adminId, own);
+        await manual('2026-10', '2026-10-17');
+        const paid = await dues.findOne({ beneficiaryId: own }).lean();
+        const paymentBefore = await payments.find({}).lean();
+        now = new Date('2026-12-01T03:00:00Z');
+        const other = new BillingLifecycleService(
+          core,
+          dues,
+          payments,
+          configs,
+          members,
+          audit,
+          mp as any,
+          settings as any,
+          () => now,
+        );
+        await Promise.all([lifecycle.onApplicationBootstrap(), other.onApplicationBootstrap()]);
+        await other.tick();
+        const rows = await dues.find({ beneficiaryId: own }).sort({ period: 1 }).lean();
+        expect(rows.map((row) => row.period)).toEqual(['2026-10', '2026-11', '2026-12']);
+        expect(rows[0]).toEqual(paid);
+        expect(await payments.find({}).lean()).toEqual(paymentBefore);
+        expect(
+          await audit.countDocuments({
+            entityId: own,
+            'metadata.reason': 'MEMBERSHIP_MONTHLY_GENERATION',
+          }),
+        ).toBe(1);
+        expect(mp.reconcileForBilling).not.toHaveBeenCalled();
+      });
+
+      it('serializes manual/automatic emission and payment without duplicate or reopened dues', async () => {
+        await configs.updateOne({}, { $set: { 'automation.terminationEnabled': false } });
+        await core.prepareDues(adminId, own);
+        const original = await dues.findOne({ beneficiaryId: own }).lean();
+        now = new Date('2026-11-01T03:00:00Z');
+        const preview = await call(`members/${own}/dues/preview`, { throughPeriod: '2026-11' });
+        const [response] = await Promise.all([
+          call(`members/${own}/dues`, { throughPeriod: '2026-11', approvalHash: preview.body.approvalHash }),
+          lifecycle.processMember(own),
+          manual('2026-10', '2026-11-01'),
+        ]);
+        expect([201, 409]).toContain(response.status);
+        await lifecycle.processMember(own);
+        const rows = await dues.find({ beneficiaryId: own }).sort({ period: 1 }).lean();
+        expect(rows.map((row) => row.period)).toEqual(['2026-10', '2026-11']);
+        expect(rows[0]).toMatchObject({ _id: original._id, amount: 180, status: 'PAID' });
+        const settled = await payments.findOne({ status: 'CONFIRMED' }).lean();
+        expect(String(rows[0].settlementPaymentId)).toBe(String(settled._id));
+        expect(await payments.countDocuments()).toBe(1);
+        expect(rows[1].status).toBe('OPEN');
+      });
+
+      it('ordinary recovery keeps void and archived months unchanged and emits no payment', async () => {
+        await configs.updateOne({}, { $set: { 'automation.terminationEnabled': false } });
+        now = new Date('2026-12-01T03:00:00Z');
+        await core.prepareDues(adminId, own, '2026-11');
+        await dues.collection.updateOne(
+          { beneficiaryId: new mongoose.Types.ObjectId(own), period: '2026-10' },
+          {
+            $set: { status: 'VOID', voided: { at: now, effectiveAt: now, reason: 'MEMBERSHIP_TERMINATED' } },
+          },
+        );
+        await dues.collection.updateOne(
+          { beneficiaryId: new mongoose.Types.ObjectId(own), period: '2026-11' },
+          {
+            $set: {
+              status: 'ARCHIVED',
+              archive: {
+                at: now,
+                approvedBy: new mongoose.Types.ObjectId(adminId),
+                reason: 'Historia fixture',
+                reenrollmentPeriod: '2026-12',
+              },
+            },
+          },
+        );
+        const before = await dues.find({ beneficiaryId: own }).lean();
+        await lifecycle.processMember(own);
+        await lifecycle.processMember(own);
+        for (const row of before) expect(await dues.findById(row._id).lean()).toEqual(row);
+        expect(await dues.countDocuments()).toBe(3);
+        expect(await payments.countDocuments()).toBe(0);
+      });
+    });
+
     it('does nothing without explicit reviewed DB activation or with the existing admin switch off', async () => {
       await configs.updateOne({}, { $unset: { automation: '' } });
       expect(await lifecycle.processMember(own)).toEqual({ outcome: 'DISABLED' });

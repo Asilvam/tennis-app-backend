@@ -243,6 +243,10 @@ export class MembershipBillingService {
     for (const id of beneficiaryIds.sort()) {
       const beneficiary = await this.member(id, session);
       assertCanManage(actor, beneficiary);
+      if (!beneficiary.statePlayer)
+        throw new ConflictException(
+          'La facturacion de socios inactivos requiere revision administrativa.',
+        );
       if (
         selected.some(
           (row) => String(row.beneficiaryId) === id && !isBillablePeriod(beneficiary, row.period),
@@ -252,11 +256,25 @@ export class MembershipBillingService {
       const through = selected
         .filter((row) => String(row.beneficiaryId) === id)
         .map((row) => row.period)
-        .concat(monthAt(now))
         .sort()
         .at(-1);
       assertPaymentPeriod(through, now, actor.role);
-      await this.ensureMemberDues(beneficiary, through, config, session);
+      if (id !== actorId)
+        await this.members
+          .updateOne({ _id: beneficiary._id }, { $inc: { __v: 1 } }, { session })
+          .exec();
+      const issued = await this.dues
+        .find({ beneficiaryId: beneficiary._id, period: { $lte: through } })
+        .session(session)
+        .lean();
+      const missing = periodsBetween(assertBillingStart(beneficiary, config), through).some(
+        (period) =>
+          isBillablePeriod(beneficiary, period) && !issued.some((row) => row.period === period),
+      );
+      if (missing)
+        throw new ConflictException(
+          'Faltan cuotas anteriores por emitir. Solicita su generacion a administracion.',
+        );
       if (
         selected.some((row) => String(row.beneficiaryId) === id && row.pricingMode === 'TEST') &&
         (!config.testPricing.enabled || !config.testPricing.memberIds.includes(id))

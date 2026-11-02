@@ -11,13 +11,15 @@ Ruta frontend: `/adminpayments`, vista global **Mensualidades CTQ**. La seccion
 
 | Control | Campo persistido | Al desactivar |
 | --- | --- | --- |
-| Generacion recurrente de cuotas | `automation.enabled` | Detiene futuras pasadas recurrentes; conserva cuotas y generacion manual/bajo demanda |
+| Generacion recurrente de cuotas | `automation.enabled` | Detiene futuras pasadas recurrentes; conserva cuotas y generacion manual administrativa |
 | Bloqueo de reservas por mora | `autoBlockEnabled` | Deja de aplicar esa restriccion automatica; conserva deuda, cuentas inactivas y bloqueos manuales |
 
 La baja automatica `automation.terminationEnabled` **no cambia** al tocar estos
 controles. No se agrega un interruptor para bajas ni un nuevo worker/correo.
-La preparacion bajo demanda del portal/cotizacion/compatibilidad administrativa
-continua: esto NO implementa todavia un modo estrictamente manual de emision.
+Actualizacion posterior de etapa 2: el portal y la cotizacion no emiten cuotas.
+Con generacion apagada solo emiten las acciones administrativas explicitas;
+se conserva el POST administrativo de compatibilidad como accion manual.
+Ver [contrato, pruebas y limites de etapa 2](membership-generation-stage-2.md).
 
 Operacion:
 
