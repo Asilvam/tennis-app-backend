@@ -1,0 +1,39 @@
+{
+  "executedAt": "2026-11-05T04:16:51.797Z",
+  "checks": [
+    "No token: cancellation rejected",
+    "Invalid token: cancellation rejected",
+    "Expired token: cancellation rejected",
+    "Token without identity rejected",
+    "Inactive administrator rejected",
+    "Deleted account rejected",
+    "Stored role prevails over stale admin claim; Player 1 is not creator",
+    "No creator: participant cannot cancel",
+    "No creator: Player 1 cannot cancel",
+    "Creator cannot cancel at turn start",
+    "Creator cannot cancel a past turn",
+    "Unknown reservation returns 404",
+    "Denied requests leave all reservations, slots and effects unchanged",
+    "Active creator can cancel despite manual financial restriction",
+    "Authorized cancellation persists inactive state and releases its confirmed slot",
+    "Repeated cancellation returns conflict",
+    "Repeated cancellation does not repeat email or audit",
+    "Stored active administrator can cancel legacy reservation",
+    "Stored active administrator can cancel regardless of deadline",
+    "Administrator can cancel a turn already in progress",
+    "Concurrent cancellations produce one state transition and one audit",
+    "Normal creation also requires JWT",
+    "Normal creation uses the existing booking service",
+    "New reservation persists authenticated creator, never body owner or Player 1",
+    "Player 1 cannot cancel the new reservation created by someone else",
+    "Authenticated creator can cancel the newly created reservation"
+  ],
+  "scope": "Real HTTP/Nest/JWT/MongoDB and slot service; synthetic records, no cron, SMTP, payment provider or AppModule",
+  "status": "passed",
+  "effects": {
+    "audits": 6,
+    "cancellationMail": 6,
+    "confirmationMail": 1
+  },
+  "disposableDatabaseDropped": true
+}

@@ -489,6 +489,15 @@ anterior documentada; no rotar secretos ni cambiar el transporte de correo.
 - Rota cualquier secreto que haya sido compartido o publicado accidentalmente.
 - Conserva la persistencia de auditoría y efectos al desplegar nuevas versiones.
 
+## Listados Administrativos CTQ
+
+Filtros y paginacion de Usuarios/Reservas: [contrato y evidencia tecnica](docs/admin-directory-filters.md).
+Implementacion local, sin despliegue; no reemplaza las rutas legadas ni agrega env.
+
+Cancelaciones: [permisos de administrador y creador, compatibilidad y pruebas](docs/reservation-cancellation-security.md).
+
+Historial propio: [consulta paginada, totales y validacion](docs/reservation-history-pagination.md).
+
 ## Licencia
 
 Proyecto privado (`UNLICENSED`).

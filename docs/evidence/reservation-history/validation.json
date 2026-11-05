@@ -1,0 +1,62 @@
+{
+  "executedAt": "2026-11-05T18:05:15.319Z",
+  "status": "passed",
+  "scope": "Own history pagination; disposable synthetic MongoDB API and separate browser API fixtures, no production changes",
+  "frontendUnit": {
+    "executedAt": "2026-11-05T18:03:27.583Z",
+    "exitCode": 0,
+    "tests": 388,
+    "pass": 388,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "backendRegression": {
+    "passed": 759,
+    "failed": 0,
+    "skipped": 211,
+    "newHistoryTests": 13
+  },
+  "api": {
+    "checks": 19,
+    "status": "passed"
+  },
+  "browser": {
+    "checks": 191,
+    "views": 30,
+    "status": "passed",
+    "historyViews": 10
+  },
+  "staticChecks": [
+    "Frontend and backend TypeScript",
+    "Frontend ESLint",
+    "ESLint new backend files with printWidth 120 override",
+    "Vite build",
+    "git diff --check"
+  ],
+  "limitations": [
+    "211 pre-existing backend integration tests skipped",
+    "Browser uses separate mocked API; HTTP harness uses real MongoDB, not a combined connected browser test",
+    "Physical iPhone/iPad not certified; remote fonts stubbed",
+    "Legacy history by-name endpoint retained for compatibility"
+  ],
+  "sha256": {
+    "frontend": {
+      "src/components/MyHistoryReserve.tsx": "6a44e392f067eb0237c82e0cff138b98724ffcff3bf97302a8f1a17105e752cb",
+      "src/styles/MyHistoryReserve.css": "5810637f7feb5dbb238da53b98e714442fcdd35ec501cd5fe4990d9a2c0b27d6",
+      "src/utils/reservationHistory.ts": "efb673959054e315b5ddcba21a969121e73b66f7a7d7548445bc41176e354dcf",
+      "src/components/AdminDirectoryControls.tsx": "5608d5f11b7fff86042e62f5bf7d5e7f1b5207eb2b3bfd4b5f02da4915c538df",
+      "src/styles/AdminDirectory.css": "ff9b76d405e11c053b533fcc27525357e77ec8f9b2ddb0001dab2265970e2e2f",
+      "tests/historyRecoveryLayout.test.mjs": "3b2cab82ece5405d963ce4ca382c5f78d07767771b56697a781a68dcbb28f8c9",
+      "tests/reservationHistory.test.ts": "523ea5c3570e2c49d93d7bc9e666502649f47139df99288bd42a6ae8bbcbc6bc",
+      "tests/e2e/adminPagination.mjs": "21940bcc591938fff0156840d37d95bb690986f324f7f1d2b992af577fc66124"
+    },
+    "backend": {
+      "src/court-reserve/court-reserve.controller.ts": "2097d535fcaabdd463276508a36b46e305b7857c7d6b6212a53ab263e2f5acb9",
+      "src/court-reserve/court-reserve.service.ts": "8a84d57b8b16933f3aa0251a805c8f6b2feabc75526a3bf0fb737ffab8bd70b5",
+      "src/court-reserve/dto/reservation-history-query.dto.ts": "81c236dcd82fe138ea07c94ecf178a0de986dece15cab212cf484c409d77d468",
+      "src/court-reserve/court-reserve.history.spec.ts": "dd5035eb5913ab4724d2a761b779035cad14491bdc7148c907f06184291731da",
+      "test/reservation-history.e2e.ts": "f9b7f163f5cd15fe959e2355ef2b882d32151938b2f2ba4eff1d84302320887d"
+    }
+  }
+}

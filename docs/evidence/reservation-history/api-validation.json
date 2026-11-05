@@ -1,0 +1,27 @@
+{
+  "executedAt": "2026-11-05T17:59:31.336Z",
+  "checks": [
+    "Missing JWT rejected",
+    "Expired JWT rejected",
+    "Inactive account rejected",
+    "Deleted account rejected",
+    "Default page has 25 records and complete total/cancelled counts despite financial restriction",
+    "Persisted session identity selects all four participant positions; ignores token name",
+    "Projection excludes access code and owner email",
+    "All pages have expected bounded sizes",
+    "Adjacent pages contain no duplicates or missing reservations",
+    "History remains newest date first",
+    "Obsolete page clamps to final page",
+    "50 and 100 row page sizes supported",
+    "Invalid or foreign-identity query rejected: ?page=0",
+    "Invalid or foreign-identity query rejected: ?pageSize=500",
+    "Invalid or foreign-identity query rejected: ?email=other@example.invalid",
+    "Invalid or foreign-identity query rejected: ?namePlayer=Unrelated%20Player",
+    "Empty history returns zero counts and page one",
+    "Another session sees only its own history",
+    "Reading paginated history does not change any reservation"
+  ],
+  "scope": "Real HTTP/Nest/JWT/MongoDB, synthetic history; no AppModule, cron, SMTP or payments",
+  "status": "passed",
+  "disposableDatabaseDropped": true
+}

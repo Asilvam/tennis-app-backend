@@ -1,0 +1,62 @@
+{
+  "executedAt": "2026-11-05T03:57:33.295Z",
+  "status": "passed",
+  "scope": "Local disposable MongoDB, real Nest/JWT, synthetic records only. No deployment or production data.",
+  "frontendUnit": {
+    "passed": 382,
+    "failed": 0,
+    "skipped": 0
+  },
+  "backendRegression": {
+    "passed": 726,
+    "failed": 0,
+    "skipped": 211
+  },
+  "backendDirectoryUnit": {
+    "passed": 6,
+    "failed": 0
+  },
+  "connectedApiChecks": 26,
+  "browser": {
+    "checks": 97,
+    "views": 8,
+    "status": "passed"
+  },
+  "staticChecks": [
+    "Frontend TypeScript",
+    "Backend TypeScript",
+    "Frontend ESLint",
+    "Backend new-files ESLint with printWidth 120 override",
+    "Vite isolated build"
+  ],
+  "limitations": [
+    "211 pre-existing backend integration tests skipped; not certified by this run",
+    "No physical iPhone/iPad certification",
+    "Remote fonts stubbed in browser harness; Material Icons appear as fallback text",
+    "Legacy cancellation authorization not changed; awaiting scope decision"
+  ],
+  "sha256": {
+    "frontend": {
+      "src/utils/adminDirectory.ts": "1f34ce79b0079eb7b3bd24c7ef74d424a9349bfcd0c420132a09fca9bfb679f1",
+      "src/hooks/useAdminDirectory.ts": "94957c96e907334f2cdd9bd94fd0657ac1962e7b36b85c3c0acdfbf89be7ed1a",
+      "src/components/AdminDirectoryControls.tsx": "8f72433f90f892fe0f56114d39e9aa62c57f6deb733326924cd5f2fbdc4d3a26",
+      "src/styles/AdminDirectory.css": "71ba625779f731b38a0f59e83aef70bddf1784b5a787c1f8535a893ddaead093",
+      "src/components/AdminRegister.tsx": "ab0c5ee2e8673e19d6b57340a80dbcd1507b25169ed8dd5da2dd2bd874708223",
+      "src/components/AdminReserves.tsx": "50ae4e7e1692392e1d2727aecd0c44c12a5485aab897b92e80eaa160ab59dd3c",
+      "src/components/AdminCategoriesPlayer.tsx": "c32828c89f36fe71ed25854db33e044c88d6141f6182916d02912c003dbd2488",
+      "tests/adminDirectory.test.ts": "ec29e495360adebfaa3fdb41131e13ee9815890aa8f0ffd342442fefd6d10497",
+      "tests/adminDirectoryHook.test.mjs": "b19c7ebb83b03741ae5f4b65651239336591dc27bd372431404c5ce10eff9a9d",
+      "tests/e2e/adminDirectory.mjs": "b754a5a738dfdefdae710a5eaeed8e0e84843b5d98e11788bfe1fad3355a0182"
+    },
+    "backend": {
+      "src/app.module.ts": "2e9581c21972765effa9670ef08420a2e02cf1c50594a305b0030a012d7cf465",
+      "src/admin-directory/admin-directory.controller.ts": "933629929896f60d89a205727ee1a2ed6dcc92fa1977aaf95e512094fef100d9",
+      "src/admin-directory/admin-directory.dto.ts": "3d0c4dc5eba51a5df709986c854e0a7e08df886d9df72475540b4737e67aaf31",
+      "src/admin-directory/admin-directory.module.ts": "94840d5bc4114e40d52857ca828009cec4aec21faf6b8c321c77b167ebcf5527",
+      "src/admin-directory/admin-directory.policy.ts": "ef1b9df448dc02347af4583b5a96cf80094912c7619b46df4df16b78ae370752",
+      "src/admin-directory/admin-directory.service.ts": "53f528b25ae7b88c16df6828bea008f1b4d76964fa1be2f42dbc8999591e50e1",
+      "src/admin-directory/admin-directory.spec.ts": "73fa598c2ae8f7dcc2ea1099290236194b0dc45ece86a271355b11bff68f3c94",
+      "test/admin-directory.e2e.ts": "26a182e52f07063cfebec169957bdd2137bb08f3196d857d34d68da048053ed2"
+    }
+  }
+}

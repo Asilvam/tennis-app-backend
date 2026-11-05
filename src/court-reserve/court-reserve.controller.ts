@@ -1,18 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Headers, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Headers, Req, Query, ValidationPipe } from '@nestjs/common';
 import { CourtReserveService } from './court-reserve.service';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { PaymentConfirmationDto } from './dto/payment-confirmation.dto';
+import { ReservationHistoryQueryDto } from './dto/reservation-history-query.dto';
 
 @Controller('court-reserve')
 export class CourtReserveController {
   constructor(private readonly courtReserveService: CourtReserveService) {}
 
   @Post()
-  create(@Body() createCourtReserveDto: CreateCourtReserveDto) {
-    return this.courtReserveService.create(createCourtReserveDto);
+  @UseGuards(JwtAuthGuard)
+  create(@Body() createCourtReserveDto: CreateCourtReserveDto, @Req() request: { user: { email: string } }) {
+    return this.courtReserveService.createAuthenticated(createCourtReserveDto, request.user.email);
   }
 
   @Post('holds')
@@ -70,6 +72,15 @@ export class CourtReserveController {
     return this.courtReserveService.getAllHistoryReservesFor(namePlayer);
   }
 
+  @Get('my-history')
+  @UseGuards(JwtAuthGuard)
+  findMyHistory(
+    @Query(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true })) query: ReservationHistoryQueryDto,
+    @Req() request: { user: { email: string } },
+  ) {
+    return this.courtReserveService.getMyReservationHistory(request.user.email, query);
+  }
+
   @Get('isForRankingHistory/:namePlayer')
   findIsforRankingHistoryReserve(@Param('namePlayer') namePlayer: string) {
     return this.courtReserveService.getAllIsForRankingReservesFor(namePlayer);
@@ -86,8 +97,9 @@ export class CourtReserveController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.courtReserveService.remove(id);
+  @UseGuards(JwtAuthGuard)
+  remove(@Param('id') id: string, @Req() request: { user: { email: string } }) {
+    return this.courtReserveService.remove(id, request.user.email);
   }
 
   @UseGuards(JwtAuthGuard) // Protect this route with JWT

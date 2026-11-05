@@ -1,4 +1,12 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateCourtReserveDto } from './dto/create-court-reserve.dto';
 import { UpdateCourtReserveDto } from './dto/update-court-reserve.dto';
 import { CourtReserve } from './entities/court-reserve.entity';
@@ -17,6 +25,7 @@ import { PaymentCallbackEffectStatus } from './entities/payment-callback-effect.
 import { ReservationSlotService } from './reservation-slot.service';
 import { randomUUID } from 'crypto';
 import { RankingMatchPolicyService } from './ranking-match-policy.service';
+import { ReservationHistoryQueryDto } from './dto/reservation-history-query.dto';
 
 type AdminReserveActor = {
   email: string;
@@ -222,6 +231,18 @@ export class CourtReserveService {
     });
     if (!prepared) throw new ConflictException('La reserva ya no está pendiente de pago.');
     return { idCourtReserve: reservationId, expiresAt: slot.expiresAt };
+  }
+
+  private async reservationActor(email: string) {
+    if (typeof email !== 'string' || !email.trim()) throw new UnauthorizedException('La sesion no es valida.');
+    const actor = await this.registerService.findOneByEmail(email.trim().toLowerCase());
+    if (!actor?.statePlayer) throw new ForbiddenException('Se requiere una cuenta activa.');
+    return actor;
+  }
+
+  async createAuthenticated(dto: CreateCourtReserveDto, email: string) {
+    const actor = await this.reservationActor(email);
+    return this.create(dto, { ownerEmail: actor.email.trim().toLowerCase() });
   }
 
   async create(createCourtReserveDto: CreateCourtReserveDto, options: { hold?: boolean; ownerEmail?: string } = {}) {
@@ -561,24 +582,51 @@ export class CourtReserveService {
     };
   }
 
-  async remove(idCourtReserve: string) {
+  async remove(idCourtReserve: string, email: string) {
+    const actor = await this.reservationActor(email);
     const reserve = await this.getCourtReserveById(idCourtReserve);
+    const admin = actor.role === 'admin';
+    if (!admin) {
+      if (!reserve.ownerEmail || reserve.ownerEmail.trim().toLowerCase() !== actor.email.trim().toLowerCase()) {
+        throw new ForbiddenException(
+          'Solo puedes cancelar las reservas que creaste. Sin creador verificable, solicita ayuda a un administrador.',
+        );
+      }
+      const [start] = reserve.turn.split('-');
+      const startTime = DateTime.fromISO(`${reserve.dateToPlay}T${start}`, { zone: 'America/Santiago' });
+      if (!startTime.isValid || DateTime.now().setZone('America/Santiago') >= startTime) {
+        throw new ForbiddenException('Solo puedes cancelar antes del inicio del turno.');
+      }
+    }
 
-    // ✅ AUDITORÍA: Registrar cancelación antes de eliminar
+    // Claim the cancellation before producing effects; repeated or stale requests cannot cancel twice.
+    const updatedRegister = await this.courtReserveModel
+      .findOneAndUpdate(
+        {
+          idCourtReserve,
+          state: true,
+          ...(!admin ? { ownerEmail: reserve.ownerEmail, dateToPlay: reserve.dateToPlay, turn: reserve.turn } : {}),
+        },
+        { state: false },
+        { new: true },
+      )
+      .exec();
+    if (!updatedRegister) throw new ConflictException('La reserva ya fue cancelada o modificada. Actualiza el listado.');
+    await this.reservationSlots.releaseConfirmed(idCourtReserve);
+
     try {
-      await this.auditLogService.logReserveCancellation(idCourtReserve, reserve, reserve.isBlockedByAdmin ? 'ADMIN' : 'USER', reserve.player1, reserve.blockedMotive);
+      await this.auditLogService.logReserveCancellation(
+        idCourtReserve, reserve, admin ? 'ADMIN' : 'USER', actor.namePlayer || actor.email, reserve.blockedMotive,
+      );
     } catch (auditErr) {
       this.logger.error('[remove] Error logging audit', auditErr);
     }
 
     if (!reserve.isBlockedByAdmin) {
-      this.sendEmailRemove(idCourtReserve);
+      await this.sendEmailRemove(idCourtReserve).catch(error =>
+        this.logger.warn('No se pudo enviar el correo de cancelacion.', error),
+      );
     }
-    const updatedRegister = await this.courtReserveModel.findOneAndUpdate({ idCourtReserve: idCourtReserve }, { state: false }, { new: true }).exec();
-    if (!updatedRegister) {
-      throw new NotFoundException(`Register with idCourtReserve ${idCourtReserve} not found`);
-    }
-    await this.reservationSlots.releaseConfirmed(idCourtReserve);
     return updatedRegister;
   }
 
@@ -710,6 +758,27 @@ export class CourtReserveService {
       }
     }
     return availability;
+  }
+
+  async getMyReservationHistory(email: string, query: ReservationHistoryQueryDto) {
+    const actor = await this.reservationActor(email);
+    if (!actor.namePlayer) throw new ForbiddenException('La cuenta no tiene un jugador asociado.');
+    const filter = {
+      $or: ['player1', 'player2', 'player3', 'player4'].map(field => ({ [field]: actor.namePlayer })),
+    };
+    const total = await this.courtReserveModel.countDocuments(filter).exec();
+    const cancelled = await this.courtReserveModel.countDocuments({ ...filter, state: false }).exec();
+    const pages = Math.max(1, Math.ceil(total / query.pageSize));
+    const page = Math.min(query.page, pages);
+    const items = await this.courtReserveModel
+      .find(filter)
+      .select('dateToPlay court turn player1 player2 player3 player4 visitName idCourtReserve state isForRanking resultMatchUpdated')
+      .sort({ dateToPlay: -1, turn: 1, court: 1, _id: 1 })
+      .skip((page - 1) * query.pageSize)
+      .limit(query.pageSize)
+      .lean()
+      .exec();
+    return { items, total, cancelled, page, pageSize: query.pageSize, pages };
   }
 
   async getAllHistoryReservesFor(namePlayer: string): Promise<CourtReserve[] | null> {
@@ -895,7 +964,7 @@ export class CourtReserveService {
   }
 
   private async getCourtReserveById(idCourtReserve: string): Promise<CourtReserve> {
-    const reserve = await this.courtReserveModel.findOne({ idCourtReserve }).select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin wasPaid reservationStatus').exec();
+    const reserve = await this.courtReserveModel.findOne({ idCourtReserve }).select('dateToPlay court turn player1 player2 player3 player4 visitName isVisit isDouble isBlockedByAdmin wasPaid reservationStatus ownerEmail state blockedMotive').exec();
 
     if (!reserve) {
       throw new NotFoundException(`Reserva ${idCourtReserve} no encontrada`);

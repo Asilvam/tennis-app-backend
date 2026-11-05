@@ -21,6 +21,7 @@ import { PlayerCategoryPointsModule } from './player-category-points/player-cate
 import { NewsCTQModule } from './news-ctq/news-ctq.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MembershipBillingModule } from './membership-billing/membership-billing.module';
+import { AdminDirectoryModule } from './admin-directory/admin-directory.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { MembershipBillingModule } from './membership-billing/membership-billing
     NewsCTQModule,
     ScheduleModule.forRoot(),
     MembershipBillingModule,
+    AdminDirectoryModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useExisting: MembershipAccessGuard }],
