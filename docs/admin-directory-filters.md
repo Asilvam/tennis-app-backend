@@ -66,29 +66,6 @@ Este ultimo filtro sigue teniendo coste proporcional a los candidatos: no se
 presenta como una consulta financiera indexada ni como rendimiento certificado
 para miles de socios. No se instala una cache ni se agrega estado derivado.
 
-## Validacion
-
-- 6 pruebas nuevas de policy/DTO/guards. Regresion backend: 726 aprobadas;
-  211 integraciones preexistentes omitidas, NO dadas por validadas en esta corrida.
-- Regresion frontend: 382 aprobadas, incluidas busqueda diferida, respuesta tardia,
-  cancelacion, restauracion de URL, asociacion de titular y eliminacion existente.
-- Arnes `test/admin-directory.e2e.ts`: MongoDB temporal en loopback, Nest y JWT
-  reales; 61 socios, 63 reservas y una cuota ficticia, sin SMTP ni Mercado Pago.
-  26 controles de API/estado final, incluyendo JWT vencido, rol persistido,
-  filtros cruzados, tildes, paginas sin duplicados, tamanos, proyecciones y
-  snapshots completos sin alteraciones. La base desechable se elimina al terminar.
-- React contra ese backend: Chromium/WebKit a 320/390/820/1440px; 8 vistas,
-  97 comprobaciones. Incluye cambio 25/50, titulares fuera de pagina, retorno
-  desde Categorias conservando filtros/pagina y ausencia de desbordes.
-- TypeScript frontend/backend, build Vite y ESLint frontend aprobados.
-- ESLint de archivos nuevos backend se ejecuta con printWidth 120 de develop.
-  La configuracion local ajena tiene printWidth 240 y max-len 120; no se modifica.
-- Las fuentes remotas se sustituyen en la prueba: los iconos Material Icons y
-  Safari en dispositivos fisicos no quedan certificados. No se prueban pagos reales.
-
-Evidencia resumida en `docs/evidence/admin-directory/`; el frontend conserva
-capturas y reporte del navegador en su carpeta de evidencia del mismo nombre.
-
 ## Compatibilidad y Pendiente Fuera de Alcance
 
 Desplegar backend antes de este frontend: las vistas nuevas necesitan las tres
@@ -98,7 +75,7 @@ datos ni se llama al proveedor de correo o pagos.
 
 Se detecto que la ruta antigua `DELETE /court-reserve/:id` no declaraba guard JWT.
 Despues de esta tarea, el usuario aprobo corregirla con permisos de administrador
-y creador, y sin inferir propiedad en reservas antiguas. Contrato y evidencia:
+y creador, y sin inferir propiedad en reservas antiguas. Contrato tecnico:
 [autorizacion de cancelacion](reservation-cancellation-security.md).
 Es un alcance separado; no implica una auditoria completa de rutas legadas.
 

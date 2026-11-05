@@ -101,14 +101,3 @@ AuthService ni las reglas de reserva existentes. No se elimina monthpayctq ni se
 feature/monthly-payments. El retiro y la migracion continuan pendientes segun el diseno.
 
 No hay cambios de estilos: las pantallas futuras conservaran los tokens CTQ y CSS propio.
-
-## Verificacion realizada
-
-- Suite completa del backend: 577 pruebas aprobadas en 41 suites, sin omisiones.
-- Nuevas pruebas: 48 de reglas, 17 de esquemas/DTO y 18 de integracion financiera.
-- Se ejecutaron tambien las integraciones existentes de categorias y resultados sobre
-  bases temporales distintas del mismo replica set local, sin base de produccion.
-- Compilacion NestJS aprobada; ESLint del modulo nuevo aprobado; git diff --check aprobado.
-- No se ejecutaron cobros ni migraciones financieras. Los pagos de los fixtures comprueban
-  validacion/persistencia de estados, no transferencia bancaria ni checkout real.
-- El servidor MongoDB temporal se detiene despues de las pruebas; no es un servicio de app.

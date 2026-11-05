@@ -146,50 +146,6 @@ No se modifico MembershipBillingService, el scheduler, esquemas, MP, correo o
 variables de entorno. Se preservan ajustes locales previos en .prettierrc,
 audit-log.entity.ts y court-reserve.service.ts; no forman parte de esta etapa.
 
-## Pruebas y evidencia
-
-Resultado final: **883 pruebas aprobadas en 56 suites, 0 fallos, 0 omitidas**.
-Baseline anterior: 845; se agregaron 38 casos, contando parametrizaciones.
-Incluye unitarias, HTTP con Nest/Passport/JWT reales e integraciones MongoDB
-8 con replica set `ctqDuesStage1`, solo localhost:27289 y bases fixture.
-
-Evidencia filtrada: [validation.json](evidence/dues-generation-stage1/validation.json),
-con versiones, resultados por caso de las suites relacionadas, SHA-256 del
-informe completo y hashes del codigo. No contiene tokens ni credenciales.
-
-Casos ejecutados: rango de uno/cuatro meses, titular/carga, alta sin motivo,
-motivo excepcional obligatorio, limites +3/+4, rango invertido, campos
-forjados/null, administrador inactivo/no admin, GET/preview sin escrituras,
-pagados e historico conservados, meses no vigentes, doble clic/clave repetida,
-claves distintas concurrentes, carrera con motor mensual, cambio de precio,
-baja de cuenta, fallo de auditoria, cambio de mes y lote familiar con rango.
-
-Tipos: `npx tsc --noEmit --incremental false`, aprobado. Lint de los once
-archivos de esta etapa aprobado con override explicito printWidth=100, para
-conservar el formato del codigo y no reformatear integraciones completas.
-La configuracion local del usuario se preserva; esto no certifica lint global
-del repositorio. `git diff --check` aprobado.
-
-Comando de regresion final, Node 22.22.2 / npm 10.9.7:
-
-```bash
-env \
-  BILLING_TEST_MONGO_URI='mongodb://127.0.0.1:27289/ctq_billing_test_dues_stage1_final?replicaSet=ctqDuesStage1&directConnection=true' \
-  RESULTS_TEST_MONGO_URI='mongodb://127.0.0.1:27289/ctq_results_test_dues_stage1_final?replicaSet=ctqDuesStage1&directConnection=true' \
-  CATEGORY_TEST_MONGO_URI='mongodb://127.0.0.1:27289/ctq_category_test_dues_stage1_final?replicaSet=ctqDuesStage1&directConnection=true' \
-  npm test -- --runInBand --silent --json --outputFile=/tmp/ctq-dues-stage1-final.json
-```
-
-Las integraciones validan URI localhost/prefijos de prueba y eliminan sus
-bases al terminar. No se inicia AppModule, no se conecta la BD de Heroku ni
-se ejecutan cobros o entregas SMTP reales. Los logs de fallos simulados del
-runner no son incidentes del club. Usuarios test 1/2 son fixtures locales con
-tarifas 180/50; no se tocan los pilotos reales.
-
-Limpieza: se retiro el contenedor propio `ctq-dues-stage1-20261029` con
-almacenamiento temporal en RAM, se verificaron cero contenedores activos y
-se detuvo Docker Desktop. No se eliminaron volumenes ni contenedores ajenos.
-
 ## Pendientes
 
 - Etapa 2: enviar rango real desde React, quitar motivo normal y separar

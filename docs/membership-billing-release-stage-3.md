@@ -5,19 +5,6 @@ activación general ni autorización de un cobro nuevo. Prevalecen las reglas de
 [README](../README.md#mensualidades-ctq), incluidas las cuotas históricas no exigibles
 tras reinscripción aprobada. No se agregaron pantallas, colecciones ni variables de entorno.
 
-## Evidencia local
-
-- Backend: 792 pruebas aprobadas con replica set local, sin integraciones omitidas.
-- Frontend: 203 pruebas aprobadas.
-- Mercado Pago: 125 pruebas aprobadas con proveedor simulado.
-- Correo: 29 pruebas aprobadas con envío simulado.
-- Compilación de los cuatro proyectos correcta. No se inició AppModule con `.env` real.
-- Piloto visual con NestJS y MongoDB aislados: alta titular $180, carga $50, pago manual
-  completo $230 de fixtures, folio, historial y auditoría; no representa dinero recibido.
-- Recorrido de baja, meses excluidos y reinscripción con histórico no exigible.
-- Chrome y WebKit en 320, 390, 820 y 1440 px; no certifica Safari en un iPhone físico.
-- Respaldo financiero local validado y restaurado en otra base temporal, conservando BSON.
-
 ## Corrección encontrada en el piloto
 
 Una cuota futura emitida antes de una baja podía permanecer `VOID` después de reinscribir,
@@ -29,32 +16,6 @@ aprobado explícitamente. Se reutiliza su ID, se calcula la tarifa vigente y se 
 evidencia anterior/nueva en auditoría dentro de la misma transacción. Un fallo de auditoría
 revierte estado e importe. No se reabren meses inactivos, históricos `ARCHIVED` ni pagos
 reales; reintentos no generan cuotas ni auditorías duplicadas.
-
-## Revisión del ambiente desplegado
-
-Revisión autorizada de solo lectura el 27 de octubre de 2026, con la cuenta correcta
-de Heroku. Credenciales solo en memoria, sin exportar respaldos ni modificar registros.
-
-- Octubre de Test 1 ($180) y Test 2, carga vinculada ($50), está `PAID` con pagos
-  `CONFIRMED`. La consulta GET al proveedor confirmó `approved`, CLP, modo real,
-  importes/cuenta/referencias coherentes y cero devolución. No se repitieron cobros.
-- Los dos avisos de confirmación están `SENT` en la base; esto no certifica entrega
-  a bandeja de entrada. No se enviaron correos de prueba.
-- Tarifas generales $18.000/$5.000; precios bajos solo para los dos IDs autorizados.
-  No hay cuotas ni socios con inicio de facturación fuera del piloto.
-- 100 socios activos sin inicio aprobado; los dos del piloto no tienen el nuevo historial
-  de vigencia. Requieren revisión explícita antes de la habilitación general, sin reiniciar
-  sus pagos, inventar deuda ni migrar automáticamente.
-- Un checkout de Test 1 conserva `creationStatus=UNKNOWN`, aunque el pago está confirmado
-  y verificado en el proveedor. Pendiente distinguir este metadato histórico de un pago
-  realmente incierto en las validaciones. No se corrigió el dato ni el código en esta revisión.
-- Variables obligatorias presentes en las cuatro apps, URLs/rutas coherentes y claves
-  internas coincidentes. SMTP 587 con `MAIL_SECURE=false`. Sin variables mensuales
-  obsoletas ni nuevas variables necesarias. No se probaron credenciales SMTP/Cloudinary
-  mediante envíos o cargas reales.
-- Versiones observadas: backend v64 (`b37fe449`), frontend v46 (`f00ac5df`) y MP v36
-  (`df70dac5`), del 18 de octubre UTC. Las nuevas etapas locales no están desplegadas.
-  `autoBlockEnabled` y automatización general siguen desactivados en la base.
 
 ## Chequeo operativo de solo lectura
 
@@ -105,8 +66,8 @@ reemplazar un socio completo desde este respaldo parcial ni borrar pagos para re
 
 ## Pendientes para cerrar la liberación real
 
-1. Revalidar el ambiente antes del despliegue: la revisión de solo lectura ya fue realizada
-   y sus hallazgos están arriba; no es aprobación de cambios generales.
+1. Revisar el ambiente antes del despliegue mediante el chequeo operativo de solo lectura.
+   Esa revisión no equivale a aprobación de cambios generales.
 2. Resolver cuentas sin inicio/historial y casos retenidos, sin inferir deuda ni modificar
    bases iniciales, y el checkout confirmado con metadato `UNKNOWN`. Revisar el retorno
    global al login por sesión vencida, todavía pendiente según README.

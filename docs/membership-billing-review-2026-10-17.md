@@ -52,29 +52,6 @@ los guards financieros en login/reservas ni se activa el bloqueo anticipadamente
 La rama antigua feature/monthly-payments no se fusiona: el modelo actual sustituye
 su propuesta, conservando monthpayctq hasta una migracion/retiro revisados.
 
-## Evidencia
-
-- Backend: 625 pruebas aprobadas, 44 suites, 0 fallos, 0 omitidas. Integraciones en
-  bases ctq_*_test_* de MongoDB LOCAL, no en Atlas.
-- Incluye 13 pruebas de protecciones del piloto: IDs/nombres, rol activo, idempotencia,
-  rechazo de baseline/configuracion ajenos, rechazo de facturacion fuera del piloto,
-  conservacion de tarifas y bloqueo desactivado.
-- API REAL localhost:3500: admin 200, anonimo 401, socio comun 403, consulta y
-  preparacion de dos cuotas de octubre, quotes de 180, historial 200.
-- Navegador Chrome contra API REAL: escritorio 1440x1000, movil 390x844 e iPad
-  820x1180: busqueda, formulario TEST, volver e historial, sin overflow horizontal.
-- Autenticacion de QA temporal en contexto de navegador desechable; sin tokens en
-  archivos ni sustitucion de la sesion del navegador del usuario.
-- Todas las solicitudes de registro bancario y otros cambios quedan bloqueadas
-  en esta comprobacion visual real. El flujo completo bancario se prueba en bases aisladas.
-- TypeScript backend y lint del modulo nuevos verificados.
-- Frontend: 145 pruebas aprobadas y lint correcto. Recorrido completo con APIs
-  simuladas de transferencia, historial y anulacion en escritorio, 390px, 320px e iPad.
-- Segunda ejecucion APPLY del inicializador: sin nuevas altas ni cambios de configuracion.
-  Verificacion posterior en Atlas: 148 socios, 2 incorporados al piloto, 0 ajenos
-  incorporados, 2 cuotas OPEN/TEST de octubre a 180, 0 pagos y un unico evento de setup.
-- No certifica teclado/Safari en dispositivos fisicos ni aprobacion de un pago real.
-
 ## Mejora aprobada: pagos desde Administrar usuarios
 
 - Accion Pagos en cada socio: /adminpayments?memberId=ID, reutilizando el modulo.

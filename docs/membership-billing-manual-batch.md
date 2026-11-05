@@ -96,7 +96,9 @@ Rutas bajo `/membership-billing/admin`, JWT y administrador activo en BD:
 - `GET /members/:id/billing-history/preview`, solo lectura.
 - `POST /members/:id/billing-history`: `{ approvalHash, reason }` y clave idempotente.
 
-## Pruebas
+## Criterios de verificacion
+
+Comprobar en un entorno aislado:
 
 Unitarias de elegibilidad, tarifas, huellas y evidencia frente a `UNKNOWN`. Integración
 HTTP/JWT con replica set local: vista previa sin escrituras, manual versus masivo,

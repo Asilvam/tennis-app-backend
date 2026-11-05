@@ -236,9 +236,8 @@ Esta protección no constituye una auditoría completa de seguridad. El restable
 
 ## Mensualidades CTQ
 
-Cierre revisado de cambios locales de permisos, controles globales y editor:
-[alcance, validacion y limites](docs/cierre-cambios-mensualidades.md).
-Ese cierre no activo automatismos. La etapa 2 posterior se documenta por separado.
+Los reportes de pruebas, capturas y evidencias se conservan solo en local,
+fuera del repositorio. Se mantienen los contratos tecnicos y manuales de uso.
 
 Etapa 1 de automatizacion y permisos actualizada al 31 de octubre:
 [acceso al sitio y bloqueo exclusivo de nuevas reservas](docs/membership-reservation-access-stage-1.md).
@@ -461,16 +460,10 @@ anterior del frontend se conserva para enlaces existentes y recuperacion.
 El informe central esta en `tennis-court-front/docs/mejora-ctq-cloudflare.md`;
 el estado de la etapa 3 se detalla a continuacion.
 
-Actualizacion de etapa 3 (2026-10-29): suite completa del backend, **826 pruebas
-aprobadas en 54 suites, sin omisiones**, con bases MongoDB temporales en un
-replica set local. La matriz de navegador uso AuthService, bcrypt, JWT, guards,
-cuotas, liquidacion y recuperacion reales sobre fixtures, sin AppModule/cron ni
-acceso a la BD del club. Junto con los otros proyectos se aprobaron 96 puntos
-de control en Chromium/WebKit. Login/perfil del piloto tambien se observaron
-en produccion sin operaciones financieras. No hubo cambios de config o codigo
-publicado en esta etapa. El cierre global sigue pendiente por el aviso de
-exito no verificado en la pagina de retorno de reservas del frontend;
-ver `tennis-court-front/docs/ctq-cloudflare-stage3-validacion.md`.
+El retorno de reservas debe confirmar el estado mediante el backend, sin
+interpretar parametros de aprobacion de la URL como prueba de pago.
+Contrato tecnico: `tennis-court-front/docs/correccion-retorno-reservas.md`.
+La liberacion requiere autorizacion independiente de las pruebas locales.
 
 Pruebas aisladas relacionadas:
 

@@ -77,28 +77,3 @@ y deshabilita Confirmar habilitacion. Sin candidatos el control queda deshabilit
 No cambia elegibilidad: inactivos, ya habilitados y casos de revision siguen
 deshabilitados. Seleccionar/deseleccionar es estado local: no envia habilitaciones,
 cuotas ni pagos. No modifica el reintento idempotente de un lote incierto.
-
-## Evidencia y limites
-
-- Backend: 931 pruebas, 58 suites, cero fallos/omitidas; incluye 211 integraciones
-  en 7 suites. MongoDB temporal `ctqStage2`, solo `127.0.0.1:27378`.
-- Frontend: 327 pruebas, cero fallos/omitidas. Build, tipos y lint aprobados.
-- E2E: 126 comprobaciones Chromium/WebKit en 390/820/1440 px. Seleccion reversible
-  de 102 candidatos ficticios, parcial, exclusion y cero confirmaciones reales.
-- Backend build aprobado. Lint completo de los dos archivos funcionales aprobado;
-  revision semantica de los cinco archivos cambiados aprobada. No se declara verde
-  el lint general del repositorio ni se altera su `.prettierrc` local.
-- Nueva cobertura: modo manual, lecturas sin emision, arranque tras caida, dos
-  instancias, emision/pago concurrente, preservacion de cuotas, limite Chile dia 5/6,
-  misma sesion, liberacion manual/MP, UNKNOWN, deuda de carga y orden de pago.
-
-Resumen verificable, casos de integracion y hashes en
-[evidence/generation-stage2/validation.json](evidence/generation-stage2/validation.json).
-Reproduccion previa y verificacion del rechazo de inactivos:
-[inactive-quote-regression.json](evidence/generation-stage2/inactive-quote-regression.json).
-El navegador usa API interceptada: no es aun el recorrido front/backend integrado
-de etapa 3 ni certificacion en iPhone/iPad fisicos. La base temporal se limpia y
-detiene tras probar. No se arranca AppModule usando `.env` real.
-
-Quedan para etapa 3: recorrido integrado, aceptacion fisica, respaldo/piloto y
-autorizacion de despliegue/activacion. No se habilita ningun automatismo del club.

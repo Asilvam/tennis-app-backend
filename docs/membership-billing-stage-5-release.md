@@ -1,39 +1,8 @@
 # Etapa 5: preparacion de liberacion y prueba real
 
-Estado al 17 de octubre de 2026: despliegue autorizado, ejecutado y verificado.
+Guia de preparacion de liberacion y prueba real.
 Se mantienen develop para frontend/backend y master para Mercado Pago, sin cambiar ramas.
 Este documento no ejecuta comandos ni confirma pagos.
-
-## Resultado del despliegue
-
-| Componente | Rama de origen | Commit desplegado | Release |
-| --- | --- | --- | --- |
-| Backend | develop | 4c633ce | v62 codigo, v63 habilitacion |
-| Mercado Pago | master | 99cb412 | v29 |
-| Frontend | develop | 19a72f8 | v44 |
-
-Se desplegaron directamente los commits al remoto Git de cada app Heroku. No se
-cambiaron las ramas de trabajo ni se hizo push a origin/GitHub. Los cambios locales
-ajenos y los secretos quedaron fuera de los commits.
-
-Se habilitaron MEMBERSHIP_PORTAL_ENABLED y MEMBERSHIP_BILLING_ADMIN_ENABLED en backend.
-No se agregaron variables mensuales de Mercado Pago ni se cambiaron credenciales o URLs.
-autoBlockEnabled permanece false. No se ejecuto migracion general.
-
-Comprobaciones sobre servicios publicos: backend 200; ruta del portal sin JWT 401;
-configuracion de Mercado Pago con clave interna 200/ready/CLP y sin clave 401.
-QA con Chrome en produccion: Test 1 en escritorio y viewport iPhone, Test 2 en viewport
-iPhone; importes $180/$50, boton habilitado, historial y permisos correctos, sin errores
-JavaScript ni desborde horizontal. Test 2 no accede al historial del titular y ambos
-usuarios reciben 403 en administracion. Esto no certifica Safari ni teclado fisico iOS.
-
-El script de QA bloqueo checkout y otras escrituras salvo preparar las cuotas ya
-existentes de octubre de los dos usuarios autorizados. El conteo de intentos de pago
-y de cuotas ajenas no cambio. Credenciales obtenidas de Heroku solo en memoria.
-
-Pendiente para cerrar etapa 5: crear y completar el pago real autorizado de Test 1 por
-$180, verificar webhook, imputacion unica, auditoria, historial y correo; despues repetir
-con Test 2 como Carga por $50. No se iniciaron ni completaron pagos en este despliegue.
 
 ## Alcance
 
@@ -42,31 +11,6 @@ con Test 2 como Carga por $50. No se iniciaron ni completaron pagos en este desp
 - No incorporar otros socios, generar cuotas generales ni activar autoBlockEnabled.
 - El usuario completa el pago en Mercado Pago; no se solicitan sus credenciales bancarias.
 - Las credenciales de Heroku se consultan solo en memoria, sin copiarlas a archivos.
-
-## Comprobaciones realizadas
-
-- Consulta de solo lectura usando MONGODB_URI de Heroku y la BD Tennis.
-- Test 1 activo, Titular, inicio de facturacion 2026-10, cuota OPEN/TEST por $180.
-- Cero intentos de pago registrados para Test 1 al preparar este documento.
-- Tarifas de prueba habilitadas solo para los IDs de Test 1 y Test 2.
-- Cero cuotas de octubre de otros socios; autoBlockEnabled=false.
-- Indices unicos de cuota por socio/mes, referencia, idempotencia y pago del proveedor presentes.
-- Configuracion interna de Heroku coherente entre backend y Mercado Pago.
-- La ultima consulta de rutas mensuales de ambos servicios devolvio 404: falta desplegar.
-- Backend: 693 pruebas aprobadas y compilacion correcta en la ultima validacion local.
-- Mercado Pago: 121 pruebas aprobadas y compilacion correcta en la ultima validacion local.
-- Frontend: 164 pruebas aprobadas, compilacion y lint correctos en esta preparacion.
-- Las pruebas automatizadas usan proveedor/correos simulados y base temporal aislada.
-
-## Versiones de referencia
-
-Versiones observadas antes de cualquier cambio; consultar nuevamente antes de desplegar.
-
-| Componente | App Heroku | Version observada |
-| --- | --- | --- |
-| Backend | app-tenis-qtro-backend-2 | v61 |
-| Mercado Pago | mercadopago-service-ctq-2 | v28 |
-| Frontend | app-tenis-qtro-2 | v43 |
 
 ## Secuencia autorizada
 

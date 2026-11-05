@@ -106,14 +106,7 @@ de transaccion; el apagado controla las siguientes comprobaciones del proceso.
 No se modifican cuotas `OPEN/PAID`, pagos, historiales, tarifas, pilotos, estados
 de cuenta ni el indicador manual `updatePayment` desde estas rutas.
 
-## Fuentes y evidencia
-
-Resultado final: **912/912 pruebas backend**, 57 suites, cero omitidas; incluyen
-198 integraciones con MongoDB temporal (12 casos nuevos HTTP/transaccionales de
-estos controles). **323/323 pruebas frontend**, cero omitidas. E2E: **6 vistas y
-72 comprobaciones** en Chromium/WebKit a 390/820/1440px. TypeScript de ambos
-proyectos, lint y build frontend correctos. MongoDB temporal detenido al terminar.
-Las capturas muestran flags de fixtures, no la configuracion del club.
+## Fuentes
 
 - Backend: `billing-lifecycle.controller.ts`, `billing-lifecycle.service.ts`,
   `dto/billing-automation.dto.ts` dentro de `src/membership-billing/`.
@@ -123,6 +116,3 @@ Las capturas muestran flags de fixtures, no la configuracion del club.
   autorizacion, concurrencia, revision, auditoria atomica y pagos intactos.
 - Frontend: `MembershipAutomationSettings.tsx`, integrado en
   `AdminMembershipPayments.tsx`, CSS propio de mensualidades.
-- Evidencia final: `docs/evidence/automation-controls/validation.json` y evidencia
-  responsive correspondiente del frontend. Describe datos sinteticos y limites;
-  no constituye validacion de activacion o despliegue en produccion.

@@ -131,26 +131,6 @@ El filtro de historial combina periodo/beneficiario en la misma imputacion con $
   el texto ni comportamiento de categorias/resultados. El cierre nativo de pestana mantiene
   la proteccion del navegador, que no permite reemplazarla por un dialogo personalizado.
 
-## Pruebas y limites
-
-Validacion automatizada de esta entrega:
-
-- Backend: 607 pruebas aprobadas en 43 suites, sin omisiones. Incluye integraciones reales
-  con MongoDB replica set local de mensualidades, categorias y resultados.
-- Registro bancario por HTTP con JWT real, control de rol desde BD, contrato estricto,
-  concurrencia, repeticion de solicitudes, rollback de registro/anulacion y privacidad de auditoria.
-- Correo simulado: fallo y recuperacion, lease entre trabajadores y agotamiento tras caida.
-- Frontend: 137 pruebas aprobadas, incluidas 21 nuevas de seleccion, payload y reintentos.
-- Playwright/Chrome: listado, formulario, SweetAlert de descarte, registro, historial y anulacion
-  en 1440x1000, 390x844, 320x740 y 820x1180, con APIs interceptadas. Tambien el flujo de
-  referencia repetida. Sin overflow horizontal y sin errores JavaScript.
-- TypeScript, compilacion y lint del frontend; compilacion y lint del modulo nuevo del backend.
-
-Los registros bancarios de integracion se guardaron en bases aisladas ctq_billing_test_*.
-No representan transferencias reales. Los correos fueron simulados. No se hizo un cobro de
-Mercado Pago: su prueba integrada corresponde a etapa 5, con tarifas de prueba y validacion
-de importes admitidos por el proveedor. No se ha certificado Safari/teclado en un iPhone fisico.
-
 ## Siguientes etapas
 
 1. Etapa 4: portal del socio, historial individual y acceso restringido con guards backend.

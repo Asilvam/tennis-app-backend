@@ -442,19 +442,7 @@ No se utiliza `MEMBERSHIP_MP_ENABLED`, `MEMBERSHIP_MP_COLLECTOR_ID`,
 | Timeout o `CHECKOUT_UNKNOWN` | Conservar referencia y clave; conciliar antes de reintentar otro cobro |
 | El banco muestra ingreso pero la app no confirma | Revisar proveedor/callback/historial; no crear un deposito para ocultar un pago MP |
 
-## 11. Evidencias, fuentes y limites
-
-Revision de codigo: backend `a380aaf`, frontend `a02509e`, microservicio MP
-`234e4ed`. Son referencias locales, no versiones certificadas de produccion.
-El [snapshot de fuentes](evidence/operacion-mensualidades/source-snapshot.json)
-registra commits y hashes de los archivos consultados, sin secretos ni socios.
-
-La [regresion previa del retiro de correos](evidence/billing-email-removal/validation.json)
-registra **883 pruebas aprobadas, 56 suites, sin fallos ni omitidas**, incluidas
-**182 integraciones** con MongoDB replica set aislado, HTTP/JWT y proveedores
-simulados. Cubre pagos, cuotas, MP, anulaciones, vigencia, tarifas y regresiones.
-No acredita entrega bancaria real, configuracion actual de Heroku ni Safari fisico.
-Esta tarea documental no vuelve a ejecutar cobros ni modifica comportamiento.
+## 11. Fuentes y limites
 
 Fuentes principales:
 

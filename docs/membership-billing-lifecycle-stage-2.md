@@ -82,13 +82,13 @@ se convierten en bajas automáticas inventadas. Una anulación posterior de un p
 conserva la cuota como histórico no exigible. Un MP tardío sobre `VOID`/`ARCHIVED` queda
 en revisión, sin imputación automática ni reactivación de cuenta.
 
-## Pruebas y publicación
+## Verificaciones antes de publicar
 
-Pruebas unitarias e integración con replica set temporal: Chile día 5/6, recuperación,
+Verificar con pruebas unitarias e integración en replica set temporal: Chile día 5/6, recuperación,
 concurrencia, tarifas, inactivos, admins, históricos, conciliación, pagos efectivos tardíos,
 anticipos, rollback de auditoría, JWT, reintentos y reinscripción. Regresión de pagos,
 correo, reservas, resultados y categorías con proveedores simulados.
 
-Recorrido Chrome/WebKit a 320, 390, 820 y 1440 px con frontend y NestJS reales y base local
-aislada; no certifica un iPhone físico. No se usó Atlas ni AppModule con `.env` real.
+Comprobar Chrome/WebKit a 320, 390, 820 y 1440 px con frontend y NestJS reales y base local
+aislada; no equivale a aceptación en un iPhone físico. No usar Atlas ni AppModule con `.env` real.
 Etapa 3: revisar club y casos retenidos, respaldar, pilotear y aprobar activación aparte.

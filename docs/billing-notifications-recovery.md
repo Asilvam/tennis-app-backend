@@ -5,7 +5,8 @@
 > codigo local. Ver [retiro y verificacion actual](billing-email-removal.md).
 > Las mediciones siguientes corresponden a la implementacion anterior.
 
-Fecha: 2026-10-30. Implementacion local sobre `develop`; no desplegada por esta tarea.
+Fecha: 2026-10-30, zona `America/Santiago`. Documento historico del diagnostico
+del worker, conservado como referencia tecnica tras su retiro.
 
 ## Hallazgo
 
@@ -57,34 +58,6 @@ de entrega y trataba de escribir `FAILED`.
   acepta el correo pero falla el acuse local, la deduplicacion depende de que el
   servicio de email respete la misma clave de idempotencia al reintentar.
 
-## Evidencia
-
-- Regresion Jest: **722 pruebas aprobadas, 184 omitidas, 0 fallidas**;
-  50 suites aprobadas y siete integraciones MongoDB omitidas por no configurar una
-  base aislada para esta ejecucion.
-- Las nuevas pruebas cubren cola vacia, modo existente, envio/anulacion, reclamo
-  concurrente perdido, fases de fallo, backoff/recuperacion, no solapamiento local,
-  sanitizacion, seis intentos y fallo al guardar el acuse de entrega.
-- `EmailService` verifica causa original no enumerable y conserva las pruebas de
-  reset de password, verificacion y contratos existentes.
-- TypeScript: `tsc --noEmit --incremental false`, sin errores.
-- Repeticion tras limpiar el formato de la nueva prueba: 37 pruebas focalizadas
-  aprobadas, sin fallos, en worker, servicio de correo y plantillas de mensualidades.
-  `cleanupValidation` conserva los hashes de esa repeticion; la evidencia de la
-  regresion completa anterior se mantiene sin reemplazar sus resultados.
-- Resumen generado y hashes: [validation.json](evidence/billing-notifications/validation.json).
-- Primera ejecucion sin permiso de puertos fallo con `listen EPERM`; se repitio
-  con permiso para HTTP local y los resultados aprobados corresponden a esa repeticion.
-- No se inicio `AppModule`, no se uso la base del club ni se enviaron correos reales.
-
-Comandos principales desde el backend, con Node 22:
-
-```sh
-BILLING_TEST_MONGO_URI= node node_modules/jest/bin/jest.js --runInBand --silent --json --outputFile=/private/tmp/ctq-billing-notifications-regression.json
-node node_modules/typescript/bin/tsc --noEmit --incremental false
-git diff --check
-```
-
 ## Diagnostico operativo posterior
 
 Tras publicar y reiniciar el backend, buscar el siguiente warning estructurado.
@@ -93,5 +66,5 @@ conexion, consulta y envio sin imprimir datos privados. `persist-sent` exige rev
 el acuse del servicio de correo antes de cualquier reenvio manual. No borrar pagos,
 reiniciar contadores de avisos ni crear otro cobro para resolver un correo fallido.
 
-La causa concreta de los warnings anteriores y la validacion del servicio desplegado
-siguen pendientes de observar con este diagnostico. No es evidencia de un fallo de pago.
+La causa concreta de un warning debe comprobarse con el diagnostico de la fase
+afectada. Un error de entrega de correo no implica por si solo un fallo de pago.

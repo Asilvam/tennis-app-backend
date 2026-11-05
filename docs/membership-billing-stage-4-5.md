@@ -33,27 +33,18 @@ El usuario aprobo expresamente conectar identidad y permisos financieros en logi
 7. No hay bandera adicional de Mercado Pago mensual: backend consulta la disponibilidad del microservicio por una ruta interna autenticada, sin crear cobros. Al desplegar ambos servicios y configurar correctamente las conexiones existentes, el checkout puede quedar disponible. Las confirmaciones no dependen de esa consulta de disponibilidad. No usar la base real de inbox al levantar workers locales de prueba.
 8. Usuario completa una operacion real de $180, comprobar webhook firmado, recibo, cuotas, auditoria y correo. Confirmar compatibilidad del proveedor con $50 antes de probar una Carga real autorizada. No aumentar importes sin acuerdo.
 
-## Verificacion y pendientes
+## Condiciones de liberacion
 
-Pruebas automatizadas en MongoDB replica set local aislado, sin cobros ni correos reales: checkout, concurrencia, confirmacion, idempotencia, privacidad, JWT, callbacks, bloqueo/restablecimiento de reservas y correo. Regresion incluye reservas simples, holds, multibooking, luz/visitas y categorias.
-
-QA Playwright con API/proveedor simulados en 1440, 820, 390 y 320 px: seleccion consecutiva, titular/carga $230, retorno manipulado que no confirma, consulta de pago, historial por medio, carga propia y acceso restringido. Regresion de pagos bancarios desde usuarios.
-
-No se ejecutaron pagos reales, despliegues, commits ni push. Etapa 5 no se considera aceptada de extremo a extremo hasta realizar el pago real con callback publico actualizado. Etapa 6 (migracion general y posible bloqueo automatico) permanece pendiente de aprobacion.
-
-Resultado final: 673 pruebas backend, 112 microservicio y 149 frontend aprobadas; compilacion de los tres proyectos correcta. ESLint del front y de los modulos nuevos correcto. El lint de Auth conserva un conflicto de formato preexistente entre .prettierrc del usuario (240 columnas) y max-len (120); no se cambio esa configuracion ajena.
-
-Validacion inicial del portal local con ambos IDs de prueba: entonces ambos eran Titular $180, cuotas OPEN, sin nuevos pagos. Ese resultado precede al cambio de test 2 a Carga descrito abajo. El bloqueo automatico sigue desactivado; Mercado Pago requiere servicios actualizados y configuracion existente verificada, sin otra bandera.
+La aceptacion de extremo a extremo requiere un pago autorizado con callback
+publico actualizado. La migracion general y la activacion de bloqueos son
+decisiones separadas. Mercado Pago requiere servicios compatibles y la
+configuracion existente verificada, sin otra bandera adicional.
 
 ## Ajuste por cambio de tipo (17 de octubre)
 
 Al cambiar Titular/Carga desde administracion, las cuotas OPEN del mes actual y posteriores se ajustan en la misma transaccion que el socio, conservando sus IDs y una auditoria de antes/despues con administrador autenticado. Los meses anteriores y todas las cuotas PAID conservan su importe. No se generan cuotas nuevas al editar.
 
 Los campos de precio siguen siendo inmutables para el resto de las operaciones: solo el servicio de ajuste permite esta excepcion transaccional auditada. Un checkout pendiente, incierto, en revision o aun utilizable bloquea el cambio completo para no alterar un importe que ya puede cobrarse. Fallos de auditoria revierten tambien la edicion del socio. No se cambia implicitamente de tarifa TEST a STANDARD ni se recalculan pagos historicos.
-
-Caso detectado: test 2 ya era Carga, pero su cuota OPEN de octubre conservaba el snapshot TITULAR y $180. La reparacion se ejecuta por la misma ruta administrativa para llevarla a CARGA/$50, sin tocar test 1 ($180), estados de acceso ni pagos. Total de las dos cuotas: $230.
-
-Reparacion aplicada y auditoria verificada. Cuotas ya generadas de noviembre/diciembre de test 2 a $50 se conservaron sin cambios. Regresion completa: 689 pruebas backend aprobadas (48 suites), incluida concurrencia con checkout y rollback por fallo de auditoria; compilacion y lint del nuevo servicio correctos.
 
 ## Simplificacion de configuracion de Mercado Pago
 

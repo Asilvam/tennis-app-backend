@@ -47,38 +47,3 @@ El retiro ya implementado se conserva en el backend original:
 La documentacion, pruebas negativas y evidencias historicas pueden mencionar el
 nombre del agente; no son instrumentacion activa. Heroku y sus variables no se
 cambiaron. No se reiniciaron procesos existentes ni se iniciaron proveedores.
-
-## Verificacion
-
-Runtime de comprobacion: Node 22.19.0, npm 10.9.3.
-Estos resultados corresponden al arbol local de trabajo completo; conservan
-cambios funcionales pendientes que no forman parte de este commit acotado.
-
-- Backend: 718 pruebas unitarias, 51 suites, cero fallos/omisiones.
-- Frontend: 324 pruebas, cero fallos/omisiones.
-- Compilacion de ambos proyectos aprobada. Frontend compilo con API ficticia
-  y salida temporal, sin leer ni cambiar la configuracion real para el build.
-- Las siete suites de integracion backend quedaron expresamente fuera de esta
-  ejecucion; no se arranco MongoDB ni se presentan como revalidadas.
-- Se corrigio solo el fixture de beforeunload: el Event basico de Node22 tiene
-  returnValue de solo lectura, mientras BeforeUnloadEvent del navegador permite
-  escribirlo. La prueba simula esa propiedad y verifica bloqueo/asignacion y
-  recarga aprobada sin reasignacion. No cambia el hook de la aplicacion.
-- git diff --check aprobado en frontend/backend.
-
-Evidencia versionada: [validation.json](evidence/node22-restoration/validation.json),
-hashes y resultados JSON de backend en el mismo directorio. Las salidas .log
-completas de frontend/build permanecen locales e ignoradas por Git; sus resultados
-se resumen en validation.json. El lockfile seleccionado para el commit y su
-comparacion con HEAD se registran en commit-scope.json.
-
-Para terminales que todavia tengan Node24 seleccionado:
-
-```bash
-nvm use
-```
-
-Ejecutarlo dentro de cada proyecto original. Los procesos existentes mantienen
-su runtime hasta reiniciarse por decision del usuario. El commit posterior
-solicitado registra solo este alcance; no incluye push, despliegue, cambios
-del .env real, pagos ni envio de correos.

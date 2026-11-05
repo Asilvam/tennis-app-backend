@@ -55,7 +55,9 @@ No se agregó baja manual ni cierre automático. Según la decisión confirmada,
 tras tres mensualidades vencidas y la reinscripción pertenecen a la etapa 2. No se activa
 el bloqueo financiero general ni se cambian sus banderas.
 
-## Pruebas locales
+## Criterios de prueba local
+
+Verificar los siguientes casos con datos ficticios antes de publicar:
 
 - Unitarias de intervalos, selección y contratos; evidencia de efectivo y privacidad del historial.
 - Integración HTTP/JWT/MongoDB replica set: vista previa sin escrituras, alta atómica,
@@ -66,9 +68,9 @@ el bloqueo financiero general ni se cambian sus banderas.
   cuentas inactivas, cargas sin titular, períodos inválidos y falta de permisos.
 - Frontend: revisión antes de confirmar, cancelación, motivo obligatorio, doble clic,
   misma clave tras timeout y nueva revisión ante cambios de precio; validación de efectivo.
-- Recorrido completo con frontend, NestJS y MongoDB locales: alta Test 1 ($180), alta
+- Recorrido con frontend, NestJS y MongoDB locales: alta Test 1 ($180), alta
   Test 2 ($50), efectivo agrupado $230 y folio/historial. Chrome y WebKit a 320, 390,
-  820 y 1440 px. No representa dinero recibido ni certificación de un iPhone físico.
+  820 y 1440 px. Las simulaciones no representan dinero recibido ni certificación de un iPhone físico.
 
 Las bases de prueba son locales, temporales y con prefijo `ctq_billing_test_`; no se lee
 `.env` de producción ni se ejecutan trabajadores contra Atlas. No se agregaron dependencias,

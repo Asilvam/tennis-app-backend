@@ -22,26 +22,6 @@ Fecha: 2026-11-01. Solicitud: retirar New Relic de ambos backends locales.
 - Prueba nueva `src/removed-apm.spec.ts`: cuatro casos que impiden reintroducir
   dependencia, precargas, archivos y variables de ejemplo del agente.
 
-## Evidencia
-
-Runtime: Node 24.22.2 y npm 11.19.1. Ambos builds finalizaron correctamente.
-Este backend: **916 pruebas en 58 suites, cero fallos y cero omitidas**.
-Se ejecutaron las siete suites de integracion (198 casos) con MongoDB temporal
-`127.0.0.1:27375`, replica set `ctqNode24Lab`, y bases de prefijo de pruebas.
-Nunca se arranco el AppModule original contra su .env compartido.
-
-Node24 tambien paso lint y 16 comprobaciones HTTP con AppModule real, usuarios
-sinteticos, base `ctq_node24_smoke` y proveedores locales. Incluye DI/Swagger,
-login/JWT, roles, cuenta inactiva y bloqueo de reservas. No se enviaron correos,
-no hubo pagos reales y no se modifico Atlas. MongoDB temporal se detuvo al terminar.
-
-Resumen versionable: [validation.json](evidence/apm-removal/validation.json).
-Salidas completas locales de esta ejecucion:
-`/private/tmp/ctq-remove-newrelic-20261101/`, archivos
-`original-tests.json`, `original-tests.log` y `original-prune.log`.
-Para Node24: `lab-lint.log` y `lab-http-smoke.json`.
-Estos temporales no sustituyen la evidencia versionable y pueden desaparecer.
-
 ## Reproduccion y operacion
 
 Con el replica set temporal iniciado, configurar exclusivamente URIs locales:

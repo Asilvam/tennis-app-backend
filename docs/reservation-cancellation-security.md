@@ -59,38 +59,6 @@ No se afirma atomicidad transaccional entre reserva, slot, auditoria y correo:
 la escritura condicional evita duplicados, pero una caida entre esos efectos
 requiere revision operativa, igual que otros fallos de infraestructura.
 
-## Pruebas y Evidencia
-
-- 20 unitarias nuevas: guard JWT, identidad, estado, rol persistido, propietario,
-  legacy sin creador, plazo exacto/iniciado, fecha invalida, turno nocturno,
-  conflicto, auditoria del actor y captura del creador autenticado.
-- Regresion backend: 746 aprobadas, 0 fallidas; 211 integraciones antiguas omitidas,
-  no certificadas por esta ejecucion.
-- `test/reservation-cancellation.e2e.ts`: 26 controles HTTP con Nest/JWT/MongoDB
-  y ReservationSlotService reales; datos ficticios y reloj Luxon fijo.
-  Prueba rechazo sin efectos, roles obsoletos, propietario distinto de Player 1,
-  creacion con ownerEmail falsificado y dos cancelaciones concurrentes.
-- Correos y auditoria son dobles de prueba contados; no se envia correo real.
-  No se importa AppModule, .env, cron ni proveedor de pagos. La base se elimina
-  al finalizar y MongoDB temporal se apaga tras las pruebas.
-- TypeScript backend y ESLint de archivos nuevos aprobados. Para esos archivos
-  se usa printWidth 120; la configuracion local ajena no se modifica.
-- El frontend existente ya adjunta Bearer al crear y cancelar. Sin cambios de UI
-  ni nuevas pruebas de dispositivo fisico en esta tarea.
-
-Reportes sanitizados y hashes: `docs/evidence/reservation-cancellation/`.
-
-```bash
-node node_modules/jest/bin/jest.js --runInBand court-reserve.cancellation.spec.ts
-node node_modules/jest/bin/jest.js --runInBand
-node node_modules/typescript/bin/tsc --noEmit --incremental false -p tsconfig.build.json
-node -r ts-node/register test/reservation-cancellation.e2e.ts mongodb://127.0.0.1:29479/ctq_cancel_test_permissions /private/tmp/ctq-cancellation-validation
-```
-
-El arnes solo acepta loopback y una base con prefijo `ctq_cancel_test_`; esa
-restriccion existe exclusivamente en el test, no en el arranque de la aplicacion.
-No hay variables nuevas: README actualizado; env.example no requiere cambios.
-
 ## Limites
 
 Alcance aprobado: autorizacion del DELETE y procedencia del creador en nuevas
