@@ -42,6 +42,31 @@ no depende de Mercado Pago ni de la configuracion de tarifas en lecturas normale
 Cancelaciones existentes, consulta de resultado de pago y callbacks internos
 conservan sus contratos y autorizaciones. Los callbacks mantienen su API key.
 
+### Refresco de sesion independiente de Mercado Pago
+
+`GET /membership-billing/me/access` usa `permissions()`, no `access()`. Revalida
+la cuenta y las restricciones actuales sin consultar la disponibilidad del proveedor
+ni devolver `mpEnabled`. Los refrescos del `AuthContext` por intervalo, foco o
+visibilidad ya no disparan desde esta ruta `GET /membership/configuration` al
+microservicio. No se almacenan permisos en cache ni se omiten controles de mora,
+actividad, configuracion o errores financieros.
+
+`POST /membership-billing/me/dues` conserva `home()` y su `access.mpEnabled`,
+calculado mediante `BillingPortalService.access()`. Abrir el portal si puede
+consultar al proveedor, con su cache existente de 15 segundos. El checkout
+mantiene sus validaciones de proveedor, importes e idempotencia. No cambian
+webhooks, claves, cron, variables de entorno ni la frecuencia del tablero.
+
+Esta separacion elimina una fuente de trafico innecesario, no garantiza que el
+dyno duerma: accesos al portal, pagos, callbacks u otros clientes pueden mantenerlo
+activo. El ahorro real debe medirse despues de un despliegue autorizado.
+
+Pruebas de regresion en `billing-portal.spec.ts` y
+`billing-mp.integration.spec.ts`: refrescos repetidos sin llamadas al proveedor,
+proveedor sin respuesta, disponibilidad conservada al abrir mensualidades y
+restriccion por mora independiente del proveedor. La integracion requiere el
+MongoDB aislado del arnes; no debe ejecutarse contra la base del club.
+
 El indicador manual se aplica incluso si el portal de mensualidades esta apagado;
 no se usa su flag para eludir controles de reserva. Administradores siguen
 exentos de mora automatica, no de una restriccion manual explicita.

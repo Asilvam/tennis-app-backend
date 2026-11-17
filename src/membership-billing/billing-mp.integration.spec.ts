@@ -582,10 +582,33 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
       get.mockRejectedValue(new Error('simulated provider outage'));
       expect((await call('/court-reserve', {})).status).toBe(201);
       expect(get).not.toHaveBeenCalled();
-      const access = await call('/membership-billing/me/access');
-      expect(access.status).toBe(200);
-      expect(access.body.mpEnabled).toBe(false);
+      for (let refresh = 0; refresh < 3; refresh++) {
+        const access = await call('/membership-billing/me/access');
+        expect(access.status).toBe(200);
+        expect(access.body.canReserve).toBe(true);
+        expect(access.body).not.toHaveProperty('mpEnabled');
+      }
+      expect(get).not.toHaveBeenCalled();
+      const home = await call('/membership-billing/me/dues', {});
+      expect(home.status).toBe(201);
+      expect(home.body.access.mpEnabled).toBe(false);
       expect(get).toHaveBeenCalledTimes(1);
+    });
+    it('checks payment readiness only when opening the payment portal, not on later session refreshes', async () => {
+      const get = jest.mocked(axios.get);
+      expect((await call('/membership-billing/me/access')).status).toBe(200);
+      expect(get).not.toHaveBeenCalled();
+      const home = await call('/membership-billing/me/dues', {});
+      expect(home.status).toBe(201);
+      expect(home.body.access.mpEnabled).toBe(true);
+      expect(get).toHaveBeenCalledTimes(1);
+      expect(get).toHaveBeenCalledWith(
+        expect.stringContaining('/membership/configuration'),
+        expect.any(Object),
+      );
+      get.mockClear();
+      expect((await call('/membership-billing/me/access')).status).toBe(200);
+      expect(get).not.toHaveBeenCalled();
     });
     it('still denies debtors booking access while the payment provider is unavailable', async () => {
       const get = jest.mocked(axios.get);
@@ -595,6 +618,10 @@ const uri = process.env.BILLING_TEST_MONGO_URI;
         { $set: { autoBlockEnabled: true, 'activation.migrationReviewed': true } },
       );
       now = new Date('2026-11-06T15:00:00Z');
+      const access = await call('/membership-billing/me/access');
+      expect(access.status).toBe(200);
+      expect(access.body).toMatchObject({ canReserve: false, reason: 'OVERDUE_DUES' });
+      expect(access.body).not.toHaveProperty('mpEnabled');
       expect((await call('/court-reserve', {})).status).toBe(403);
       expect(get).not.toHaveBeenCalled();
     });

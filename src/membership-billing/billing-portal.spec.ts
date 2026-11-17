@@ -1,4 +1,5 @@
 import { BillingPortalService } from './billing-portal.service';
+import { BillingPortalController } from './billing-portal.controller';
 import { proposedBillingConfiguration } from './billing.types';
 
 describe('Portal permissions independent of payment-provider availability', () => {
@@ -38,6 +39,16 @@ describe('Portal permissions independent of payment-provider availability', () =
       role: 'user',
       memberId: actor._id,
     });
+    expect(provider.available).not.toHaveBeenCalled();
+  });
+  it('serves repeated session access refreshes without waiting for or waking the provider', async () => {
+    provider.available.mockImplementation(() => new Promise(() => {}));
+    const controller = new BillingPortalController(portal);
+    for (let refresh = 0; refresh < 3; refresh++) {
+      const access = await controller.access({ user: { email: actor.email } });
+      expect(access).toMatchObject({ accountActive: true, canReserve: true });
+      expect(access).not.toHaveProperty('mpEnabled');
+    }
     expect(provider.available).not.toHaveBeenCalled();
   });
   it.each([true, false])(
@@ -132,6 +143,8 @@ describe('Portal permissions independent of payment-provider availability', () =
       provider,
     );
     const response = await portal.home(actor.email);
+    expect(response.access.mpEnabled).toBe(true);
+    expect(provider.available).toHaveBeenCalledTimes(1);
     expect(response.currentPeriod).toBe('2026-12');
     expect(response.dues.map((row) => row.period)).toEqual(['2026-10']);
     expect(core.prepareDues).not.toHaveBeenCalled();

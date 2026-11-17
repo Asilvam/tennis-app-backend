@@ -33,7 +33,7 @@ export class BillingPortalController {
   constructor(private readonly portal: BillingPortalService) {}
   @Get('access')
   access(@Req() request: { user: { email: string } }) {
-    return this.portal.access(request.user.email);
+    return this.portal.permissions(request.user.email);
   }
   @Post('dues')
   dues(@Req() request: { user: { email: string } }, @Body() body: PrepareAdminDuesDto) {

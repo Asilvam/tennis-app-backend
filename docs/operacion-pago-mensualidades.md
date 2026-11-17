@@ -314,7 +314,7 @@ Los cuerpos usan validacion y rechazan campos ajenos al contrato.
 
 | Metodo y ruta | Uso |
 | --- | --- |
-| `GET /me/access` | Permisos financieros y disponibilidad MP |
+| `GET /me/access` | Permisos de cuenta y reserva, sin consultar a Mercado Pago |
 | `POST /me/dues` | Contexto y preparacion de cuotas propias/familia autorizada |
 | `GET /me/payments?beneficiaryId=...&page=1` | Historial autorizado |
 | `POST /checkout` | Crear o recuperar intento MP, con `dueIds` e idempotencia |
